@@ -20,12 +20,6 @@ const ComingSoon: React.FC = () => {
           <br/>
           Preparati per un'esplosione di sapore!
         </p>
-        
-        <div className="accent-container">
-          <div className="accent-dot"></div>
-          <div className="accent-line"></div>
-          <div className="accent-dot"></div>
-        </div>
       </main>
       
       <footer className="footer">

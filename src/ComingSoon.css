@@ -42,7 +42,7 @@
 
 .header {
   display: flex;
-  justify-content: flex-start;
+  justify-content: center;
   z-index: 10;
   animation: slideDown 1s ease-out;
 }
@@ -56,15 +56,6 @@
   width: 140px;
   height: auto;
   border-radius: 16px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
-  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.4s ease;
-  border: 2px solid rgba(255, 255, 255, 0.1);
-}
-
-.logo:hover {
-  transform: scale(1.08) rotate(-3deg);
-  box-shadow: 0 15px 35px rgba(62, 190, 219, 0.5);
-  border-color: var(--color-accent);
 }
 
 .main-content {
@@ -127,36 +118,6 @@
   to { opacity: 1; }
 }
 
-.accent-container {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  animation: expandWidth 1.5s ease-out forwards;
-  opacity: 0;
-  animation-delay: 0.5s;
-}
-
-@keyframes expandWidth {
-  from { opacity: 0; transform: scaleX(0.5); }
-  to { opacity: 1; transform: scaleX(1); }
-}
-
-.accent-line {
-  width: 150px;
-  height: 4px;
-  background-color: var(--color-accent);
-  border-radius: 2px;
-  box-shadow: 0 0 15px var(--color-accent);
-}
-
-.accent-dot {
-  width: 8px;
-  height: 8px;
-  background-color: var(--color-white);
-  border-radius: 50%;
-  box-shadow: 0 0 10px var(--color-white);
-}
-
 .footer {
   text-align: center;
   z-index: 10;
@@ -200,8 +161,5 @@
   }
   .description {
     font-size: 1.3rem;
-  }
-  .accent-line {
-    width: 80px;
   }
 }
