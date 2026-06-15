@@ -1,0 +1,207 @@
+.coming-soon-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding: 2rem 4rem;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Sfondo spaziale animato */
+.coming-soon-container::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle at center, var(--color-accent) 0%, transparent 25%);
+  opacity: 0.15;
+  animation: pulse 10s ease-in-out infinite alternate;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.coming-soon-container::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url('data:image/svg+xml;utf8,<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><filter id="noiseFilter"><feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23noiseFilter)"/></svg>');
+  opacity: 0.04;
+  z-index: 1;
+  pointer-events: none;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1) translate(0, 0); }
+  100% { transform: scale(1.1) translate(2%, 2%); }
+}
+
+.header {
+  display: flex;
+  justify-content: flex-start;
+  z-index: 10;
+  animation: slideDown 1s ease-out;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.logo {
+  width: 140px;
+  height: auto;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.4s ease;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.logo:hover {
+  transform: scale(1.08) rotate(-3deg);
+  box-shadow: 0 15px 35px rgba(62, 190, 219, 0.5);
+  border-color: var(--color-accent);
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  z-index: 10;
+  margin-top: -2rem;
+}
+
+.text-wrapper {
+  position: relative;
+  margin-bottom: 2rem;
+}
+
+.title {
+  font-size: 7.5rem;
+  letter-spacing: 6px;
+  margin: 0;
+  line-height: 1;
+  color: var(--color-white);
+  text-shadow: 
+    4px 4px 0 var(--color-secondary), 
+    8px 8px 0 rgba(0,0,0,0.3),
+    0 0 40px rgba(62, 190, 219, 0.4);
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-15px); text-shadow: 4px 15px 0 var(--color-secondary), 8px 20px 0 rgba(0,0,0,0.2), 0 0 50px rgba(62, 190, 219, 0.6); }
+  100% { transform: translateY(0px); }
+}
+
+.subtitle {
+  font-size: 3.5rem;
+  color: var(--color-accent);
+  margin-top: -0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 4px;
+  text-shadow: 2px 2px 5px rgba(0,0,0,0.4);
+  animation: float 6s ease-in-out infinite 0.5s;
+}
+
+.description {
+  font-size: 1.8rem;
+  max-width: 650px;
+  line-height: 1.5;
+  margin-bottom: 3rem;
+  color: rgba(255, 255, 255, 0.9);
+  letter-spacing: 1.5px;
+  animation: fadeIn 2s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.accent-container {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  animation: expandWidth 1.5s ease-out forwards;
+  opacity: 0;
+  animation-delay: 0.5s;
+}
+
+@keyframes expandWidth {
+  from { opacity: 0; transform: scaleX(0.5); }
+  to { opacity: 1; transform: scaleX(1); }
+}
+
+.accent-line {
+  width: 150px;
+  height: 4px;
+  background-color: var(--color-accent);
+  border-radius: 2px;
+  box-shadow: 0 0 15px var(--color-accent);
+}
+
+.accent-dot {
+  width: 8px;
+  height: 8px;
+  background-color: var(--color-white);
+  border-radius: 50%;
+  box-shadow: 0 0 10px var(--color-white);
+}
+
+.footer {
+  text-align: center;
+  z-index: 10;
+  padding-top: 2rem;
+  font-size: 1.2rem;
+  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: 1px;
+}
+
+@media (max-width: 900px) {
+  .coming-soon-container {
+    padding: 2rem;
+  }
+  .title {
+    font-size: 5.5rem;
+  }
+  .subtitle {
+    font-size: 2.5rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .coming-soon-container {
+    padding: 1.5rem;
+  }
+  .header {
+    justify-content: center;
+  }
+  .logo {
+    width: 110px;
+  }
+  .main-content {
+    margin-top: 2rem;
+  }
+  .title {
+    font-size: 4rem;
+  }
+  .subtitle {
+    font-size: 1.8rem;
+    margin-top: 0;
+  }
+  .description {
+    font-size: 1.3rem;
+  }
+  .accent-line {
+    width: 80px;
+  }
+}
