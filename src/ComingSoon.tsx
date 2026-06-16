@@ -8,7 +8,7 @@ const ComingSoon: React.FC = () => {
   const [isExploding, setIsExploding] = useState(false);
   const [typedText, setTypedText] = useState('');
   
-  const fullText = "Stiamo preparando qualcosa di spaziale.\nClicca il vulcano per un'esplosione di sapore!";
+  const fullText = "Stiamo preparando qualcosa di atomico.\nClicca la Bisalta per un'esplosione!";
 
   useEffect(() => {
     let currentIndex = 0;
