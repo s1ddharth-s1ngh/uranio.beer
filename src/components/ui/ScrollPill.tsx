@@ -30,6 +30,16 @@ export default function ScrollPill({
   const labelEl = useRef<HTMLSpanElement>(null);
   const reduceMotion = usePrefersReducedMotion();
 
+  // dopo il reveal iniziale (lento, col suo delay) le comparse/sparizioni
+  // legate allo scroll devono essere immediate: niente delay di 0.7s quando
+  // si risale dalla zona del cursore invert
+  const [settled, setSettled] = useState(false);
+  useEffect(() => {
+    if (!revealed) return;
+    const t = setTimeout(() => setSettled(true), 1700);
+    return () => clearTimeout(t);
+  }, [revealed]);
+
   // invito allo scroll: visibile finché il cursore invert è spento, nascosta
   // quando la 2ª sezione è arrivata. Vale anche su touch e in reduced-motion.
   const [hidden, setHidden] = useState(false);
@@ -210,7 +220,7 @@ export default function ScrollPill({
 
   return (
     <div
-      className={`${styles.wrap} ${revealed ? styles.revealed : ""} ${hidden ? styles.hiddenByScroll : ""}`}
+      className={`${styles.wrap} ${revealed ? styles.revealed : ""} ${settled ? styles.settled : ""} ${hidden ? styles.hiddenByScroll : ""}`}
     >
       <div ref={el} className={styles.pill}>
         <span className={styles.srOnly}>{label}</span>

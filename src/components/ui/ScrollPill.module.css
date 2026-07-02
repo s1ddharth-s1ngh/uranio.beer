@@ -13,8 +13,14 @@
   transition: opacity 0.9s ease 0.7s;
 }
 
-/* scroll iniziato: la pill si dissolve subito (specificità doppia: vince
-   su .revealed anche col suo delay) */
+/* dopo il reveal iniziale: transizioni rapide e senza delay, così risalendo
+   dalla zona invert la pill ricompare subito */
+.wrap.settled {
+  transition: opacity 0.25s ease;
+}
+
+/* 2ª sezione arrivata (cursore invert attivo): pill dissolta.
+   Ultima regola a pari specificità: vince su .revealed e .settled */
 .wrap.hiddenByScroll {
   opacity: 0;
   transition: opacity 0.25s ease;
