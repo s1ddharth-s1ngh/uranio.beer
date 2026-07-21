@@ -1,6 +1,6 @@
 import { Component, Suspense, useMemo, useRef } from "react";
 import type { ReactNode, RefObject } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Canvas, useFrame } from "@react-three/fiber";
 import {
   Environment,
   Lightformer,
@@ -8,16 +8,13 @@ import {
   useProgress,
 } from "@react-three/drei";
 import * as THREE from "three";
-import { KickModel } from "./KickModel";
+import UranioLogo, { URANIO_URL } from "./UranioLogo";
 import Starfield from "./Starfield";
 import { useWindowPointer } from "./useWindowPointer";
 import type { PointerState } from "./useWindowPointer";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { useIsTouch } from "../../hooks/useIsTouch";
 import { setAssetProgress } from "../../lib/assetProgress";
-
-const MODEL_SIGN = `${import.meta.env.BASE_URL}3d/optimized/Japanese_Sign_10.glb`;
-const MODEL_KX = `${import.meta.env.BASE_URL}3d/optimized/KX418_003C0_V7.glb`;
 
 // inoltra il progresso reale dei GLB allo store letto dal Loader.
 // Registrato PRIMA dei preload (l'onStart sincrono non va perso) e con un
@@ -30,8 +27,9 @@ setAssetProgress({
   active: useProgress.getState().active,
 });
 
-useGLTF.preload(MODEL_SIGN);
-useGLTF.preload(MODEL_KX);
+// il logo Uranio (lettere + emblema) è l'unico modello dell'hero: preload DOPO
+// la subscription qui sopra, così l'onStart sincrono non va perso
+useGLTF.preload(URANIO_URL);
 
 interface HeroSceneProps {
   reduceMotion?: boolean;
@@ -39,17 +37,15 @@ interface HeroSceneProps {
   active?: boolean;
 }
 
-// Configurazione camera/qualità per fascia di dispositivo. Il desktop usa
-// i valori tarati originali; su mobile/tablet la scena viene ri-inquadrata
-// e alleggerita (dpr, stelle, risoluzione environment)
+// Configurazione camera/qualità per fascia di dispositivo. Il logo è ~quadrato
+// e viene sempre adattato alla viewport da UranioLogo (fit-to-view interno),
+// quindi qui bastano fov/distanza camera + parametri di qualità
 interface ViewConfig {
   fov: number;
   camZ: number;
   dpr: [number, number];
   starFactor: number;
   envRes: number;
-  // true: i modelli vengono scalati per stare nella larghezza visibile
-  fitToView: boolean;
 }
 
 const DESKTOP_VIEW: ViewConfig = {
@@ -58,91 +54,6 @@ const DESKTOP_VIEW: ViewConfig = {
   dpr: [1, 2],
   starFactor: 1,
   envRes: 256,
-  fitToView: false, // desktop: composizione originale, nessun riadattamento
-};
-
-interface ModelSpec {
-  url: string;
-  position: [number, number, number];
-  rotation: [number, number, number];
-  size: number;
-}
-
-interface SceneLayout {
-  models: ModelSpec[];
-  // ingombro complessivo in unità mondo (modelli inclusi i bordi):
-  // usato per calcolare il fattore di fit rispetto alla viewport reale
-  width: number;
-  height: number;
-  yOffset: number; // trasla il gruppo (portrait: su, via dal titolo in basso)
-}
-
-// fila orizzontale: la composizione desktop originale — valori tarati,
-// riusata anche su tablet/landscape (con fit-scale se serve)
-const ROW_LAYOUT: SceneLayout = {
-  models: [
-    {
-      url: MODEL_KX,
-      position: [-4.1, 0.15, 0],
-      rotation: [0.95, 0.5, -1.02],
-      size: 2.5,
-    },
-    {
-      url: MODEL_SIGN,
-      position: [-1.4, -0.1, 0],
-      rotation: [1.12, -0.35, 0.15],
-      size: 2.6,
-    },
-    {
-      url: MODEL_KX,
-      position: [1.3, 0.1, 0],
-      rotation: [-0.3, -0.45, 1.2],
-      size: 2.3,
-    },
-    {
-      url: MODEL_SIGN,
-      position: [3.9, -0.05, 0],
-      rotation: [-1.0, 0.4, -0.3],
-      size: 2.2,
-    },
-  ],
-  width: 10.8,
-  height: 4.4,
-  yOffset: 0,
-};
-
-// portrait stretto: la fila non ci sta MAI in larghezza → colonna a zigzag
-// (lo spazio è verticale); stesse rotazioni di riposo della fila
-const COLUMN_LAYOUT: SceneLayout = {
-  models: [
-    {
-      url: MODEL_KX,
-      position: [-1.15, 3.0, 0],
-      rotation: [0.95, 0.5, -1.02],
-      size: 2.5,
-    },
-    {
-      url: MODEL_SIGN,
-      position: [1.0, 1.1, 0],
-      rotation: [1.12, -0.35, 0.15],
-      size: 2.6,
-    },
-    {
-      url: MODEL_KX,
-      position: [-1.0, -0.9, 0],
-      rotation: [-0.3, -0.45, 1.2],
-      size: 2.3,
-    },
-    {
-      url: MODEL_SIGN,
-      position: [1.1, -2.9, 0],
-      rotation: [-1.0, 0.4, -0.3],
-      size: 2.2,
-    },
-  ],
-  width: 4.9,
-  height: 8.4,
-  yOffset: 0.55,
 };
 
 // Applica fov/z al volo (breakpoint o rotazione device): il prop camera del
@@ -198,19 +109,26 @@ function makeHorizonTexture(): THREE.CanvasTexture {
   // basso: le facce rivolte alla camera riflettono soprattutto cielo).
   // Contrasto spinto: è quello che fa "bruciare" le creste a bianco e
   // annerire i fianchi, come nel riferimento
-  const HORIZON = 0.62;
+  // orizzonte un po' sopra la metà. Le facce FRONTALI (piatte) delle lettere
+  // riflettono la fascia d'orizzonte: la teniamo argento MEDIO (non bianca),
+  // altrimenti le lettere piatte diventano bianche uniformi. Il bianco arriva
+  // dagli highlight nitidi delle key light, non dal fondo dell'ambiente
+  const HORIZON = 0.55;
   const sky = ctx.createLinearGradient(0, 0, 0, h * HORIZON);
-  sky.addColorStop(0, "#ffffff");
-  sky.addColorStop(0.65, "#b3b6c2");
-  sky.addColorStop(1, "#ffffff"); // banda brillante appena sopra l'orizzonte
+  sky.addColorStop(0, "#b8bbc5"); // cielo: argento, per le creste rivolte in su
+  sky.addColorStop(0.7, "#cccfd8");
+  sky.addColorStop(1, "#dde0e8"); // orizzonte: argento chiaro, NON bianco
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, w, h * HORIZON);
 
-  // terra: stacco netto, poi quasi nero
+  // TERRA: grigio MEDIO, non scuro. Le lettere stanno in basso e riflettono
+  // verso il suolo: con un suolo scuro le facce inferiori facevano "ombra".
+  // Un grigio medio-chiaro le tiene argento, con solo un lieve gradiente verso
+  // il basso — ancora cromo, ma senza zone in ombra
   const ground = ctx.createLinearGradient(0, h * HORIZON, 0, h);
-  ground.addColorStop(0, "#1c1c22");
-  ground.addColorStop(0.4, "#0a0a0e");
-  ground.addColorStop(1, "#020203");
+  ground.addColorStop(0, "#9a9aa2"); // subito sotto l'orizzonte: argento medio
+  ground.addColorStop(0.45, "#75757d");
+  ground.addColorStop(1, "#5c5c64"); // fondo: grigio medio, non scuro
   ctx.fillStyle = ground;
   ctx.fillRect(0, h * HORIZON, w, h * (1 - HORIZON));
 
@@ -229,26 +147,22 @@ function ChromeEnvironment({ resolution = 256 }: { resolution?: number }) {
         <sphereGeometry args={[1, 32, 24]} />
         <meshBasicMaterial map={horizon} side={THREE.BackSide} />
       </mesh>
-      {/* key light dall'alto: la striscia di riflesso bianco sulle creste */}
+      {/* KEY LIGHT: fascia luminosa larga in alto → l'highlight bianco netto
+          sulle creste (UNA banda pulita, non le righe della vecchia normal
+          map). È questo riflesso brillante su corpo argento a dare il cromo */}
       <Lightformer
-        intensity={6.5}
-        position={[0, 6, 2]}
+        intensity={7}
+        position={[0, 5.5, 3]}
         rotation-x={Math.PI / 2}
-        scale={[10, 5, 1]}
+        scale={[11, 2.6, 1]}
       />
-      {/* striscia diagonale dietro la camera: venatura sulle facce frontali */}
+      {/* accento diagonale morbido: un secondo highlight sulle facce frontali,
+          ampio così resta un bagliore pulito e non una riga sottile */}
       <Lightformer
-        intensity={3}
-        position={[2, 1, 8]}
-        rotation-z={-0.35}
-        scale={[14, 0.8, 1]}
-      />
-      {/* controluce laterale tenue */}
-      <Lightformer
-        intensity={1.8}
-        position={[-6, -0.5, 3]}
-        rotation-y={Math.PI / 2.6}
-        scale={[6, 2.5, 1]}
+        intensity={2.2}
+        position={[-3, 1.5, 6]}
+        rotation-z={0.5}
+        scale={[7, 1.8, 1]}
       />
     </Environment>
   );
@@ -266,22 +180,6 @@ function SceneContents({
   view: ViewConfig;
 }) {
   const pointer = useWindowPointer();
-  const size = useThree((s) => s.size);
-
-  // larghezza/altezza VISIBILI a z=0 calcolate da fov/z configurati (non da
-  // state.viewport, che non si aggiorna quando CameraConfig cambia la camera)
-  const column = view.fitToView && portrait;
-  const layout = column ? COLUMN_LAYOUT : ROW_LAYOUT;
-  const worldH = 2 * view.camZ * Math.tan((view.fov * Math.PI) / 360);
-  const worldW = worldH * (size.width / size.height);
-  // margine del 6% ai lati / 8% sopra-sotto; su desktop resta 1 (originale)
-  const fit = view.fitToView
-    ? Math.min(
-        1,
-        (worldW * 0.94) / layout.width,
-        (worldH * 0.92) / layout.height,
-      )
-    : 1;
 
   return (
     <>
@@ -291,28 +189,18 @@ function SceneContents({
       <CameraRig pointer={pointer} reduceMotion={reduceMotion} />
       <Suspense fallback={null}>
         <ChromeEnvironment resolution={view.envRes} />
-        {/* composizione come l'originale: oggetti FERMI, allineati in fila
-            orizzontale come lettere, stessa quota, spaziatura coerente.
-            Il cartello è un pannello (faccia larga con normale Y): X ~ ±1.1
-            la inclina verso la camera. Il KX418 è una trave lunga in Y:
-            Z ~ ±1 la mette in diagonale. Su portrait la fila diventa una
-            colonna a zigzag e il gruppo viene scalato per stare in vista */}
-        <group scale={fit} position={[0, layout.yOffset, 0]}>
-          {/* key sul layout EFFETTIVO (non su portrait): su desktop non
-              rimonta mai, la fisica del calcio sopravvive ai resize */}
-          {layout.models.map((m, i) => (
-            <KickModel
-              key={`${column}-${i}`}
-              url={m.url}
-              position={m.position}
-              rotation={m.rotation}
-              size={m.size}
-              pointer={pointer}
-              reduceMotion={reduceMotion}
-              ambient={ambient}
-            />
-          ))}
-        </group>
+        {/* il logo Uranio: emblema + 6 lettere, ciascuno calciabile per conto
+            suo. Il fit alla viewport è calcolato dentro UranioLogo (il logo è
+            ~quadrato: entra bene sia in landscape che in portrait). Nessun
+            remount sui resize → la fisica del calcio sopravvive */}
+        <UranioLogo
+          pointer={pointer}
+          reduceMotion={reduceMotion}
+          ambient={ambient}
+          fov={view.fov}
+          camZ={view.camZ}
+          portrait={portrait}
+        />
       </Suspense>
     </>
   );
@@ -354,7 +242,6 @@ export default function HeroScene({
         dpr: [1, 1.5],
         starFactor: 0.55,
         envRes: 128,
-        fitToView: true,
       }
     : isTablet || (isTouch && portrait)
       ? {
@@ -366,7 +253,6 @@ export default function HeroScene({
           dpr: [1, 2],
           starFactor: 0.8,
           envRes: 256,
-          fitToView: true,
         }
       : DESKTOP_VIEW;
 
@@ -386,9 +272,11 @@ export default function HeroScene({
           powerPreference: "high-performance",
         }}
         onCreated={({ gl }) => {
-          // ACES (default R3F) + esposizione alta: i riflessi più forti
-          // "bruciano" a bianco come nell'originale
-          gl.toneMappingExposure = 1.15;
+          // ACES (default R3F): roll-off morbido delle alte luci → gli
+          // highlight delle key light restano bianchi brillanti senza clippare
+          // a bianco piatto, il corpo resta argento. Leggermente sopra 1: le
+          // lettere in basso restano luminose, senza ombre
+          gl.toneMappingExposure = 1.08;
         }}
         frameloop={reduceMotion ? "demand" : active ? "always" : "never"}
         // il touch verticale sul canvas deve scrollare la pagina
