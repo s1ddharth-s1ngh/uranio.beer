@@ -9,6 +9,7 @@ import {
   useTransform,
 } from "framer-motion";
 import { AboutBottle } from "./AboutBottle";
+import { AboutEye } from "./AboutEye";
 import { usePrefersReducedMotion } from "../../hooks/usePrefersReducedMotion";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { useIsTouch } from "../../hooks/useIsTouch";
@@ -112,8 +113,15 @@ export default function AboutSection() {
                   scale={[5, 3, 1]}
                 />
               </Environment>
+              {/* piramide centrale che guida lo scrollytelling */}
               <AboutBottle
                 progress={progress}
+                reduceMotion={reduceMotion}
+                narrow={narrow}
+                touch={isTouch}
+              />
+              {/* occhio 3D fisso in basso a destra, segue il cursore */}
+              <AboutEye
                 reduceMotion={reduceMotion}
                 narrow={narrow}
                 touch={isTouch}
