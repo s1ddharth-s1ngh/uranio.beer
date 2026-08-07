@@ -1,24 +1,26 @@
 import * as THREE from "three";
+import { CHROME_MATERIAL } from "./heroParams";
 
 // Materiale CROMO LUCIDO condiviso dalle mesh dell'hero (lettere + emblema del
 // logo Uranio). Look "liquid chrome" stile oobexr: specchio pulito che riflette
-// un ambiente cielo-chiaro/terra-scura → ogni lettera è argento brillante in
-// alto e scura in basso, con la banda netta dell'orizzonte sulla faccia.
+// un ambiente cielo-chiaro/terra-NERA → le creste rivolte in su bruciano a
+// bianco, le facce inferiori e le cavità scendono a nero profondo. È la
+// CURVATURA delle lettere gonfie a stirare il gradiente verticale dell'ambiente
+// sulla superficie (una faccia piatta rifletterebbe un solo punto).
 // Estratto dal vecchio KickModel così UranioLogo non duplica il materiale.
 //
 // SUPERFICIE LISCIA, senza normal map: la vecchia normal map "a onde" creava
-// righe/venature orizzontali che non piacevano — rimossa. Il carattere cromato
-// viene TUTTO dal riflesso dell'<Environment> (vedi makeHorizonTexture in
-// HeroScene), non da texture sulla superficie. Il contrasto forte cielo/terra
-// (non l'intensità pura) è ciò che lo fa leggere come cromo e non come bianco
-// pieno abbagliante.
+// righe/venature che non piacevano — rimossa. Il carattere cromato viene TUTTO
+// dal riflesso dell'<Environment> (vedi makeChromeGradient in HeroScene), non
+// da texture sulla superficie. È il CONTRASTO forte cielo/terra dell'ambiente,
+// non l'intensità pura, a farlo leggere come cromo. Parametri in heroParams.ts.
 export const chromeMaterial = new THREE.MeshPhysicalMaterial({
   color: 0xffffff, // neutro: è il riflesso a dare il colore
-  metalness: 1,
-  roughness: 0.08, // specchio quasi perfetto → riflesso nitido del gradiente
-  envMapIntensity: 1.1,
-  clearcoat: 1, // strato lucido "bagnato" sopra il metallo
-  clearcoatRoughness: 0.06,
+  metalness: CHROME_MATERIAL.metalness,
+  roughness: CHROME_MATERIAL.roughness,
+  envMapIntensity: CHROME_MATERIAL.envMapIntensity,
+  clearcoat: CHROME_MATERIAL.clearcoat,
+  clearcoatRoughness: CHROME_MATERIAL.clearcoatRoughness,
 });
 
 // Genera UV via proiezione box per le geometrie che non le hanno (SVG estrusi,

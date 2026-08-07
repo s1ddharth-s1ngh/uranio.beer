@@ -1,5 +1,5 @@
-import { Component, Suspense, useMemo, useRef } from "react";
-import type { ReactNode, RefObject } from "react";
+import { Component, Suspense, useMemo } from "react";
+import type { ReactNode } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import {
   Environment,
@@ -11,10 +11,14 @@ import * as THREE from "three";
 import UranioLogo, { URANIO_URL } from "./UranioLogo";
 import Starfield from "./Starfield";
 import { useWindowPointer } from "./useWindowPointer";
-import type { PointerState } from "./useWindowPointer";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { useIsTouch } from "../../hooks/useIsTouch";
 import { setAssetProgress } from "../../lib/assetProgress";
+import {
+  FILL_LIGHT_INTENSITY,
+  KEY_LIGHT_INTENSITY,
+  TONE_MAPPING_EXPOSURE,
+} from "./heroParams";
 
 // inoltra il progresso reale dei GLB allo store letto dal Loader.
 // Registrato PRIMA dei preload (l'onStart sincrono non va perso) e con un
@@ -72,32 +76,13 @@ function CameraConfig({ fov, camZ }: { fov: number; camZ: number }) {
   return null;
 }
 
-// Leggera parallasse: la camera segue il puntatore con un lerp morbido e
-// resta puntata sul centro — dà profondità a stelle e modelli senza
-// muovere nient'altro
-function CameraRig({
-  pointer,
-  reduceMotion,
-}: {
-  pointer: RefObject<PointerState>;
-  reduceMotion: boolean;
-}) {
-  const target = useRef(new THREE.Vector3(0, 0, 0));
-  useFrame((state, delta) => {
-    if (reduceMotion) return;
-    const p = pointer.current;
-    const k = 1 - Math.exp(-2.5 * Math.min(delta, 0.05)); // lerp frame-rate independent
-    state.camera.position.x += (p.x * 0.45 - state.camera.position.x) * k;
-    state.camera.position.y += (p.y * 0.3 - state.camera.position.y) * k;
-    state.camera.lookAt(target.current);
-  });
-  return null;
-}
-
-// Texture "cielo/terra" per il cromo classico da paraurti: metà alta chiara
-// con gradiente, orizzonte netto, metà bassa scura. Le superfici che tagliano
-// l'orizzonte mostrano la venatura ad alto contrasto tipica del metallo lucido
-function makeHorizonTexture(): THREE.CanvasTexture {
+// Gradiente ambiente "cielo chiaro / terra NERA" ad alto contrasto: è la
+// sorgente vera del look liquid-chrome (§4/§5). Sulle lettere GONFIE la
+// curvatura stira questo gradiente verticale sulla superficie → le creste
+// rivolte in su pescano il cielo chiaro (bianco), le facce inferiori e le
+// cavità pescano la terra nera (nero profondo), il centro frontale resta
+// argento medio. Un filo di FREDDO (blu/ciano) nei bui dà il tocco "acciaio".
+function makeChromeGradient(): THREE.CanvasTexture {
   const w = 16;
   const h = 512;
   const canvas = document.createElement("canvas");
@@ -105,32 +90,21 @@ function makeHorizonTexture(): THREE.CanvasTexture {
   canvas.height = h;
   const ctx = canvas.getContext("2d")!;
 
-  // cielo: bianco pieno in alto → argento verso l'orizzonte (orizzonte
-  // basso: le facce rivolte alla camera riflettono soprattutto cielo).
-  // Contrasto spinto: è quello che fa "bruciare" le creste a bianco e
-  // annerire i fianchi, come nel riferimento
-  // orizzonte un po' sopra la metà. Le facce FRONTALI (piatte) delle lettere
-  // riflettono la fascia d'orizzonte: la teniamo argento MEDIO (non bianca),
-  // altrimenti le lettere piatte diventano bianche uniformi. Il bianco arriva
-  // dagli highlight nitidi delle key light, non dal fondo dell'ambiente
-  const HORIZON = 0.55;
-  const sky = ctx.createLinearGradient(0, 0, 0, h * HORIZON);
-  sky.addColorStop(0, "#b8bbc5"); // cielo: argento, per le creste rivolte in su
-  sky.addColorStop(0.7, "#cccfd8");
-  sky.addColorStop(1, "#dde0e8"); // orizzonte: argento chiaro, NON bianco
-  ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, w, h * HORIZON);
-
-  // TERRA: grigio MEDIO, non scuro. Le lettere stanno in basso e riflettono
-  // verso il suolo: con un suolo scuro le facce inferiori facevano "ombra".
-  // Un grigio medio-chiaro le tiene argento, con solo un lieve gradiente verso
-  // il basso — ancora cromo, ma senza zone in ombra
-  const ground = ctx.createLinearGradient(0, h * HORIZON, 0, h);
-  ground.addColorStop(0, "#9a9aa2"); // subito sotto l'orizzonte: argento medio
-  ground.addColorStop(0.45, "#75757d");
-  ground.addColorStop(1, "#5c5c64"); // fondo: grigio medio, non scuro
-  ctx.fillStyle = ground;
-  ctx.fillRect(0, h * HORIZON, w, h * (1 - HORIZON));
+  // gradiente verticale continuo (niente orizzonte netto: le lettere sono
+  // curve, un gradiente morbido rende meglio della banda dura). Contrasto
+  // spinto zenit→nadir: è quello che separa creste bianche e ventri neri.
+  const grad = ctx.createLinearGradient(0, 0, 0, h);
+  grad.addColorStop(0.0, "#ced2dc"); // zenit: argento chiaro (creste in su)
+  grad.addColorStop(0.12, "#f6f8fc"); // fascia alta bruciata → creste bianche
+  grad.addColorStop(0.24, "#d0d3db"); // sotto la fascia: argento chiaro
+  grad.addColorStop(0.38, "#a6a9b2"); // alto-medio: argento
+  grad.addColorStop(0.5, "#7c7f88"); // equatore: argento medio (facce frontali)
+  grad.addColorStop(0.62, "#484a52"); // sotto l'equatore: grigio, in calo
+  grad.addColorStop(0.74, "#242630"); // scuro freddo
+  grad.addColorStop(0.86, "#101218"); // basso: quasi nero
+  grad.addColorStop(1.0, "#040508"); // nadir: nero (ventri e cavità)
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
 
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -138,31 +112,39 @@ function makeHorizonTexture(): THREE.CanvasTexture {
 }
 
 // Ambiente procedurale (niente HDR da rete: funziona offline e non pesa sul
-// caricamento): sfera cielo/terra + qualche striscia luminosa per i riflessi
+// caricamento): sfera col gradiente chiaro/nero + una fascia di luce netta in
+// alto per gli highlight bruciati sulle creste (§5)
 function ChromeEnvironment({ resolution = 256 }: { resolution?: number }) {
-  const horizon = useMemo(() => makeHorizonTexture(), []);
+  const gradient = useMemo(() => makeChromeGradient(), []);
   return (
     <Environment resolution={resolution} frames={1}>
       <mesh scale={50}>
         <sphereGeometry args={[1, 32, 24]} />
-        <meshBasicMaterial map={horizon} side={THREE.BackSide} />
+        <meshBasicMaterial map={gradient} side={THREE.BackSide} />
       </mesh>
-      {/* KEY LIGHT: fascia luminosa larga in alto → l'highlight bianco netto
-          sulle creste (UNA banda pulita, non le righe della vecchia normal
-          map). È questo riflesso brillante su corpo argento a dare il cromo */}
+      {/* KEY LIGHT: grande fascia rettangolare in ALTO → l'highlight bianco
+          bruciato netto sulle creste superiori. È il riflesso brillante su
+          corpo scuro a dare l'effetto cromo (§5) */}
       <Lightformer
-        intensity={7}
-        position={[0, 5.5, 3]}
+        intensity={KEY_LIGHT_INTENSITY}
+        position={[0, 6, 3]}
         rotation-x={Math.PI / 2}
-        scale={[11, 2.6, 1]}
+        scale={[12, 3, 1]}
       />
-      {/* accento diagonale morbido: un secondo highlight sulle facce frontali,
-          ampio così resta un bagliore pulito e non una riga sottile */}
+      {/* riempimenti laterali tenui: un accenno di luce sui fianchi così i
+          bordi visti di taglio (Fresnel) hanno qualcosa di chiaro da pescare,
+          senza schiarire i ventri */}
       <Lightformer
-        intensity={2.2}
-        position={[-3, 1.5, 6]}
-        rotation-z={0.5}
-        scale={[7, 1.8, 1]}
+        intensity={FILL_LIGHT_INTENSITY}
+        position={[-6, 1, 4]}
+        rotation-y={Math.PI / 2}
+        scale={[5, 5, 1]}
+      />
+      <Lightformer
+        intensity={FILL_LIGHT_INTENSITY}
+        position={[6, 1, 4]}
+        rotation-y={-Math.PI / 2}
+        scale={[5, 5, 1]}
       />
     </Environment>
   );
@@ -186,7 +168,6 @@ function SceneContents({
       <color attach="background" args={["#050505"]} />
       <ambientLight intensity={0.15} />
       <Starfield reduceMotion={reduceMotion} factor={view.starFactor} />
-      <CameraRig pointer={pointer} reduceMotion={reduceMotion} />
       <Suspense fallback={null}>
         <ChromeEnvironment resolution={view.envRes} />
         {/* il logo Uranio: emblema + 6 lettere, ciascuno calciabile per conto
@@ -274,9 +255,8 @@ export default function HeroScene({
         onCreated={({ gl }) => {
           // ACES (default R3F): roll-off morbido delle alte luci → gli
           // highlight delle key light restano bianchi brillanti senza clippare
-          // a bianco piatto, il corpo resta argento. Leggermente sopra 1: le
-          // lettere in basso restano luminose, senza ombre
-          gl.toneMappingExposure = 1.08;
+          // a bianco piatto, il corpo resta argento. Valore in heroParams.ts
+          gl.toneMappingExposure = TONE_MAPPING_EXPOSURE;
         }}
         frameloop={reduceMotion ? "demand" : active ? "always" : "never"}
         // il touch verticale sul canvas deve scrollare la pagina

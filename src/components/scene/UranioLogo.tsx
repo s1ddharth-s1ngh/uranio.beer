@@ -4,8 +4,8 @@ import { useThree } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { chromeMaterial, ensureUVs } from "./chromeMaterial";
-import { useKickPhysics } from "./useKickPhysics";
-import type { KickTuning } from "./useKickPhysics";
+import { useLetterPhysics } from "./useLetterPhysics";
+import type { LetterPiece } from "./useLetterPhysics";
 import type { PointerState } from "./useWindowPointer";
 
 // preload registrato da HeroScene DOPO la subscription al progresso (così il
@@ -39,13 +39,10 @@ interface Piece {
   holder: THREE.Object3D; // mesh(es) centrate sul baricentro del pezzo
   restPos: [number, number, number]; // baricentro nel logo assemblato+centrato
   sizeFactor: number;
+  boundR: number;
 }
 
-// emblema più "pesante": area di presa più larga (è grande) e spinta più
-// contenuta, così non schizza via come una lettera leggera
-const PIECE_TUNING: Record<string, KickTuning> = {
-  emblem: { radius: 0.78, kickPos: 20, posK: 5, rotK: 3.8 },
-};
+
 
 interface UranioLogoProps {
   pointer: RefObject<PointerState>;
@@ -138,6 +135,7 @@ export default function UranioLogo({
         restPos: [c.x, c.y, c.z],
         // taglia usata per scalare l'impulso: lettere ~0.9, emblema clampato
         sizeFactor: Math.min(1.3, Math.max(0.5, r)),
+        boundR: r,
       });
     }
 
@@ -163,47 +161,42 @@ export default function UranioLogo({
   // in basso a sinistra e la pill; in landscape un tocco
   const yOffset = worldH * (portrait ? 0.06 : 0.04);
 
-  return (
-    <group scale={fit} position={[0, yOffset, 0]}>
-      {pieces.map((p) => (
-        <KickPiece
-          key={p.id}
-          piece={p}
-          pointer={pointer}
-          reduceMotion={reduceMotion}
-          ambient={ambient}
-        />
-      ))}
-    </group>
+  const letterPieces = useMemo<LetterPiece[]>(
+    () =>
+      pieces.map((p) => ({
+        id: p.id,
+        restPos: p.restPos,
+        sizeFactor: p.sizeFactor,
+        boundR: p.boundR,
+      })),
+    [pieces],
   );
-}
 
-function KickPiece({
-  piece,
-  pointer,
-  reduceMotion,
-  ambient,
-}: {
-  piece: Piece;
-  pointer: RefObject<PointerState>;
-  reduceMotion: boolean;
-  ambient: boolean;
-}) {
-  const group = useRef<THREE.Group>(null);
-  useKickPhysics({
-    group,
-    restPos: piece.restPos,
-    restRot: [0, 0, 0],
-    sizeFactor: piece.sizeFactor,
+  const groupsRef = useRef<(THREE.Group | null)[]>([]);
+  useLetterPhysics({
+    pieces: letterPieces,
+    groups: groupsRef,
     pointer,
     reduceMotion,
     ambient,
-    debugId: piece.id,
-    tuning: PIECE_TUNING[piece.id],
   });
+
+  // Il logo è FISSO e frontale: non ruota né trasla in base al mouse. Reagisce
+  // solo quando un pezzo viene "toccato"/colpito, e i pezzi si urtano tra loro
+  // come solidi rigidi (niente compenetrazione, rimbalzo).
   return (
-    <group ref={group} position={piece.restPos}>
-      <primitive object={piece.holder} />
+    <group scale={fit} position={[0, yOffset, 0]}>
+      {pieces.map((p, i) => (
+        <group
+          key={p.id}
+          position={p.restPos}
+          ref={(el) => {
+            groupsRef.current[i] = el;
+          }}
+        >
+          <primitive object={p.holder} />
+        </group>
+      ))}
     </group>
   );
 }
