@@ -21,6 +21,16 @@ produzione si pubblica come prima.
 
 DNS (OVH): `www` e `test` sono due CNAME verso `s1ddharth-s1ngh.github.io.`
 
+### Se il deploy dà 403
+
+Il credential manager di Windows ha salvato l'account `Singh-Growe`, che non ha
+scrittura su questi repo. Si risolve una volta sola: Gestione credenziali →
+Credenziali Windows → elimina `git:https://github.com`, poi rilancia il
+deploy e autenticati come `s1ddharth-s1ngh`. In alternativa, per un colpo
+solo, si passa un token nell'URL: `npx gh-pages -d dist -r
+"https://s1ddharth-s1ngh:TOKEN@github.com/s1ddharth-s1ngh/uranio-test.git"`
+(poi `rm -rf node_modules/.cache/gh-pages`, che si tiene l'URL col token).
+
 ## Attenzione a `public/`
 
 Tutto ciò che sta in `public/` finisce online. I PDF degli ordini che ogni
