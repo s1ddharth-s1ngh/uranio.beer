@@ -1,16 +1,18 @@
 import * as THREE from "three";
 
-// Montaggio della bottiglia della sezione "Chi siamo": due GLB scaricati
-// separatamente (la bottiglia e il tappo) incastrati in un unico oggetto che
-// sembra una bottiglia chiusa. Niente React qui dentro: è three puro, così la
-// stessa funzione si esegue in Node sui GLB veri per verificare le misure.
+// Montaggio della bottiglia della sezione "Chi siamo": un GLB con la bottiglia
+// etichettata e il suo tappo, separati in due oggetti (splitBottleGlb) e poi
+// rincastrati in un assieme che sembra una bottiglia chiusa. Niente React qui
+// dentro: è three puro, così la stessa funzione si esegue in Node sul GLB vero
+// per verificare le misure.
 
 // --- TARATURA (numeri misurati headless sui GLB, vedi commenti) ---
 
-// La bottiglia è una scansione fotogrammetrica non allineata: il suo asse non
-// è Y ma una diagonale qualsiasi. Questo è l'asse principale (PCA sui 118k
-// vertici), orientato dal fondo verso il collo.
-const BOTTLE_AXIS = new THREE.Vector3(-0.4885, 0.7636, 0.4222).normalize();
+// Asse della bottiglia nel suo GLB, dal fondo verso il collo. Il modello
+// attuale è modellato dritto (PCA sui 121k vertici: 0,0.9997,-0.023 — lo
+// scarto è l'etichetta, non il vetro), quindi qui è Y e la raddrizzatura è
+// l'identità. Resta la manopola: un GLB scansionato arriva storto.
+const BOTTLE_AXIS = new THREE.Vector3(0, 1, 0).normalize();
 
 // Rollio attorno al proprio asse: in una scansione è arbitrario. È questo il
 // numero da ritoccare se a riposo non guarda in camera il lato giusto.
@@ -24,8 +26,13 @@ const CAP_CLEARANCE = 1.02;
 // Quanto il tappo cala sul collo, in frazioni della propria altezza: 0.75 = la
 // gonna copre il labbro e resta fuori solo la cupola, come una capsula chiusa.
 // Sotto lo 0.9 la volta interna non tocca il bordo della bocca (niente
-// compenetrazione), sopra lo 0.4 il tappo non "galleggia".
+// compenetrazione), sopra lo 0.4 il tappo non "galleggia". Nel GLB il tappo
+// nativo è calato di 0.69: 0.75 lo rimette lì a meno di un decimo di mm.
 const CAP_SINK = 0.75;
+
+// Nome del nodo che nel GLB racchiude il tappo. È l'unico aggancio al file:
+// se il modello cambia, è qui che si guarda.
+const CAP_NODE = "Cylinder_2";
 
 // Altezza finale dell'assieme in unità mondo: la timeline di scroll (scale
 // 1.15→1.7) è tarata su un oggetto alto 2.
@@ -162,7 +169,29 @@ export interface BottleAssembly {
 }
 
 /**
- * Prende le due scene GLB così come escono da useGLTF e restituisce un unico
+ * Separa, nella scena del GLB, la bottiglia dal tappo che ha già addosso.
+ * Escono clonate (la cache di useGLTF non viene toccata) e il tappo si porta
+ * dietro la propria posa congelata: staccato dai genitori perderebbe le loro
+ * trasformazioni e si ritroverebbe storto o fuori scala.
+ */
+export function splitBottleGlb(scene: THREE.Object3D): {
+  bottle: THREE.Object3D;
+  cap: THREE.Object3D;
+} {
+  const bottle = scene.clone(true);
+  bottle.updateMatrixWorld(true);
+  const cap = bottle.getObjectByName(CAP_NODE);
+  if (!cap) {
+    throw new Error(`bottleAssembly: nodo "${CAP_NODE}" assente nel GLB`);
+  }
+  const world = cap.matrixWorld.clone();
+  cap.removeFromParent();
+  world.decompose(cap.position, cap.quaternion, cap.scale);
+  return { bottle, cap };
+}
+
+/**
+ * Prende le due scene uscite da splitBottleGlb e restituisce un unico
  * oggetto pronto da mettere in scena: bottiglia raddrizzata in piedi, tappo
  * calzato sulla bocca, il tutto centrato sull'origine e normalizzato in
  * altezza (così ruota attorno al baricentro e la timeline resta valida).
@@ -172,7 +201,6 @@ export interface BottleAssembly {
 export function buildBottleAssembly(
   bottleScene: THREE.Object3D,
   capScene: THREE.Object3D,
-  options: { lit?: boolean } = {},
 ): BottleAssembly {
   const assembly = new THREE.Group();
 
@@ -188,25 +216,6 @@ export function buildBottleAssembly(
   // la posizione è applicata DOPO la rotazione: sposto la bbox già ruotata
   bottle.position.set(-bCenter.x, -bBox.min.y, -bCenter.z);
   assembly.updateMatrixWorld(true);
-
-  // Il GLB è unlit (KHR_materials_unlit, luce cotta nei colori dei vertici
-  // dalla scansione). Con `lit` lo si rimette sotto la luce della scena, al
-  // prezzo di sommare due illuminazioni.
-  if (options.lit) {
-    bottle.traverse((o) => {
-      const mesh = o as THREE.Mesh;
-      if (!mesh.isMesh) return;
-      const old = mesh.material as THREE.MeshBasicMaterial;
-      mesh.material = new THREE.MeshStandardMaterial({
-        color: old.color,
-        vertexColors: old.vertexColors,
-        map: old.map,
-        side: old.side,
-        roughness: 0.55,
-        metalness: 0,
-      });
-    });
-  }
 
   const mouth = measureMouth(bottle);
 

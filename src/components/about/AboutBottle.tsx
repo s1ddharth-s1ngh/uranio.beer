@@ -3,7 +3,7 @@ import type { RefObject } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
-import { buildBottleAssembly } from "./bottleAssembly";
+import { buildBottleAssembly, splitBottleGlb } from "./bottleAssembly";
 import {
   CONFIG,
   PHASES,
@@ -19,12 +19,11 @@ import {
 } from "./aboutTimeline";
 import type { Breakpoint } from "./aboutTimeline";
 
-// Bottiglia e tappo sono due modelli separati: li incastro io in un unico
-// oggetto (vedi bottleAssembly.ts) così sembra una bottiglia chiusa.
-const BOTTLE_URL = `${import.meta.env.BASE_URL}3d/ginger_beer_bottle.glb`;
-const CAP_URL = `${import.meta.env.BASE_URL}3d/old_antic_beer_bottle_cap.glb`;
+// Un unico GLB con bottiglia etichettata e tappo: li separo io in due oggetti
+// e li reincastro (vedi bottleAssembly.ts) così sembra una bottiglia chiusa ma
+// il tappo può volare via per conto suo.
+const BOTTLE_URL = `${import.meta.env.BASE_URL}3d/Crisi_Economica_etichettata.glb`;
 useGLTF.preload(BOTTLE_URL);
-useGLTF.preload(CAP_URL);
 
 // Registro di debug (solo dev) per test e taratura: window.__aboutDebug
 const aboutDebug: Record<string, number> = {};
@@ -60,16 +59,15 @@ export function AboutBottle({
   reduceMotion = false,
   touch = false,
 }: AboutBottleProps) {
-  const bottleGltf = useGLTF(BOTTLE_URL);
-  const capGltf = useGLTF(CAP_URL);
+  const { scene } = useGLTF(BOTTLE_URL);
 
   // Bottiglia raddrizzata + tappo calzato sulla bocca, centrati sull'origine e
   // alti 2 unità. Il tappo è un oggetto a sé, FUORI dall'assieme: dentro resta
   // solo `capAnchor`, il segnaposto della posa chiusa.
-  const asm = useMemo(
-    () => buildBottleAssembly(bottleGltf.scene, capGltf.scene),
-    [bottleGltf.scene, capGltf.scene],
-  );
+  const asm = useMemo(() => {
+    const { bottle, cap } = splitBottleGlb(scene);
+    return buildBottleAssembly(bottle, cap);
+  }, [scene]);
 
   // Un rig per responsabilità: così nessun oggetto ha due scrittori e la posa
   // finale è la composizione delle matrici, non una somma di Euler fragile.
