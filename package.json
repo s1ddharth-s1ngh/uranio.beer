@@ -14,7 +14,8 @@
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist",
     "predeploy:test": "npm run build:test",
-    "deploy:test": "gh-pages -d dist -r https://github.com/s1ddharth-s1ngh/uranio-test.git"
+    "deploy:test": "gh-pages -d dist -r https://github.com/s1ddharth-s1ngh/uranio-test.git",
+    "verify:core": "node --experimental-strip-types scripts/verify-core.mts"
   },
   "dependencies": {
     "@fontsource-variable/archivo": "^5.3.0",

@@ -1,0 +1,20 @@
+/* Il guscio del pannello di debug: in alto a destra, sopra tutto, e cliccabile
+   anche se gli strati dell'esperienza hanno `pointer-events: none`. */
+
+.host {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  pointer-events: auto;
+}
+
+/* lil-gui e stats-gl si posizionano da sé in `fixed`: dentro questo contenitore
+   devono stare in colonna come gli altri figli */
+.host :global(.lil-gui.root) {
+  position: static;
+}
