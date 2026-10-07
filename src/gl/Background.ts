@@ -64,9 +64,11 @@ void main() {
   col *= mix(0.55, 1.0, smoothstep(1.2, 0.35, length((vUv - 0.5) * vec2(asp * 0.9, 1.0))));
   // la grana è l'unica cosa che tiene lontane le bande su un gradiente così
   // ampio: senza, un fondo quasi nero a 8 bit si vede a scalini
-  // `uSeed` è il tempo in secondi non riscalato: la nebbia respira piano
-  // (`uTime` è già moltiplicato per 0,03) ma la grana deve cambiare a ogni
-  // frame, altrimenti diventa una trama fissa stampata sopra l'immagine
+  // uSeed e' il tempo in secondi non riscalato: la nebbia respira piano
+  // (uTime e' gia' moltiplicato per 0,03) ma la grana deve cambiare a ogni
+  // frame, o diventa una trama fissa stampata sopra l'immagine.
+  // NB: in questo blocco GLSL non si possono usare gli apici inversi, che
+  // chiuderebbero il template literal che lo contiene.
   col += (hash(vUv * uRes + fract(uSeed) * 100.0) - 0.5) * uGrain;
 
   gl_FragColor = vec4(col, 1.0);
