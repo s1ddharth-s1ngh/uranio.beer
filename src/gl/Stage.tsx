@@ -14,6 +14,9 @@ import { HeroProps } from "./HeroProps";
 import { Lights } from "./Lights";
 
 const EnvProbe = lazy(() => import("../debug/EnvProbe"));
+// `postprocessing` sono ~60 KB: non devono stare sul percorso del primo
+// frame, e su mobile il bloom non si accende nemmeno (task 8.27).
+const PostFX = lazy(() => import("./PostFX"));
 
 /**
  * Il cuore del frame: calcola lo stato da `p` e **poi** disegna.
@@ -87,6 +90,9 @@ export function Stage({ className }: { className?: string }) {
       <LightRig />
       <Lights />
       <HeroProps />
+      <Suspense fallback={null}>
+        <PostFX />
+      </Suspense>
       {/* la bottiglia sospende finché il GLB non è arrivato: il fondo è già
           nero, quindi il fallback è il nulla e non un lampo */}
       <Suspense fallback={null}>
