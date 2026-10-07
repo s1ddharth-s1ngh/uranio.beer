@@ -284,6 +284,169 @@
   opacity: 1;
 }
 
+
+/* -------------------------------------------------- barra di progresso */
+
+/* 22 px dal bordo alto, 70 px di inset laterale (spec 8.17). Sta sopra
+   l'header: è la riga più alta della pagina. */
+.progress {
+  position: absolute;
+  top: 22px;
+  left: 70px;
+  right: 70px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.progressFill {
+  --fill: 0%;
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--fill);
+  height: 1px;
+  background: var(--u-white);
+}
+
+/* la testa luminosa: 60 px di gradiente che finiscono nel bianco, con alone */
+.progressHead {
+  position: absolute;
+  right: 0;
+  top: -1px;
+  width: 60px;
+  height: 3px;
+  background: linear-gradient(to right, transparent, var(--u-white));
+  box-shadow: 0 0 12px #fff;
+}
+
+.progressDotStart,
+.progressDotEnd {
+  position: absolute;
+  top: -0.5px;
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.progressDotStart {
+  left: -1px;
+}
+.progressDotEnd {
+  right: -1px;
+}
+
+/* ------------------------------------------------------- icone degli step */
+
+.icons {
+  position: absolute;
+  right: calc(var(--hud-inset) + 18px);
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.iconSlot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* entrata sfalsata: il ritardo lo mette il componente, slot per slot */
+  opacity: 0;
+  transform: translateX(16px);
+  transition:
+    opacity 0.45s ease,
+    transform 0.45s ease;
+}
+
+.iconsIn .iconSlot {
+  opacity: 1;
+  transform: none;
+}
+
+.icon {
+  pointer-events: auto;
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(6px);
+  color: var(--u-white);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition:
+    border-color 0.4s ease,
+    background-color 0.4s ease,
+    box-shadow 0.4s ease;
+}
+
+.icons:not(.iconsIn) .icon {
+  pointer-events: none;
+}
+
+.icon:hover {
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+.iconActive {
+  border: 1.5px solid var(--u-white);
+  background: rgba(219, 68, 66, 0.25);
+  box-shadow: 0 0 18px rgba(219, 68, 66, 0.6);
+}
+
+/* i tre puntini fra un cerchio e l'altro */
+.iconDots {
+  width: 2px;
+  height: 18px;
+  margin: 8px 0;
+  background-image: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.45) 1px,
+    transparent 1px
+  );
+  background-size: 2px 6px;
+  background-repeat: repeat-y;
+}
+
+@media (max-width: 767px) {
+  .progress {
+    left: 16px;
+    right: 16px;
+  }
+
+  /* su mobile le icone passano in riga (spec 7.3): la colonna a destra
+     coprirebbe la bottiglia su un frame stretto */
+  .icons {
+    right: var(--hud-inset);
+    left: var(--hud-inset);
+    top: auto;
+    bottom: calc(var(--hud-inset) + 8px);
+    transform: none;
+    flex-direction: row;
+    justify-content: center;
+  }
+
+  .iconSlot {
+    flex-direction: row;
+    transform: translateY(16px);
+  }
+
+  .icon {
+    width: 46px;
+    height: 46px;
+  }
+
+  .iconDots {
+    width: 18px;
+    height: 2px;
+    margin: 0 6px;
+    background-size: 6px 2px;
+    background-repeat: repeat-x;
+  }
+}
+
 /* --------------------------------------------------------------- mobile */
 
 @media (max-width: 767px) {

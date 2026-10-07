@@ -5,6 +5,8 @@ import { LangSwitch, NavLinks } from "../components/nav";
 import { HUD_LETTERS } from "../content/steps.it";
 import { LAST_STEP } from "../config/theme.ts";
 import { useAudioEnabled } from "../hooks/useAudioEnabled";
+import { ProgressBar } from "./ProgressBar";
+import { StepIcons } from "./StepIcons";
 import styles from "./Hud.module.css";
 
 /** le lettere di sfondo entrano una alla volta, in ordine sparso */
@@ -101,6 +103,8 @@ export function Hud({
       }`}
     >
       <HudLetters />
+      <ProgressBar step={step} />
+      <StepIcons step={step} />
 
       {/* angolari a L ai quattro angoli del frame */}
       <div className={styles.corners} aria-hidden="true">
