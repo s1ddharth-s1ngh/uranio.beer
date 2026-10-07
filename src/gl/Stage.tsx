@@ -9,6 +9,7 @@ import { DEBUG_MODE } from "../debug/registry";
 import { sharedViewport, useViewport } from "../hooks/useViewport";
 import { Bottle } from "./Bottle";
 import { LightRig } from "./Environment";
+import { Lights } from "./Lights";
 
 const EnvProbe = lazy(() => import("../debug/EnvProbe"));
 
@@ -82,6 +83,7 @@ export function Stage({ className }: { className?: string }) {
     >
       <Driver />
       <LightRig />
+      <Lights />
       {/* la bottiglia sospende finché il GLB non è arrivato: il fondo è già
           nero, quindi il fallback è il nulla e non un lampo */}
       <Suspense fallback={null}>
