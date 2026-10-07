@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useRef } from "react";
 import { DEBUG_MODE, DEBUG_ON } from "../debug/registry";
+import { Stage } from "../gl/Stage";
 import { useStepEngine } from "../hooks/useStepEngine";
 import styles from "./Experience.module.css";
 
@@ -34,7 +35,7 @@ export default function Experience() {
     <div className={styles.page} ref={page} tabIndex={-1}>
       <canvas className={`${styles.layer} ${styles.bg}`} id="bg" />
       <div className={`${styles.layer} ${styles.bigword}`} />
-      <canvas className={`${styles.layer} ${styles.gl}`} id="gl" />
+      <Stage className={`${styles.layer} ${styles.gl}`} />
       <div className={`${styles.layer} ${styles.stageUi}`} />
       <div className={`${styles.layer} ${styles.hud}`} />
       <div className={`${styles.layer} ${styles.loader}`} />

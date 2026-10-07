@@ -216,3 +216,14 @@ export class StateMapper {
     return s;
   }
 }
+
+/**
+ * Un solo mapper per pagina, come `sharedProgress()`: lo stato della scena è
+ * uno, e due mapper vorrebbero dire due verità sullo stesso frame.
+ */
+let shared: StateMapper | undefined;
+
+export function sharedMapper(vp: ViewportState): StateMapper {
+  shared ??= new StateMapper(vp);
+  return shared;
+}
