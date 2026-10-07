@@ -7,6 +7,7 @@ import { sharedMapper } from "../core/StateMapper.ts";
 import { onTick } from "../core/Ticker.ts";
 import { DEBUG_MODE } from "../debug/registry";
 import { sharedViewport, useViewport } from "../hooks/useViewport";
+import { Bottle } from "./Bottle";
 import { LightRig } from "./Environment";
 
 const EnvProbe = lazy(() => import("../debug/EnvProbe"));
@@ -81,6 +82,11 @@ export function Stage({ className }: { className?: string }) {
     >
       <Driver />
       <LightRig />
+      {/* la bottiglia sospende finché il GLB non è arrivato: il fondo è già
+          nero, quindi il fallback è il nulla e non un lampo */}
+      <Suspense fallback={null}>
+        <Bottle />
+      </Suspense>
       {DEBUG_MODE === "env" && (
         <Suspense fallback={null}>
           <EnvProbe />

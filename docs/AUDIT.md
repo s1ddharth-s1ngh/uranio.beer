@@ -137,6 +137,33 @@ riproiettando in camera il punto ancorato, per **ogni** keyframe e a 1440×900,
 2560×1080 e 390×844, cade entro 1e-3 dal punto di schermo dichiarato. È la
 composizione a essere giusta, su ogni formato.
 
+**6.2 — il bake delle trasformazioni su un GLB quantizzato distrugge la
+mesh.** La spec dice `geometry.applyMatrix4(mesh.matrixWorld)` e poi
+trasformazione azzerata. Su questo file non si può fare così: il GLB
+ottimizzato usa `KHR_mesh_quantization` oltre a meshopt, quindi le posizioni
+arrivano come `Int16` **normalizzati e interlacciati**, con la scala vera nel
+nodo (il vetro ha geometria in ±1 e scala 2,068). `applyMatrix4` scrive
+coordinate in virgola mobile dentro un buffer di interi: vengono troncate, e
+la bottiglia esce **alta 1,92 invece di 4,18** senza che niente segnali un
+errore.
+
+In `src/gl/prepareBottle.ts` gli attributi si ricostruiscono in `Float32`
+prima del bake (`getComponent` denormalizza e legge anche gli interlacciati).
+Verificato in `npm run verify:glb`: dopo la preparazione le tre mesh stanno
+nello stesso spazio oggetto e cadono sulle misure di `config/bottle.ts` —
+vetro 0,0037→4,1388, tappo 4,0475→4,1807, etichetta 0,4550→1,7326.
+
+Nella stessa funzione, **non** si ricalcolano le normali: `applyMatrix4` le
+trasforma con la matrice normale (corretto anche per la scala non uniforme del
+tappo) e three le normalizza nel vertex shader, mentre
+`computeVertexNormals()` butterebbe via le normali lisce costruite a mano dal
+task 8.4 per la zigrinatura della corona.
+
+**La geometria originale non si tocca.** `useGLTF` tiene una cache e lo stesso
+GLB lo carica la sezione "Chi siamo" (regola 10.1.10): `prepareBottle` clona
+tutto ciò che modifica, e `verify:glb` verifica che dopo la preparazione il
+bbox della geometria sorgente sia identico.
+
 ## Scostamenti dalla spec, decisi qui (regola 10.1.7)
 
 1. **Niente branch `feat/scroll-3d`.** Il task 8.1 lo chiede, ma `CLAUDE.md`

@@ -14,6 +14,8 @@ import {
   buildBottleAssembly,
   splitBottleGlb,
 } from "../src/components/about/bottleAssembly.ts";
+import { prepareBottle } from "../src/gl/prepareBottle.ts";
+import { BANDS, BOTTLE, CAP, LABEL, NODES } from "../src/config/bottle.ts";
 
 const SRC = "assets-src/Crisi_Economica_etichettata.glb";
 const DST = "public/models/crisi_economica.glb";
@@ -172,6 +174,134 @@ assert(
   asm.world.capRadius > asm.world.mouthRadius,
   "il tappo non copre più la bocca",
 );
+
+// --- 4b. la preparazione per l'esperienza (task 8.9): spazio oggetto unico,
+// pivot al centro, etichetta fuori dal vetro, e la scena di partenza intatta
+{
+  const primaEtichetta = new THREE.Box3().setFromBufferAttribute(
+    (ottimizzato.getObjectByName("etichetta") as THREE.Mesh).geometry.attributes
+      .position as THREE.BufferAttribute,
+  );
+
+  const b = prepareBottle(ottimizzato);
+
+  // trasformazioni azzerate: l'unica sopravvissuta è la scala dell'etichetta
+  for (const nome of NODES) {
+    const m = b.meshes[nome];
+    assert(
+      m.position.lengthSq() === 0 && m.rotation.x === 0 && m.rotation.y === 0 && m.rotation.z === 0,
+      `la mesh "${nome}" ha ancora una trasformazione: gli shader leggerebbero spazi diversi`,
+    );
+  }
+  assert.equal(b.meshes.vetro.scale.x, 1);
+  assert.equal(b.meshes.tappo.scale.x, 1, "la scala non uniforme del tappo non è stata bakata");
+  assert.equal(b.meshes.etichetta.scale.x, LABEL.scaleXZ);
+
+  // le tre geometrie vivono nello stesso spazio, e quello spazio è quello su
+  // cui sono tarate le costanti di config/bottle.ts
+  const scatola = (nome: string) =>
+    new THREE.Box3().setFromBufferAttribute(
+      b.meshes[nome as keyof typeof b.meshes].geometry.attributes
+        .position as THREE.BufferAttribute,
+    );
+  const vetro = scatola("vetro");
+  const tappo = scatola("tappo");
+  const etichetta = scatola("etichetta");
+  console.log(
+    `spazio oggetto  vetro ${vetro.min.y.toFixed(4)}→${vetro.max.y.toFixed(4)}  ` +
+      `tappo ${tappo.min.y.toFixed(4)}→${tappo.max.y.toFixed(4)}  ` +
+      `etichetta ${etichetta.min.y.toFixed(4)}→${etichetta.max.y.toFixed(4)}`,
+  );
+  const vicino = (a: number, b: number, tol: number, cosa: string) =>
+    assert(Math.abs(a - b) < tol, `${cosa}: ${a.toFixed(4)} invece di ${b}`);
+  vicino(tappo.min.y, CAP.minY, 0.01, "base del tappo");
+  vicino(tappo.max.y, CAP.maxY, 0.01, "cima del tappo");
+  vicino(etichetta.min.y, LABEL.minY, 0.01, "bordo basso dell'etichetta");
+  vicino(etichetta.max.y, LABEL.maxY, 0.01, "bordo alto dell'etichetta");
+  vicino(vetro.max.y - vetro.min.y, BOTTLE.height - (BOTTLE.maxY - CAP.maxY), 0.05, "altezza del vetro");
+
+  // le quattro fasce cadono dentro l'etichetta, con tutta la loro mezza altezza
+  for (const [nome, fascia] of Object.entries(BANDS)) {
+    assert(
+      fascia.y - fascia.half >= etichetta.min.y - 1e-3 &&
+        fascia.y + fascia.half <= etichetta.max.y + 1e-3,
+      `la fascia ${nome} (${(fascia.y - fascia.half).toFixed(3)}–${(fascia.y + fascia.half).toFixed(3)}) esce dall'etichetta`,
+    );
+  }
+
+  // pivot: il centro geometrico è nell'origine, quindi ruotare non sposta
+  b.pivot.rotation.set(0, Math.PI, 0);
+  b.pivot.updateMatrixWorld(true);
+  const ruotata = new THREE.Box3().setFromObject(b.pivot, true);
+  b.pivot.rotation.set(0, 0, 0);
+  b.pivot.updateMatrixWorld(true);
+  const ferma = new THREE.Box3().setFromObject(b.pivot, true);
+  assert(
+    Math.abs(ferma.getCenter(new THREE.Vector3()).y) < 1e-3,
+    "la bottiglia non è centrata sul pivot: ogni rotazione la farebbe scendere",
+  );
+  // Ruotando di π l'**altezza** non deve muoversi: è questo che il pivot al
+  // centro garantisce (spec 3.2). In orizzontale un filo si sposta e va bene:
+  // l'asse del vetro non è esattamente a x = 0 (0,003) e l'etichetta avvolge
+  // 270° in modo asimmetrico, quindi il bbox cambia girando. È la bottiglia a
+  // non essere perfettamente simmetrica, non il pivot a essere sbagliato.
+  const derivaY = Math.abs(
+    ruotata.getCenter(new THREE.Vector3()).y - ferma.getCenter(new THREE.Vector3()).y,
+  );
+  const derivaXZ = Math.hypot(
+    ruotata.getCenter(new THREE.Vector3()).x - ferma.getCenter(new THREE.Vector3()).x,
+    ruotata.getCenter(new THREE.Vector3()).z - ferma.getCenter(new THREE.Vector3()).z,
+  );
+  console.log(
+    `rotazione di π   deriva y ${derivaY.toFixed(5)}  orizzontale ${derivaXZ.toFixed(4)} (asimmetria del modello)`,
+  );
+  assert(derivaY < 1e-3, "ruotando di π la bottiglia sale o scende: il pivot non è al centro");
+  assert(derivaXZ < 0.05, `ruotando di π la bottiglia scarta di ${derivaXZ.toFixed(3)} in orizzontale: troppo`);
+
+  // l'etichetta esce dal vetro: è la condizione per non avere z-fighting
+  const raggio = (box: THREE.Box3, scala: number) =>
+    Math.max(box.max.x, -box.min.x, box.max.z, -box.min.z) * scala;
+  const rEtichetta = raggio(etichetta, LABEL.scaleXZ);
+  // Il raggio del vetro va misurato **alla stessa altezza dell'etichetta**,
+  // non sul bbox intero: il collo è più stretto e darebbe un confronto falso.
+  // La fascia va allargata un po' perché il corpo è un tubo diritto e i suoi
+  // vertici stanno solo agli anelli che lo chiudono — appena sotto 0,455 e
+  // appena sopra 1,733 — mentre in mezzo ci sono solo triangoli lunghi.
+  const pos = b.meshes.vetro.geometry.attributes.position as THREE.BufferAttribute;
+  const MARGINE = 0.15;
+  let rVetro = 0;
+  for (let i = 0; i < pos.count; i++) {
+    const y = pos.getY(i);
+    if (y < etichetta.min.y - MARGINE || y > etichetta.max.y + MARGINE) continue;
+    rVetro = Math.max(rVetro, Math.hypot(pos.getX(i), pos.getZ(i)));
+  }
+  assert(rVetro > 0, "nessun vertice di vetro all'altezza dell'etichetta: controlla la fascia");
+  console.log(
+    `etichetta r ${rEtichetta.toFixed(4)} contro vetro r ${rVetro.toFixed(4)} nella stessa fascia`,
+  );
+  assert(
+    rEtichetta > rVetro,
+    "l'etichetta sta ancora dentro il vetro: z-fighting o etichetta invisibile",
+  );
+  assert(
+    rEtichetta - rVetro < 0.02,
+    "l'etichetta è troppo staccata dal vetro: si vedrebbe fluttuare",
+  );
+
+  // e la scena di partenza non è stata toccata: la sezione "Chi siamo" carica
+  // lo stesso GLB dalla stessa cache (regola 10.1.10)
+  const dopoEtichetta = new THREE.Box3().setFromBufferAttribute(
+    (ottimizzato.getObjectByName("etichetta") as THREE.Mesh).geometry.attributes
+      .position as THREE.BufferAttribute,
+  );
+  assert(
+    primaEtichetta.min.distanceTo(dopoEtichetta.min) < 1e-9 &&
+      primaEtichetta.max.distanceTo(dopoEtichetta.max) < 1e-9,
+    "prepareBottle ha modificato la geometria originale: la sezione About si troverebbe la bottiglia deformata",
+  );
+
+  b.dispose();
+}
 
 // --- 5. budget
 const peso = fs.statSync(DST).size;
