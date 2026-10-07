@@ -1,0 +1,49 @@
+/* Gli strati dell'esperienza, dal fondo verso l'alto (spec 4.2). Sono tutti
+   `fixed` e sovrapposti: la pagina non scorre, a muoversi è la scena. Qui ci
+   sono solo i contenitori vuoti — ogni task successivo ne riempie uno. */
+
+.page {
+  position: fixed;
+  inset: 0;
+  background: #050505;
+  /* nessuno strato intercetta i gesti: la rotella e il dito devono arrivare
+     a .page, che è ciò su cui si aggancia StepController (task 8.6). I
+     singoli controlli si riaccendono da sé con pointer-events: auto */
+  overflow: hidden;
+}
+
+.layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* 1 · sfondo WebGL: gradiente studio, alone degli step, nebbia del finale */
+.bg {
+  z-index: 0;
+}
+
+/* 2 · la scritta gigante del finale, DIETRO la bottiglia */
+.bigword {
+  z-index: 1;
+}
+
+/* 3 · scena WebGL (bottiglie, faro, piedistallo), canvas trasparente */
+.gl {
+  z-index: 2;
+}
+
+/* 4 · testi degli step e interfaccia dell'hero */
+.stageUi {
+  z-index: 3;
+}
+
+/* 5 · header, barra di progresso, icone, angolari, lettere di sfondo */
+.hud {
+  z-index: 4;
+}
+
+/* 6 · preloader, rimosso dal DOM a caricamento finito */
+.loader {
+  z-index: 5;
+}

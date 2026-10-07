@@ -8,6 +8,15 @@
     <link rel="manifest" href="/site.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Uranio Beer</title>
+    <!-- Nero da subito, prima che arrivi qualunque foglio di stile: senza, il
+         primo paint è il bianco di default del browser e si vede sfarfallare
+         a ogni refresh. Deve restare inline, un <link> arriverebbe tardi. -->
+    <style>
+      html,
+      body {
+        background: #050505;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

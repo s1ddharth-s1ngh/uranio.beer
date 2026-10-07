@@ -12,7 +12,7 @@ const DIST = 'dist'
 
 // Le route pre-renderizzate: GitHub Pages serve file statici, senza una
 // index.html in ogni cartella un accesso diretto a /it darebbe 404.
-const ROUTE = ['it', 'en', 'coming-soon', 'slash-experiment']
+const ROUTE = ['it', 'en', 'coming-soon', 'slash-experiment', 'esperienza']
 
 // Un solo sorgente, due destinazioni: il dominio lo decide il flag.
 const prova = process.argv.includes('--test')
