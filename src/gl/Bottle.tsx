@@ -4,9 +4,12 @@ import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { BAND_ORDER, BANDS, MODEL_URL } from "../config/bottle.ts";
 import { CAROUSEL } from "../config/beers.ts";
+import { REST_LIFE } from "../config/keyframes.ts";
 import { sharedCarousel, slotPose } from "../core/Carousel.ts";
+import { sharedProgress } from "../core/Progress.ts";
 import { sharedMapper } from "../core/StateMapper.ts";
 import { DEBUG_MODE, registerDebug } from "../debug/registry";
+import { usePrefersReducedMotion } from "../hooks/usePrefersReducedMotion";
 import { sharedViewport, useViewport } from "../hooks/useViewport";
 import {
   applyMasks,
@@ -18,6 +21,9 @@ import { prepareBottle } from "./prepareBottle.ts";
 
 /** quanto resta accesa ogni fascia nel ciclo di `?debug=bands`, in secondi */
 const BANDS_CYCLE_S = 1.6;
+
+/** un'onda di periodo `periodo` secondi */
+const onda = (t: number, periodo: number) => Math.sin((t * Math.PI * 2) / periodo);
 
 /**
  * La bottiglia protagonista.
@@ -64,7 +70,11 @@ export function Bottle() {
 
   const mapper = sharedMapper(sharedViewport().state);
   const carousel = sharedCarousel(vp.mobile ? CAROUSEL.countMobile : CAROUSEL.count);
-  useFrame(({ clock }) => {
+  const progress = sharedProgress();
+  const reduced = usePrefersReducedMotion();
+  // il peso della vita a riposo: parte pieno, la pagina si apre ferma
+  const quiete = useRef(1);
+  useFrame(({ clock }, delta) => {
     const g = pivot.current;
     if (!g) return;
     const s = mapper.state;
@@ -89,6 +99,25 @@ export function Bottle() {
       g.position.copy(s.pivot);
     }
     g.rotation.copy(s.rotation);
+
+    // Vita a riposo (spec 7.4), sommata sopra lo stato di `p`. Il peso insegue
+    // "fermo / in corsa" con una costante di tempo invece di scattare: così la
+    // vita si spegne mentre la transizione parte e si riaccende dopo
+    // l'atterraggio, senza salti in nessuno dei due momenti.
+    const q = (quiete.current +=
+      ((progress.moving ? 0 : 1) - quiete.current) *
+      (1 - Math.exp(-delta / REST_LIFE.tau)));
+    if (!reduced && q > 1e-4) {
+      const t = clock.elapsedTime;
+      g.position.y += q * REST_LIFE.y.amp * onda(t, REST_LIFE.y.period);
+      g.rotation.z += q * REST_LIFE.z.amp * onda(t, REST_LIFE.z.period);
+      g.rotation.y +=
+        q *
+        (anello * CAROUSEL.life.spin * onda(t, REST_LIFE.heroSpin.period) +
+          s.background.finale *
+            REST_LIFE.finaleSpin.amp *
+            onda(t, REST_LIFE.finaleSpin.period));
+    }
 
     applyMasks(prepared.uniforms, s.uniforms);
 

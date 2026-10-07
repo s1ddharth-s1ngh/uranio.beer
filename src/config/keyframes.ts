@@ -250,3 +250,24 @@ export const SEGMENTS: readonly Segment[] = [
     sweepAmt: 1,
   },
 ];
+
+/**
+ * La vita a riposo della protagonista (spec 7.4): sommata sopra lo stato di
+ * `p` da `gl/Bottle.tsx`, smorzata a zero mentre `p` si muove. Ampiezze in
+ * unità di scena e radianti, periodi in secondi.
+ */
+export const REST_LIFE = {
+  /**
+   * Costante di tempo del peso "quiete": quanto ci mette la vita a spegnersi
+   * quando parte una transizione e a riaccendersi quando finisce. Senza, il
+   * primo frame del movimento scatterebbe di tutta l'ampiezza.
+   */
+  tau: 0.6,
+  /** sempre: fluttuazione in altezza e un filo di dondolio */
+  y: { amp: 0.03, period: 5 },
+  z: { amp: 0.01, period: 7 },
+  /** nell'hero, rotazione lentissima sul proprio asse (ampiezza in `CAROUSEL.life.spin`) */
+  heroSpin: { period: 14 },
+  /** nel finale, oscillazione lenta che mostra fronte e fianchi */
+  finaleSpin: { amp: 0.12, period: 8 },
+} as const;

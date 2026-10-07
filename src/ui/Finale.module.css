@@ -1,0 +1,91 @@
+/* Il finale (spec 7.6 e 8.20): scritta gigante dietro la bottiglia, riga
+   piccola e bottoni sotto. */
+
+/* nascosti finché `FinaleMotion` non ha messo le lettere nel loro stato
+   iniziale: è la classe a renderli visibili */
+.word,
+.cta {
+  visibility: hidden;
+}
+
+.word {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bigWord {
+  margin: 0;
+  font-family: var(--u-font-display);
+  font-weight: 900;
+  font-stretch: 118%;
+  font-style: italic;
+  text-transform: uppercase;
+  font-size: clamp(120px, 22vw, 360px);
+  line-height: 0.85;
+  letter-spacing: -0.01em;
+  text-align: center;
+  color: var(--u-white);
+}
+
+.bigWord span {
+  display: block;
+}
+
+/* il blocco sotto la bottiglia: il bordo alto viene da `FINALE.ctaTop` */
+.cta {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  top: calc(var(--cta-top) * 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+  color: var(--u-white);
+}
+
+.note {
+  margin: 0;
+  font-family: var(--u-font-body);
+  font-size: 13px;
+  line-height: 1.4;
+  opacity: 0.75;
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
+
+/* la stessa pillola del "CONTACT" dell'header: un bottone solo in tutta
+   l'interfaccia, non due varianti che si somigliano */
+.primary {
+  composes: contact from "./Hud.module.css";
+  pointer-events: auto;
+}
+
+/* il secondo bottone è vuoto: pieno ce n'è uno, quello che porta fuori.
+   `composes` vuole un selettore di una classe sola, per questo è ripetuto */
+.secondary {
+  composes: contact from "./Hud.module.css";
+  pointer-events: auto;
+  background: transparent;
+  color: var(--u-white);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+}
+
+.primary:focus-visible,
+.secondary:focus-visible {
+  outline: 2px solid var(--u-white);
+  outline-offset: 3px;
+}
+
+@media (max-width: 767px) {
+  .cta {
+    top: calc(var(--cta-top-mobile) * 100%);
+  }
+}
