@@ -1,0 +1,21 @@
+/* I token CSS della palette. I valori sono gli stessi di `src/config/theme.ts`,
+   che è la fonte di verità: `scripts/check-tokens.mjs` fallisce la build se i
+   due file divergono. Stanno qui duplicati e non iniettati a runtime perché il
+   CSS deve essere valido al primo paint, prima che parta il JavaScript. */
+
+:root {
+  --u-black: #050505;
+  --u-red: #db4442;
+  --u-red-mid: #a3302a;
+  --u-red-deep: #6b1a12;
+  --u-oxblood: #3a0d0e;
+  --u-night: #090303;
+  --u-amber: #f2a33a;
+  --u-fog-1: #db4442;
+  --u-fog-2: #ff8a80;
+  --u-white: #f8f8f8;
+
+  /* famiglie: Inter era già self-hosted, Archivo si aggiunge come display */
+  --u-font-display: 'Archivo Variable', 'Archivo', Georgia, serif;
+  --u-font-body: var(--font-sans);
+}

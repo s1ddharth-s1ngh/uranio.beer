@@ -1,0 +1,43 @@
+/* La scala tipografica dell'esperienza (spec 8.3). Tre classi, non una di
+   più: titolo, corpo, etichettina. Tutto il resto è composizione. */
+
+/* Display: il corrispettivo libero del corsivo pesante del riferimento.
+   Archivo è variabile su due assi — peso e larghezza — e li usa entrambi:
+   900 di peso, 118 di larghezza. Senza `font-stretch` resta a 100 e il
+   titolo perde la compattezza che lo fa leggere come un logotipo. */
+.t-display {
+  font-family: var(--u-font-display);
+  font-weight: 900;
+  font-stretch: 118%;
+  font-style: italic;
+  text-transform: uppercase;
+  font-size: clamp(40px, 4.6vw, 72px);
+  line-height: 0.88;
+  letter-spacing: -0.01em;
+  color: var(--u-white);
+  /* le righe entrano da sotto una maschera (task 8.18): il margine
+     tipografico va tolto o la maschera taglia a metà le lettere alte */
+  margin: 0;
+}
+
+.t-body {
+  font-family: var(--u-font-body);
+  font-weight: 400;
+  font-size: clamp(16px, 1.25vw, 19px);
+  line-height: 1.45;
+  /* 46ch: la misura oltre la quale l'occhio perde il capo della riga */
+  max-width: 46ch;
+  color: var(--u-white);
+  margin: 0;
+}
+
+.t-label {
+  font-family: var(--u-font-body);
+  font-weight: 500;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  color: var(--u-white);
+  margin: 0;
+}
