@@ -1,0 +1,320 @@
+/* L'HUD dell'esperienza (spec 8.16): header, angolari, trattini, lettere di
+   sfondo. Tutto lo strato è trasparente ai gesti e solo i controlli si
+   riaccendono: la rotella e il dito devono arrivare al motore a step. */
+
+.hud {
+  pointer-events: none;
+  color: var(--u-white);
+  /* 36 px desktop, 16 px mobile: lo stesso inset vale per angolari e header,
+     così l'HUD si legge come una cornice sola */
+  --hud-inset: 36px;
+  --hud-header: 96px;
+  transition: opacity 0.6s ease;
+}
+
+/* nel finale l'HUD si fa da parte: la scritta gigante è la protagonista */
+.quiet {
+  opacity: 0.55;
+}
+
+/* ---------------------------------------------------------------- header */
+
+.header {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: var(--hud-header);
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: 0 var(--hud-inset);
+  gap: 16px;
+}
+
+.audio,
+.menu,
+.contact,
+.logo {
+  pointer-events: auto;
+}
+
+.audio,
+.menu {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: 0;
+  padding: 8px 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+
+.audio {
+  justify-self: start;
+}
+
+.audioState {
+  opacity: 0.6;
+}
+
+/* quattro barrette da equalizzatore, 2×10 px */
+.bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 10px;
+}
+
+.bars i {
+  width: 2px;
+  height: 10px;
+  background: currentColor;
+  /* a riposo sono quattro trattini bassi e fermi */
+  transform: scaleY(0.25);
+  transform-origin: bottom;
+  opacity: 0.6;
+}
+
+.barsOn i {
+  opacity: 1;
+  animation: equalizer 0.9s ease-in-out infinite alternate;
+}
+
+.barsOn i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.barsOn i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+.barsOn i:nth-child(4) {
+  animation-delay: 0.45s;
+}
+
+@keyframes equalizer {
+  from {
+    transform: scaleY(0.25);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+.logo {
+  justify-self: center;
+  display: block;
+  line-height: 0;
+}
+
+.logo img {
+  width: 120px;
+  height: auto;
+  /* il PNG è un segnaposto: nero su nero sarebbe invisibile, quindi per ora
+     si schiarisce. Va sostituito con l'SVG (TODO in Hud.tsx) */
+  filter: brightness(0) invert(1);
+  opacity: 0.92;
+}
+
+.right {
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: 18px;
+}
+
+/* la pillola bianca: l'unico elemento pieno di tutto l'HUD, quindi l'unico
+   che si legge come un bottone */
+.contact {
+  display: inline-block;
+  padding: 14px 22px;
+  border-radius: 8px;
+  background: var(--u-white);
+  color: #000;
+  font-family: var(--u-font-body);
+  font-weight: 500;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-decoration: none;
+  box-shadow: 0 0 24px rgba(255, 255, 255, 0.35);
+}
+
+/* ------------------------------------------------------------- angolari */
+
+.corners i,
+.ticks i {
+  position: absolute;
+  display: block;
+}
+
+.corners i {
+  width: 10px;
+  height: 10px;
+}
+
+.tl {
+  top: var(--hud-inset);
+  left: var(--hud-inset);
+  border-top: 1px solid rgba(255, 255, 255, 0.5);
+  border-left: 1px solid rgba(255, 255, 255, 0.5);
+}
+.tr {
+  top: var(--hud-inset);
+  right: var(--hud-inset);
+  border-top: 1px solid rgba(255, 255, 255, 0.5);
+  border-right: 1px solid rgba(255, 255, 255, 0.5);
+}
+.bl {
+  bottom: var(--hud-inset);
+  left: var(--hud-inset);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+  border-left: 1px solid rgba(255, 255, 255, 0.5);
+}
+.br {
+  bottom: var(--hud-inset);
+  right: var(--hud-inset);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+  border-right: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+/* trattini sui bordi laterali */
+.tickLeft,
+.tickRight {
+  width: 6px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.tickLeft {
+  left: 0;
+}
+.tickRight {
+  right: 0;
+}
+
+/* -------------------------------------------------------------- lettere */
+
+.letters {
+  position: absolute;
+  inset: 0;
+}
+
+.lettersRow {
+  position: absolute;
+  left: var(--hud-inset);
+  right: var(--hud-inset);
+  display: flex;
+  justify-content: space-between;
+}
+
+.top {
+  top: 25%;
+}
+.bottom {
+  top: 75%;
+}
+
+.letter {
+  font-family: var(--u-font-body);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  opacity: 0;
+  animation: letterIn 0.5s ease forwards;
+}
+
+@keyframes letterIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 0.28;
+    transform: none;
+  }
+}
+
+/* ----------------------------------------------------------------- menu */
+
+.menuPanel {
+  position: absolute;
+  inset: 0;
+  background: rgba(5, 5, 5, 0.92);
+  backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.35s ease,
+    visibility 0.35s;
+}
+
+.menuOpen {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.menuNav {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+.menuLink {
+  font-family: var(--u-font-display);
+  font-weight: 900;
+  font-stretch: 118%;
+  font-style: italic;
+  text-transform: uppercase;
+  font-size: clamp(28px, 5vw, 56px);
+  line-height: 0.95;
+  color: var(--u-white);
+  text-decoration: none;
+  opacity: 0.85;
+  transition: opacity 0.2s ease;
+}
+
+.menuLink:hover,
+.menuLink:focus-visible {
+  opacity: 1;
+}
+
+/* --------------------------------------------------------------- mobile */
+
+@media (max-width: 767px) {
+  .hud {
+    --hud-inset: 16px;
+    --hud-header: 64px;
+  }
+
+  .logo img {
+    width: 88px;
+  }
+
+  .contact {
+    padding: 10px 14px;
+    font-size: 12px;
+  }
+
+  .right {
+    gap: 10px;
+  }
+}
+
+/* chi ha chiesto meno movimento non vuole nemmeno le barrette che ballano */
+@media (prefers-reduced-motion: reduce) {
+  .barsOn i {
+    animation: none;
+    transform: scaleY(0.7);
+  }
+
+  .letter {
+    animation-duration: 0.01s;
+    animation-delay: 0s !important;
+  }
+}

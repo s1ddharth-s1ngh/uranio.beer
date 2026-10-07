@@ -4,6 +4,7 @@ import { BackgroundLayer } from "../gl/BackgroundLayer";
 import { Stage } from "../gl/Stage";
 import { useCarouselDrag } from "../hooks/useCarouselDrag";
 import { useStepEngine } from "../hooks/useStepEngine";
+import { Hud } from "../ui/Hud";
 import styles from "./Experience.module.css";
 
 // Il codice di debug non deve pesare sul sito vero: import dinamico, quindi
@@ -27,7 +28,7 @@ export default function Experience() {
   const page = useRef<HTMLDivElement>(null);
   // il motore di scroll si aggancia al contenitore, non a window: fuori
   // dall'esperienza (task 8.21) la rotella deve tornare alla pagina
-  useStepEngine(page);
+  const { step } = useStepEngine(page);
   // il carosello si trascina solo nell'hero: convive con il motore a step
   // sullo stesso elemento, vince l'asse del primo movimento
   useCarouselDrag(page, DRAG_CLASSES);
@@ -46,7 +47,7 @@ export default function Experience() {
       <div className={`${styles.layer} ${styles.bigword}`} />
       <Stage className={`${styles.layer} ${styles.gl}`} />
       <div className={`${styles.layer} ${styles.stageUi}`} />
-      <div className={`${styles.layer} ${styles.hud}`} />
+      <Hud step={step} className={`${styles.layer} ${styles.hud}`} />
       <div className={`${styles.layer} ${styles.loader}`} />
       <Suspense fallback={null}>
         {DEBUG_ON && <DebugPanel />}

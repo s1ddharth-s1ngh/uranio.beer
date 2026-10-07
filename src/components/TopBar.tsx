@@ -1,80 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { LangSwitch, NavLinks } from "./nav";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import uranioMark from "../assets/uranio-mark.png";
 import styles from "./TopBar.module.css";
 
 interface TopBarProps {
   revealed: boolean;
-}
-
-// ✏️ Voci di menu — aggiorna gli href quando le sezioni saranno pronte
-const NAV_ITEMS = [
-  { href: "#about", it: "Chi siamo", en: "About us" },
-  { href: "#crisi-economica", it: "Crisi economica", en: "Economic crisis" },
-  { href: "#servizi", it: "Servizi", en: "Services" },
-  { href: "/slash-experiment", it: "Esperimenti", en: "Experiments" },
-  { href: "#contatti", it: "Contatti", en: "Contacts" },
-];
-
-function NavLinks({
-  lang,
-  className,
-  onNavigate,
-}: {
-  lang: "it" | "en";
-  className: string;
-  onNavigate?: () => void;
-}) {
-  return (
-    <>
-      {NAV_ITEMS.map((item) =>
-        item.href.startsWith("/") ? (
-          <Link
-            key={item.href}
-            to={item.href}
-            className={className}
-            onClick={onNavigate}
-          >
-            {lang === "en" ? item.en : item.it}
-          </Link>
-        ) : (
-          <a
-            key={item.href}
-            href={item.href}
-            className={className}
-            onClick={onNavigate}
-          >
-            {lang === "en" ? item.en : item.it}
-          </a>
-        ),
-      )}
-    </>
-  );
-}
-
-function LangSwitch({ lang, label }: { lang: "it" | "en"; label: string }) {
-  return (
-    <nav className={styles.lang} aria-label={label}>
-      <Link
-        to="/it"
-        className={lang === "it" ? styles.active : styles.idle}
-        aria-current={lang === "it" ? "true" : undefined}
-      >
-        it
-      </Link>
-      <span className={styles.sep} aria-hidden="true">
-        /
-      </span>
-      <Link
-        to="/en"
-        className={lang === "en" ? styles.active : styles.idle}
-        aria-current={lang === "en" ? "true" : undefined}
-      >
-        en
-      </Link>
-    </nav>
-  );
 }
 
 export default function TopBar({ revealed }: TopBarProps) {
