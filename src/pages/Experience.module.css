@@ -10,6 +10,21 @@
      a .page, che è ciò su cui si aggancia StepController (task 8.6). I
      singoli controlli si riaccendono da sé con pointer-events: auto */
   overflow: hidden;
+  /* il verticale lo gestisce StepController e l'orizzontale il carosello:
+     al browser non resta nessun gesto da interpretare, e senza questo su
+     telefono il trascinamento del carosello scrollerebbe la pagina */
+  touch-action: none;
+}
+
+/* cursori del carosello (spec 6.6): solo nell'hero, li mette e li toglie
+   `useCarouselDrag` */
+.grab {
+  cursor: grab;
+}
+
+.grabbing,
+.grabbing * {
+  cursor: grabbing;
 }
 
 .layer {

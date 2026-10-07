@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useRef } from "react";
 import { DEBUG_MODE, DEBUG_ON } from "../debug/registry";
 import { BackgroundLayer } from "../gl/BackgroundLayer";
 import { Stage } from "../gl/Stage";
+import { useCarouselDrag } from "../hooks/useCarouselDrag";
 import { useStepEngine } from "../hooks/useStepEngine";
 import styles from "./Experience.module.css";
 
@@ -10,6 +11,9 @@ import styles from "./Experience.module.css";
 const TypeSpecimen = lazy(() => import("../debug/TypeSpecimen"));
 const DebugPanel = lazy(() => import("../debug/DebugPanel"));
 const BandsProbe = lazy(() => import("../debug/BandsProbe"));
+
+// Costante di modulo e non oggetto inline: è una dipendenza di `useEffect`.
+const DRAG_CLASSES = { grab: styles.grab, grabbing: styles.grabbing };
 
 /**
  * Lo scroll 3D a step (spec `docs/URANIO_SCROLL_SPEC.md`).
@@ -24,6 +28,9 @@ export default function Experience() {
   // il motore di scroll si aggancia al contenitore, non a window: fuori
   // dall'esperienza (task 8.21) la rotella deve tornare alla pagina
   useStepEngine(page);
+  // il carosello si trascina solo nell'hero: convive con il motore a step
+  // sullo stesso elemento, vince l'asse del primo movimento
+  useCarouselDrag(page, DRAG_CLASSES);
 
   // La pagina non scorre: l'unico movimento è quello della scena. Riuso la
   // classe già esistente in index.css (la stessa del lock dell'hero su touch):

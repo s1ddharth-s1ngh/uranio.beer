@@ -3,6 +3,8 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { BAND_ORDER, BANDS, MODEL_URL } from "../config/bottle.ts";
+import { CAROUSEL } from "../config/beers.ts";
+import { sharedCarousel, slotPose } from "../core/Carousel.ts";
 import { sharedMapper } from "../core/StateMapper.ts";
 import { DEBUG_MODE, registerDebug } from "../debug/registry";
 import { sharedViewport, useViewport } from "../hooks/useViewport";
@@ -61,11 +63,31 @@ export function Bottle() {
   }, [prepared]);
 
   const mapper = sharedMapper(sharedViewport().state);
+  const carousel = sharedCarousel(vp.mobile ? CAROUSEL.countMobile : CAROUSEL.count);
   useFrame(({ clock }) => {
     const g = pivot.current;
     if (!g) return;
     const s = mapper.state;
-    g.position.copy(s.pivot);
+
+    // Nell'hero la protagonista è lo slot 0 dell'anello: se il carosello è
+    // girato, orbita con gli altri invece di restare incollata al centro
+    // mentre tutto le scorre attorno. `1 − escape` la stacca dall'anello
+    // appena si va verso il primo piano, e con `rot = 0` (cioè sempre, tranne
+    // durante un trascinamento) l'offset è nullo.
+    const anello = 1 - s.carousel.escape;
+    const pose =
+      anello > 0
+        ? slotPose(0, carousel.active, carousel.rot, carousel.count)
+        : undefined;
+    if (pose) {
+      g.position.set(
+        s.pivot.x + pose.x * anello,
+        s.pivot.y + pose.y * anello,
+        s.pivot.z + pose.z * anello,
+      );
+    } else {
+      g.position.copy(s.pivot);
+    }
     g.rotation.copy(s.rotation);
 
     applyMasks(prepared.uniforms, s.uniforms);

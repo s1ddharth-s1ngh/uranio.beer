@@ -80,11 +80,16 @@ export class WheelGesture {
 
 /**
  * Direzione di uno swipe su `touchend` (spec 5.1 regola 5).
+ *
  * `dy` è lo spostamento del dito: negativo quando va verso l'alto, cioè
- * quando l'utente chiede di andare avanti.
+ * quando l'utente chiede di andare avanti. `dx` serve a lasciar passare i
+ * gesti orizzontali: nell'hero sono il trascinamento del carosello (spec
+ * 6.6), e senza questo controllo ogni giro di carosello su telefono
+ * cambierebbe anche lo step.
  */
-export function swipeDirection(dy: number, dtMs: number): number {
+export function swipeDirection(dy: number, dtMs: number, dx = 0): number {
   const abs = Math.abs(dy);
+  if (Math.abs(dx) > abs) return 0;
   const v = dtMs > 0 ? abs / dtMs : 0;
   if (abs < SCROLL.swipePx && v < SCROLL.swipeVelocity) return 0;
   return -Math.sign(dy);
@@ -116,6 +121,7 @@ export function keyIntent(key: string, shift: boolean): KeyIntent {
 export class StepController {
   private wheel = new WheelGesture();
   private touchY = 0;
+  private touchX = 0;
   private touchT = 0;
   private progress: Progress;
   private root: HTMLElement;
@@ -153,6 +159,7 @@ export class StepController {
 
   private onTouchStart = (e: TouchEvent) => {
     this.touchY = e.touches[0]?.clientY ?? 0;
+    this.touchX = e.touches[0]?.clientX ?? 0;
     this.touchT = performance.now();
   };
 
@@ -162,7 +169,14 @@ export class StepController {
 
   private onTouchEnd = (e: TouchEvent) => {
     const y = e.changedTouches[0]?.clientY ?? this.touchY;
-    this.step(swipeDirection(y - this.touchY, performance.now() - this.touchT));
+    const x = e.changedTouches[0]?.clientX ?? this.touchX;
+    this.step(
+      swipeDirection(
+        y - this.touchY,
+        performance.now() - this.touchT,
+        x - this.touchX,
+      ),
+    );
   };
 
   private onKey = (e: KeyboardEvent) => {

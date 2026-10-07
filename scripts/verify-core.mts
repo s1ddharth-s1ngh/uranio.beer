@@ -414,4 +414,132 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
   }
 }
 
+// --- carosello: anello, inclinazioni con seme, aggancio (task 8.13)
+{
+  const { CarouselState, slotAngle, slotPose } = await import(
+    "../src/core/Carousel.ts"
+  );
+  const { CAROUSEL } = await import("../src/config/beers.ts");
+  const N = CAROUSEL.count;
+
+  // lo slot davanti è al centro e a z = 0: l'anello è tangente alla camera,
+  // non centrato sull'origine
+  const davanti = slotPose(0, 0, 0, N);
+  assert(Math.abs(davanti.x) < 1e-12 && Math.abs(davanti.z) < 1e-12, "lo slot 0 non è davanti");
+  // e la sua posa è quella del keyframe dell'hero, non una pescata dal seme
+  assert.equal(+davanti.rotX.toFixed(6), KEYFRAMES[0].rotation[0]);
+  assert.equal(+davanti.rotZ.toFixed(6), KEYFRAMES[0].rotation[2]);
+  assert.equal(davanti.rotY, 0, "la protagonista deve mostrare il fronte");
+
+  // le laterali arretrano tutte (z negativo) e si distribuiscono a sinistra e
+  // a destra
+  let aSinistra = 0;
+  let aDestra = 0;
+  for (let slot = 1; slot < N; slot++) {
+    const p = slotPose(slot, 0, 0, N);
+    assert(p.z < 0, `lo slot ${slot} non è arretrato`);
+    if (p.x < 0) aSinistra++;
+    else aDestra++;
+    // inclinazioni dentro le fasce dichiarate
+    assert(
+      p.rotX >= CAROUSEL.tilt.xMin - 1e-9 && p.rotX <= CAROUSEL.tilt.xMax + 1e-9,
+      `inclinazione x fuori fascia allo slot ${slot}: ${p.rotX}`,
+    );
+    assert(Math.abs(p.rotZ) <= CAROUSEL.tilt.zMax + 1e-9, `inclinazione z fuori fascia allo slot ${slot}`);
+    assert(Math.abs(p.y) <= CAROUSEL.tilt.yOffsetMax + 1e-9, `scarto y fuori fascia allo slot ${slot}`);
+  }
+  assert(aSinistra > 0 && aDestra > 0, "le laterali stanno tutte dalla stessa parte");
+
+  // il seme è fisso: due chiamate identiche danno lo stesso risultato, e due
+  // slot diversi no (altrimenti sarebbero tutte inclinate uguale)
+  assert.deepEqual(slotPose(3, 0, 0, N), slotPose(3, 0, 0, N), "il seme non è deterministico");
+  assert.notDeepEqual(
+    { x: slotPose(3, 0, 0, N).rotZ, y: slotPose(3, 0, 0, N).rotX },
+    { x: slotPose(4, 0, 0, N).rotZ, y: slotPose(4, 0, 0, N).rotX },
+    "due slot hanno la stessa inclinazione",
+  );
+
+  // girare l'anello di un passo equivale a cambiare slot attivo di uno
+  const passo = (Math.PI * 2) / N;
+  assert(
+    Math.abs(slotAngle(1, 0, -passo, N) - slotAngle(1, 1, 0, N)) < 1e-12,
+    "rot e active non sono equivalenti: la rinormalizzazione dell'aggancio sposterebbe la scena",
+  );
+
+  // --- stato: trascinamento, inerzia, aggancio
+  {
+    gsap.ticker.lagSmoothing(0);
+    const avanza = (dt: number) =>
+      gsap.globalTimeline.time(gsap.globalTimeline.time() + dt);
+    const c = new CarouselState(N);
+
+    // un trascinamento corto e lento: si torna allo slot di prima
+    c.grab(0);
+    for (let i = 1; i <= 5; i++) c.drag(2, i * 16);
+    assert(c.rot > 0 && c.dragging, "il trascinamento non muove l'anello");
+    c.release();
+    avanza(CAROUSEL.snapDuration + 0.01);
+    assert.equal(c.active, 0, "un trascinamento corto ha cambiato slot");
+    assert.equal(c.rot, 0);
+
+    // un colpetto corto ma veloce porta avanti di uno (inerzia, spec 6.6)
+    c.grab(500);
+    c.drag(12, 516);
+    assert(c.velocity > CAROUSEL.flickVelocity, `velocità troppo bassa per uno scatto: ${c.velocity}`);
+    c.release();
+    avanza(CAROUSEL.snapDuration + 0.01);
+    assert.equal(c.active, -1, "lo scatto non ha portato avanti di uno slot");
+    c.active = 0;
+
+    // un trascinamento lungo e lento: cambia slot, e la posa resta identica
+    // dopo la rinormalizzazione (è il punto di tutto l'impianto)
+    c.grab(1000);
+    const px = passo / CAROUSEL.dragPerPixel;
+    for (let i = 1; i <= 60; i++) c.drag(-px / 60, 1000 + i * 32);
+    const primaDellAggancio = [0, 1, 2].map((s) => slotPose(s, c.active, c.rot, N));
+    c.release();
+    avanza(CAROUSEL.snapDuration + 0.01);
+    assert.equal(c.active, 1, `l'aggancio non ha cambiato slot: active ${c.active}`);
+    assert.equal(c.rot, 0, "rot non è stato rinormalizzato");
+    const dopo = [0, 1, 2].map((s) => slotPose(s, c.active, c.rot, N));
+    for (let i = 0; i < dopo.length; i++) {
+      assert(
+        Math.abs(dopo[i].x - primaDellAggancio[i].x) < 0.02 &&
+          Math.abs(dopo[i].z - primaDellAggancio[i].z) < 0.02,
+        "la rinormalizzazione ha spostato la scena: si vedrebbe uno scatto al rilascio",
+      );
+    }
+
+    // le frecce: ±1 slot, senza trascinamento
+    c.nudge(1);
+    avanza(CAROUSEL.snapDuration + 0.01);
+    assert.equal(c.active, 2, "la freccia avanti non ha portato lo slot successivo davanti");
+    c.nudge(-1);
+    avanza(CAROUSEL.snapDuration + 0.01);
+    assert.equal(c.active, 1, "la freccia indietro non torna");
+
+    // eventi nello stesso millisecondo: la velocità non deve diventare Infinity
+    c.grab(2000);
+    c.drag(5, 2000);
+    c.drag(5, 2000);
+    assert(Number.isFinite(c.velocity), `velocità non finita: ${c.velocity}`);
+    c.release();
+    avanza(CAROUSEL.snapDuration + 0.01);
+    assert(Number.isFinite(c.rot), "rot non finito dopo un aggancio");
+
+    // un rilascio senza trascinamento non fa niente
+    const prima = c.active;
+    c.release();
+    assert.equal(c.active, prima);
+    c.dispose();
+  }
+}
+
+// --- uno swipe orizzontale è del carosello, non del motore a step
+{
+  assert.equal(swipeDirection(-80, 300, 10), 1, "swipe verticale ignorato");
+  assert.equal(swipeDirection(-50, 300, 120), 0, "un trascinamento orizzontale ha fatto uno step");
+  assert.equal(swipeDirection(-80, 300, 80), 1, "a parità di assi vince il verticale");
+}
+
 console.log("verify-core: OK");

@@ -8,6 +8,7 @@ import { onTick } from "../core/Ticker.ts";
 import { DEBUG_MODE } from "../debug/registry";
 import { sharedViewport, useViewport } from "../hooks/useViewport";
 import { Bottle } from "./Bottle";
+import { Carousel } from "./Carousel";
 import { LightRig } from "./Environment";
 import { Lights } from "./Lights";
 
@@ -88,6 +89,7 @@ export function Stage({ className }: { className?: string }) {
           nero, quindi il fallback è il nulla e non un lampo */}
       <Suspense fallback={null}>
         <Bottle />
+        <Carousel />
       </Suspense>
       {DEBUG_MODE === "env" && (
         <Suspense fallback={null}>

@@ -212,3 +212,53 @@ export function prepareBottle(
     },
   };
 }
+
+/**
+ * Una copia per il carosello: **geometrie condivise**, materiali e uniform
+ * propri.
+ *
+ * Le geometrie sono 24 mila vertici e la texture 133 KB: duplicarle otto volte
+ * sarebbe tutta memoria GPU buttata, perché le bottiglie sono identiche. I
+ * materiali invece devono essere distinti, perché ognuno ha la sua luce — la
+ * protagonista usa reveal, focus e lama, le laterali solo `uDim`.
+ *
+ * `clone()` di un materiale si porta dietro anche `onBeforeCompile`, e con
+ * essa la chiusura sugli uniform **dell'originale**: senza ri-innestare la
+ * patch, tutte le copie piloterebbero la stessa luce.
+ */
+export function cloneBottle(src: PreparedBottle): PreparedBottle {
+  const uniforms = createBottleUniforms();
+  const materiali: THREE.Material[] = [];
+  const meshes = {} as Record<NodeName, THREE.Mesh>;
+
+  const inner = new THREE.Group();
+  inner.name = "bottiglia-inner";
+  for (const nome of NODES) {
+    const sorgente = src.meshes[nome];
+    const mat = (sorgente.material as THREE.Material).clone();
+    patchBottleMaterial(mat, uniforms, nome === "etichetta");
+    const m = new THREE.Mesh(sorgente.geometry, mat);
+    m.name = nome;
+    m.scale.copy(sorgente.scale);
+    m.renderOrder = sorgente.renderOrder;
+    materiali.push(mat);
+    meshes[nome] = m;
+    inner.add(m);
+  }
+  inner.position.copy(src.inner.position);
+
+  const pivot = new THREE.Group();
+  pivot.name = "bottiglia-copia";
+  pivot.add(inner);
+
+  return {
+    pivot,
+    inner,
+    meshes,
+    uniforms,
+    dispose() {
+      // le geometrie no: sono dell'originale, che le libera lui
+      for (const m of materiali) m.dispose();
+    },
+  };
+}
