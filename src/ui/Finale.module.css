@@ -35,8 +35,8 @@
 /* il blocco sotto la bottiglia: il bordo alto viene da `FINALE.ctaTop` */
 .cta {
   position: absolute;
-  left: 16px;
-  right: 16px;
+  left: calc(16px + var(--safe-l));
+  right: calc(16px + var(--safe-r));
   top: calc(var(--cta-top) * 100%);
   display: flex;
   flex-direction: column;
@@ -84,8 +84,14 @@
   outline-offset: 3px;
 }
 
-@media (max-width: 767px) {
+@media (max-width: 767px), (max-aspect-ratio: 1/1) {
   .cta {
     top: calc(var(--cta-top-mobile) * 100%);
+  }
+
+  /* il minimo di 120 px della spec a 390 px fa "CRISI" più largo dello
+     schermo: sotto i 545 px comanda la larghezza */
+  .bigWord {
+    font-size: min(22vw, 360px);
   }
 }

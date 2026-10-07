@@ -14,6 +14,13 @@
   overflow: hidden;
   /* sbloccata, il dito scorre la pagina come altrove */
   touch-action: pan-y;
+  /* le zone sicure di iOS (notch, barra home), con `viewport-fit=cover` in
+     index.html: le ereditano tutti gli strati, e ogni elemento attaccato a
+     un bordo le somma al suo margine (spec 8.23) */
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
 }
 
 /* bloccata: il verticale lo gestisce StepController e l'orizzontale il
@@ -66,7 +73,5 @@
   z-index: 4;
 }
 
-/* 6 · preloader, rimosso dal DOM a caricamento finito */
-.loader {
-  z-index: 5;
-}
+/* 6 · il preloader è il `Loader` della home, sopra tutta la pagina (z 1000):
+   qui non serve uno strato suo */

@@ -5,7 +5,7 @@
 // per una differenza che non si vede. Il tetto è 1,75 su desktop e 1,5 su
 // mobile; il DPR adattivo (task 8.27) scenderà ancora da qui.
 
-/** sotto questa larghezza valgono i keyframe mobile (spec 8.5) */
+/** sotto questa larghezza è un telefono (spec 8.5); il layout vedi `portrait` */
 export const MOBILE_MAX_WIDTH = 768;
 
 export const DPR_CAP = { desktop: 1.75, mobile: 1.5 } as const;
@@ -18,7 +18,19 @@ export interface ViewportState {
   height: number;
   /** già limitato: è il valore da dare al renderer, non quello del device */
   dpr: number;
+  /**
+   * Telefono: lo decide la larghezza, e decide le cose che dipendono dal
+   * dispositivo (tetto al DPR, bottiglie del carosello, materiali leggeri).
+   */
   mobile: boolean;
+  /**
+   * Finestra non più larga che alta. Con `mobile` decide il **layout**:
+   * keyframe e CSS mobile per `mobile || portrait`, così il tablet verticale
+   * si compone come un telefono (spec 8.23). `<=` e non `<` perché è la
+   * stessa soglia di `(max-aspect-ratio: 1/1)` nei CSS, che include il
+   * quadrato.
+   */
+  portrait: boolean;
   /** rapporto larghezza/altezza, serve a `solvePivot` (task 8.7) */
   aspect: number;
 }
@@ -34,6 +46,7 @@ export function computeViewport(
 ): ViewportState {
   const mobile = width < MOBILE_MAX_WIDTH;
   const cap = mobile ? DPR_CAP.mobile : DPR_CAP.desktop;
+  const aspect = height > 0 ? width / height : 1;
   return {
     width,
     height,
@@ -41,7 +54,8 @@ export function computeViewport(
     // scendere sotto il pixel reale sfoca per niente
     dpr: Math.max(1, Math.min(devicePixelRatio, cap)),
     mobile,
-    aspect: height > 0 ? width / height : 1,
+    portrait: aspect <= 1,
+    aspect,
   };
 }
 

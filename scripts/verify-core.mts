@@ -23,7 +23,7 @@ import {
   WheelGesture,
 } from "../src/core/StepController.ts";
 import { SCROLL, STEP_DURATION } from "../src/config/theme.ts";
-import { StateMapper } from "../src/core/StateMapper.ts";
+import { keyframesFor, StateMapper } from "../src/core/StateMapper.ts";
 import { KEYFRAMES, SEGMENTS } from "../src/config/keyframes.ts";
 import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
 
@@ -42,9 +42,19 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
   assert.equal(computeViewport(1440, 900, 1).dpr, 1);
   assert.equal(computeViewport(1440, 900, 0.8).dpr, 1, "DPR sotto il pixel reale");
 
-  // il breakpoint è esclusivo: 768 è già desktop (tablet verticale, spec 8.23)
+  // il breakpoint del telefono è esclusivo: a 768 non è più un telefono
   assert.equal(computeViewport(MOBILE_MAX_WIDTH, 1024, 2).mobile, false);
   assert.equal(computeViewport(MOBILE_MAX_WIDTH - 1, 1024, 2).mobile, true);
+  // ma il tablet verticale si compone come un telefono (spec 8.23): il layout
+  // lo decide `portrait`, il DPR resta quello della larghezza
+  {
+    const tablet = computeViewport(MOBILE_MAX_WIDTH, 1024, 2);
+    assert.equal(tablet.portrait, true, "768×1024 non è verticale");
+    assert.equal(tablet.dpr, DPR_CAP.desktop);
+    // il quadrato è verticale come in `(max-aspect-ratio: 1/1)`
+    assert.equal(computeViewport(1000, 1000, 1).portrait, true);
+    assert.equal(computeViewport(1024, 768, 2).portrait, false, "tablet orizzontale = desktop");
+  }
 
   // altezza 0 durante il primo frame di certi browser: niente divisione per 0
   assert.equal(computeViewport(1440, 0, 2).aspect, 1);
@@ -270,13 +280,14 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
   // pivot è giusto, il punto ancorato ricade dove dice il keyframe. Qui si
   // verifica la proprietà, non il numero: è la proprietà che regge su ogni
   // formato (spec 7.1).
-  for (const vp of [computeViewport(1440, 900, 2), computeViewport(2560, 1080, 1), computeViewport(390, 844, 3)]) {
+  for (const vp of [computeViewport(1440, 900, 2), computeViewport(2560, 1080, 1), computeViewport(390, 844, 3), computeViewport(768, 1024, 2)]) {
     const m = new StateMapper(vp);
+    const kfs = keyframesFor(vp);
     for (let i = 0; i <= m.last; i++) {
       const s = m.apply(i);
-      const kf = (vp.mobile ? "mobile" : "desktop") + " step " + i;
+      const kf = `${vp.width}×${vp.height} step ${i}`;
       // ricostruzione: punto ancorato = pivot + offset ruotato
-      const off = new (await import("three")).Vector3(0, (vp.mobile ? KEYFRAMES : KEYFRAMES)[i].anchor.localY, 0).applyEuler(s.rotation);
+      const off = new (await import("three")).Vector3(0, kfs[i].anchor.localY, 0).applyEuler(s.rotation);
       const mondo = s.pivot.clone().add(off);
       const cam = new (await import("three")).PerspectiveCamera(28, vp.aspect, 0.1, 100);
       cam.position.copy(s.camera.position);
@@ -284,7 +295,7 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
       cam.updateMatrixWorld(true);
       const ndc = mondo.clone().project(cam);
       const schermo = [(ndc.x + 1) / 2, (1 - ndc.y) / 2];
-      const atteso = (vp.mobile ? await import("../src/config/keyframes.ts").then((m) => m.KEYFRAMES_MOBILE) : KEYFRAMES)[i].anchor.screen;
+      const atteso = kfs[i].anchor.screen;
       assert(
         Math.abs(schermo[0] - atteso[0]) < 1e-3 && Math.abs(schermo[1] - atteso[1]) < 1e-3,
         `${kf}: l'ancora cade a ${schermo.map((n) => n.toFixed(3))} invece di ${atteso}`,
@@ -370,13 +381,74 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
   }
 }
 
+// --- la fascia accesa non entra mai nel testo (task 8.23)
+//
+// Il criterio della spec ("la bottiglia non copre mai i testi e la fascia
+// accesa è sempre leggibile") in forma misurabile: agli step 2–5 la fascia,
+// proiettata in camera, sta fuori dal rettangolo del blocco di testo. Desktop:
+// il blocco è a `left: 10vw`, largo `min(520px, 42vw)` (StepText.module.css),
+// e la fascia sta tutta alla sua destra. Layout mobile: il testo occupa dal
+// 60% al 92% dell'altezza (spec 7.3), e la fascia sta tutta sopra il 60%.
+// Il resto della bottiglia può passare dietro il testo su mobile: lì la
+// leggibilità la danno la sfumatura e lo strato sopra il canvas.
+{
+  const THREE = await import("three");
+  const { CAMERA } = await import("../src/config/solvePivot.ts");
+  const { LABEL } = await import("../src/config/bottle.ts");
+  /** il testo su mobile comincia qui (spec 7.3) */
+  const TESTO_MOBILE_TOP = 0.6;
+  for (const vp of [computeViewport(1440, 900, 2), computeViewport(390, 844, 3), computeViewport(768, 1024, 2)]) {
+    const layoutMobile = vp.mobile || vp.portrait;
+    const m = new StateMapper(vp);
+    const cam = new THREE.PerspectiveCamera(CAMERA.fov, vp.aspect, 0.1, 100);
+    const bordoTesto = (0.1 * vp.width + Math.min(520, 0.42 * vp.width)) / vp.width;
+    for (let i = 2; i <= 5; i++) {
+      const s = m.apply(i);
+      cam.position.copy(s.camera.position);
+      cam.lookAt(s.camera.look);
+      cam.updateMatrixWorld(true);
+      let minX = Infinity;
+      let maxY = -Infinity;
+      const { focusY, focusHalf } = s.uniforms;
+      for (const y of [focusY - focusHalf, focusY, focusY + focusHalf]) {
+        for (let a = 0; a < Math.PI * 2; a += Math.PI / 24) {
+          const locale = new THREE.Vector3(Math.sin(a), 0, Math.cos(a));
+          const punto = locale
+            .clone()
+            .multiplyScalar(LABEL.radius)
+            .setY(y - BOTTLE.centerY)
+            .applyEuler(s.rotation)
+            .add(s.pivot);
+          // solo l'arco rivolto alla camera: il resto della fascia è dietro
+          const normale = locale.applyEuler(s.rotation);
+          if (normale.dot(cam.position.clone().sub(punto)) <= 0) continue;
+          const ndc = punto.project(cam);
+          minX = Math.min(minX, (ndc.x + 1) / 2);
+          maxY = Math.max(maxY, (1 - ndc.y) / 2);
+        }
+      }
+      const nome = `${vp.width}×${vp.height} step ${i}`;
+      if (layoutMobile) {
+        assert(maxY < TESTO_MOBILE_TOP, `${nome}: la fascia scende a ${maxY.toFixed(3)}, dentro il testo`);
+      } else {
+        assert(minX > bordoTesto, `${nome}: la fascia arriva a x ${minX.toFixed(3)}, dentro il testo (${bordoTesto.toFixed(3)})`);
+      }
+      if (i === 2 || i === 5) {
+        console.log(
+          `fascia ${nome}:`,
+          layoutMobile ? `fondo ${maxY.toFixed(3)} < ${TESTO_MOBILE_TOP}` : `bordo sinistro ${minX.toFixed(3)} > ${bordoTesto.toFixed(3)}`,
+        );
+      }
+    }
+  }
+}
+
 // --- dove cadono protagonista e piedistallo nell'hero (task 8.19)
 {
   const { heroLayout } = await import("../src/core/heroLayout.ts");
-  const { KEYFRAMES_MOBILE } = await import("../src/config/keyframes.ts");
   for (const vp of [computeViewport(1440, 900, 2), computeViewport(2560, 1080, 1), computeViewport(390, 844, 3)]) {
     const l = heroLayout(vp);
-    const ancora = (vp.mobile ? KEYFRAMES_MOBILE : KEYFRAMES)[0].anchor.screen[1];
+    const ancora = keyframesFor(vp)[0].anchor.screen[1];
     const nome = `${vp.width}×${vp.height}`;
     console.log(`hero ${nome}:`, { centerY: +l.centerY.toFixed(3), pedestalTopY: +l.pedestalTopY.toFixed(3) });
     assert(Math.abs(l.centerY - ancora) < 1e-3, `${nome}: il pivot cade a ${l.centerY} invece che all'ancora ${ancora}`);
@@ -433,6 +505,8 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
   for (const [vp, top] of [
     [computeViewport(1440, 900, 2), FINALE.ctaTop.desktop],
     [computeViewport(390, 844, 3), FINALE.ctaTop.mobile],
+    // tablet verticale: layout mobile, quindi la CTA mobile (task 8.23)
+    [computeViewport(768, 1024, 2), FINALE.ctaTop.mobile],
   ] as const) {
     const s = new StateMapper(vp).apply(LAST_STEP);
     const cam = new THREE.PerspectiveCamera(28, vp.aspect, 0.1, 100);

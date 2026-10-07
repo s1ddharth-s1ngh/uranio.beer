@@ -184,6 +184,26 @@ export const KEYFRAMES_MOBILE: readonly Keyframe[] = KEYFRAMES.map((k, i) => ({
 }));
 
 /**
+ * Tablet verticale (spec 8.23): la composizione del telefono, con la camera
+ * allontanata di questo fattore. Le ancore sono frazioni dello schermo, quindi
+ * restano dove sono: cambia solo quanto è grande la bottiglia, che su uno
+ * schermo più tozzo di 390×844 a parità di camera riempirebbe troppo.
+ */
+export const TABLET_CAM_SCALE = 1.1;
+
+export const KEYFRAMES_TABLET: readonly Keyframe[] = KEYFRAMES_MOBILE.map((k) => ({
+  ...k,
+  camera: {
+    position: [
+      k.camera.position[0],
+      k.camera.position[1],
+      k.camera.position[2] * TABLET_CAM_SCALE,
+    ],
+    look: k.camera.look,
+  },
+}));
+
+/**
  * I gruppi di proprietà che possono partire in momenti diversi dentro una
  * transizione. Lo sfalsamento è ciò che distingue una regia da un'interpolazione
  * lineare: le laterali scappano subito, la camera arriva dopo, la luce per

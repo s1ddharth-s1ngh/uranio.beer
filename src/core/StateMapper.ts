@@ -17,6 +17,7 @@ import {
   FULL_WINDOW,
   KEYFRAMES,
   KEYFRAMES_MOBILE,
+  KEYFRAMES_TABLET,
   SEGMENTS,
   type Group,
   type Keyframe,
@@ -29,6 +30,17 @@ import type { ViewportState } from "./Viewport.ts";
 const easeWindow = gsap.parseEase(EASE_WINDOW);
 
 const mix = (a: number, b: number, t: number) => a + (b - a) * t;
+
+/**
+ * Quali keyframe valgono per una finestra (spec 7.3 e 8.23): il layout lo
+ * decidono `mobile || portrait`, la stessa regola dei CSS
+ * `(max-width: 767px), (max-aspect-ratio: 1/1)`. Esportata perché
+ * `verify:core` riproietti le stesse composizioni che usa la pagina.
+ */
+export function keyframesFor(vp: ViewportState): readonly Keyframe[] {
+  if (vp.mobile) return KEYFRAMES_MOBILE;
+  return vp.portrait ? KEYFRAMES_TABLET : KEYFRAMES;
+}
 
 /**
  * Tempo locale di un gruppo dentro il segmento: fuori dalla finestra si ferma
@@ -126,7 +138,7 @@ export class StateMapper {
    * quanto è larga la finestra (spec 7.1).
    */
   prepare(vp: ViewportState) {
-    this.kf = vp.mobile ? KEYFRAMES_MOBILE : KEYFRAMES;
+    this.kf = keyframesFor(vp);
     for (let i = 0; i < this.kf.length; i++) {
       const k = this.kf[i];
       configureCamera(this.cam, k.camera, vp.aspect);

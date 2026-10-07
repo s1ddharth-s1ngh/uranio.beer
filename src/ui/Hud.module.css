@@ -21,12 +21,13 @@
 
 .header {
   position: absolute;
-  inset: 0 0 auto 0;
+  inset: var(--safe-t) 0 auto 0;
   height: var(--hud-header);
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  padding: 0 var(--hud-inset);
+  padding: 0 calc(var(--hud-inset) + var(--safe-r)) 0
+    calc(var(--hud-inset) + var(--safe-l));
   gap: 16px;
 }
 
@@ -153,26 +154,26 @@
 }
 
 .tl {
-  top: var(--hud-inset);
-  left: var(--hud-inset);
+  top: calc(var(--hud-inset) + var(--safe-t));
+  left: calc(var(--hud-inset) + var(--safe-l));
   border-top: 1px solid rgba(255, 255, 255, 0.5);
   border-left: 1px solid rgba(255, 255, 255, 0.5);
 }
 .tr {
-  top: var(--hud-inset);
-  right: var(--hud-inset);
+  top: calc(var(--hud-inset) + var(--safe-t));
+  right: calc(var(--hud-inset) + var(--safe-r));
   border-top: 1px solid rgba(255, 255, 255, 0.5);
   border-right: 1px solid rgba(255, 255, 255, 0.5);
 }
 .bl {
-  bottom: var(--hud-inset);
-  left: var(--hud-inset);
+  bottom: calc(var(--hud-inset) + var(--safe-b));
+  left: calc(var(--hud-inset) + var(--safe-l));
   border-bottom: 1px solid rgba(255, 255, 255, 0.5);
   border-left: 1px solid rgba(255, 255, 255, 0.5);
 }
 .br {
-  bottom: var(--hud-inset);
-  right: var(--hud-inset);
+  bottom: calc(var(--hud-inset) + var(--safe-b));
+  right: calc(var(--hud-inset) + var(--safe-r));
   border-bottom: 1px solid rgba(255, 255, 255, 0.5);
   border-right: 1px solid rgba(255, 255, 255, 0.5);
 }
@@ -291,9 +292,9 @@
    l'header: è la riga più alta della pagina. */
 .progress {
   position: absolute;
-  top: 22px;
-  left: 70px;
-  right: 70px;
+  top: calc(22px + var(--safe-t));
+  left: calc(70px + var(--safe-l));
+  right: calc(70px + var(--safe-r));
   height: 1px;
   background: rgba(255, 255, 255, 0.2);
 }
@@ -410,19 +411,19 @@
   background-repeat: repeat-y;
 }
 
-@media (max-width: 767px) {
+@media (max-width: 767px), (max-aspect-ratio: 1/1) {
   .progress {
-    left: 16px;
-    right: 16px;
+    left: calc(16px + var(--safe-l));
+    right: calc(16px + var(--safe-r));
   }
 
   /* su mobile le icone passano in riga (spec 7.3): la colonna a destra
      coprirebbe la bottiglia su un frame stretto */
   .icons {
-    right: var(--hud-inset);
-    left: var(--hud-inset);
+    right: calc(var(--hud-inset) + var(--safe-r));
+    left: calc(var(--hud-inset) + var(--safe-l));
     top: auto;
-    bottom: calc(var(--hud-inset) + 8px);
+    bottom: calc(var(--hud-inset) + 8px + var(--safe-b));
     transform: none;
     flex-direction: row;
     justify-content: center;
@@ -449,7 +450,7 @@
 
 /* --------------------------------------------------------------- mobile */
 
-@media (max-width: 767px) {
+@media (max-width: 767px), (max-aspect-ratio: 1/1) {
   .hud {
     --hud-inset: 16px;
     --hud-header: 64px;

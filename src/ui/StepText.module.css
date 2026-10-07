@@ -83,18 +83,27 @@
   transform-origin: left center;
 }
 
-@media (max-width: 767px) {
-  /* su mobile il testo va in basso, sopra una sfumatura scura (spec 7.3):
-     la bottiglia sta sopra e non deve mai coprirlo */
+@media (max-width: 767px), (max-aspect-ratio: 1/1) {
+  /* su mobile il testo va in basso, sopra una sfumatura scura (spec 7.3 e
+     8.23): la bottiglia può passarci dietro, e la sfumatura è ciò che lo
+     tiene leggibile. Il blocco arriva al bordo e il fondo lo riserva il
+     padding, così la sfumatura copre anche la riga delle icone: 86 px sono
+     le icone di Hud.module.css (16 + 8 di margine, 46 di bottone) più 16 di
+     respiro */
   .block {
     left: 0;
     right: 0;
     top: auto;
-    bottom: 8%;
+    bottom: 0;
     transform: none;
     width: auto;
-    padding: 24px 16px 16px;
+    padding: 48px calc(16px + var(--safe-r)) calc(86px + var(--safe-b))
+      calc(16px + var(--safe-l));
     gap: 12px;
+    background: linear-gradient(
+      transparent,
+      color-mix(in srgb, var(--u-black) 85%, transparent) 35%
+    );
   }
 
   .block::before,
