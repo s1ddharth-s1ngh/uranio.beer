@@ -1,9 +1,12 @@
 # Continua da qui
 
-Documento di passaggio di consegne, riscritto al task 8.18. Leggilo tutto,
-poi **finisci il task 8.18 e vai avanti fino al 8.28**. La spec completa è
-`docs/URANIO_SCROLL_SPEC.md`, le decisioni e le correzioni alla spec stanno in
-`docs/AUDIT.md`: leggi entrambi prima di scrivere codice.
+Documento di passaggio di consegne, riscritto al task 8.18 e aggiornato il
+2026-10-08. Il lavoro che resta, **dal 8.19 al 8.28, è diviso in un brief per
+task in `docs/tasks/`**: l'indice (`docs/tasks/README.md`) dice in che ordine
+eseguirli e quali si possono fare in parallelo. Questo file è il contesto
+comune a tutti i brief: leggilo tutto prima di eseguirne uno. La spec completa
+è `docs/URANIO_SCROLL_SPEC.md`, le decisioni e le correzioni alla spec stanno
+in `docs/AUDIT.md`: leggi entrambi prima di scrivere codice.
 
 ## Regola che vale su tutto
 
@@ -12,10 +15,13 @@ poi **finisci il task 8.18 e vai avanti fino al 8.28**. La spec completa è
 La regola 10.1.8 della spec (fermarsi a fine di ogni fase e mostrare
 screenshot) resta **sospesa**: niente pause, niente conferme. Ogni dubbio
 aperto ha già una risposta di default più sotto. Se incontri una scelta non
-prevista, prendila tu, annotala in `docs/AUDIT.md` e tira dritto.
+prevista, prendila tu, annotala nella sezione **Esito** del tuo brief (il
+8.28 le riporta tutte in `docs/AUDIT.md`) e tira dritto.
 
 Un task = un commit, in italiano, all'imperativo, come già fatto. Resti su
-`main`, non fai `push`. Niente `--amend`.
+`main` — oppure sul branch `task/8.xx` del worktree, se il proprietario ha
+scelto di lavorare in parallelo (`docs/tasks/README.md`) — e non fai `push`.
+Niente `--amend`.
 
 **Prima di ogni commit**, e guardando l'esito con `echo $?` e non con un
 `grep` (vedi trappola 8 più sotto):
@@ -33,7 +39,7 @@ Quando arrivi in fondo al 8.28, fermati e scrivi un resoconto finale di cosa
 
 ## Dove sei
 
-Fase A, B e C finite, fase D a metà. Diciotto commit su `main`:
+Fase A, B e C finite, fase D fino al 8.18 compreso. I commit su `main`:
 
 | commit | task | cosa |
 | --- | --- | --- |
@@ -55,10 +61,14 @@ Fase A, B e C finite, fase D a metà. Diciotto commit su `main`:
 | `f405cc9` | 8.15 | bloom + vignetta + grana in un `EffectPass` |
 | `deda33d` | 8.16 | header HUD, angolari, trattini, lettere |
 | `e5ad843` | 8.17 | barra di progresso e icone degli step |
+| `41d7894` | 8.18 | testi degli step (commit dell'hook, messaggio automatico) |
 
-### Il task 8.18 è scritto ma NON verificato e NON committato
+### Il task 8.18
 
-Nell'albero di lavoro ci sono già, da finire:
+È nello storico come `41d7894 autocommit …`: il commit col messaggio giusto
+era mancato, e la storia non si riscrive. Verificato il 2026-10-08: `tsc -b`,
+`eslint src`, `npm run build`, `verify:core` e `verify:glb` escono 0. Nessuno
+l'ha visto in un browser. I pezzi:
 
 - `src/ui/StepText.ts` — la classe che anima i testi (uscita a righe verso
   l'alto con maschera, entrata dal basso con sfocato, tag barrato). È una
@@ -75,12 +85,8 @@ Nell'albero di lavoro ci sono già, da finire:
   in cui gira.
 - `src/config/text.ts` — i tempi (uscita 0,4 s stagger 0,05; entrata al 45%
   della durata, 0,7 s stagger 0,07; tag 0,35 s; barratura 0,45 s).
-- `src/pages/Experience.tsx` — già modificato per montare `StepTextLayer`
-  nello strato `.stage-ui`.
-
-**Cosa resta da fare sul 8.18**: lanciare `npx tsc -b`, `npx eslint src`,
-`npm run build`, sistemare quello che esce (l'unico sospetto è ESLint, vedi
-trappola 5) e committare. Poi 8.19.
+- `src/pages/Experience.tsx` — monta `StepTextLayer` nello strato
+  `.stage-ui`.
 
 ## Risposte di default alle domande aperte
 
@@ -88,7 +94,7 @@ Non chiedere nessuna di queste. Usa la risposta e vai avanti.
 
 | Domanda | Risposta da usare |
 | --- | --- |
-| Branch `feat/scroll-3d`? | **No.** `CLAUDE.md` impone `main`. |
+| Branch `feat/scroll-3d`? | **No.** `CLAUDE.md` impone `main`. L'unica eccezione possibile sono i worktree `task/8.xx` per lavorare in parallelo, e la decide il proprietario (`docs/tasks/README.md`). |
 | Logo Uranio in SVG? | **Non c'è.** `src/assets/uranio-mark.png` è già usato come segnaposto nell'header (schiarito via CSS, con il TODO accanto). |
 | Logotipo "CRISI ECONOMICA" vettoriale? | **Non c'è.** Ritaglialo dalla texture dell'etichetta (zona fronte, x 20–860 su 2008 px) con `sharp` in uno script, output in `public/images/`. Serve al task 8.19. |
 | Testi confermati dal birrificio? | **No, e non serve aspettare.** `src/content/steps.it.ts` così com'è. |
@@ -139,7 +145,7 @@ src/
     ProgressBar.tsx  barra (scrive una variabile CSS nel tick, non in React)
     StepIcons.tsx    le quattro icone-navigazione
     icons.tsx        i quattro disegni SVG
-    StepText.ts      i testi degli step (task 8.18, da finire)
+    StepText.ts      i testi degli step (task 8.18)
   hooks/
     useViewport.ts   `sharedViewport()` + hook
     useStepEngine.ts monta il motore, hash dell'URL, spia di debug
@@ -258,54 +264,16 @@ e 390×844.
     non è stato eseguito. Non bloccarti.
 11. **I sorgenti vanno in `scripts/`, non nello scratchpad**: da fuori dal
     progetto gli import bare (`three`, `@gltf-transform/core`) non risolvono.
+12. **`node_modules` può mancare** (il 2026-10-08 non c'era, e `npx tsc`
+    risponde "This is not the tsc command you are looking for"): `npm ci`,
+    una volta per cartella e mai da due sessioni insieme.
 
 ## Cosa resta: dal 8.19 al 8.28
 
-Leggi il testo completo di ogni task nella spec. Note da qui:
-
-- **8.19 interfaccia dell'hero.** Serve il ritaglio del logotipo dalla
-  texture (vedi domande aperte). Frecce a puntini ±120 px dalla protagonista
-  che chiamano `sharedCarousel().nudge(±1)`, slider sincronizzato con
-  `sharedCarousel().index`, "SCORRI PER SCOPRIRE" cliccabile che fa uno step
-  avanti. Tutto esce nel segmento 0 → 1: usa `SceneState.props` o un peso
-  derivato da `p` come fanno già gli altri strati.
-- **8.20 finale.** `.bigword` è già un contenitore vuoto nello strato 2 di
-  `Experience.tsx`. Oscillazione lenta della bottiglia: è la "vita a riposo"
-  della spec 7.4, non ancora implementata da nessuna parte — va sommata
-  sopra lo stato in `Bottle.tsx`, smorzata a zero mentre `p` si muove.
-- **8.21 uscita verso il resto della pagina.** Qui l'esperienza si trasferisce
-  in `src/pages/Home.tsx` al posto dell'hero attuale e la route
-  `/esperienza` sparisce (togli anche `esperienza` da `ROUTE` in
-  `scripts/postbuild.mjs`). La sezione "Chi siamo" **non si tocca** (regola
-  10.1.10): diventa il contenuto sotto. `lib/heroTransition.ts` e
-  `hooks/useHeroLock.ts` vanno riscritti. Attenzione: `Experience` è una
-  route lazy in `App.tsx` proprio perché three+drei non finiscano nel bundle
-  iniziale di tutto il sito (erano 373 KB gzip contro 87); quando va in home,
-  tieni il Canvas in import dinamico o il budget 9.1 salta.
-- **8.22 preloader.** Si **riveste** `src/components/Loader.tsx`, già
-  agganciato al progresso reale dei GLB (`lib/assetProgress.ts` +
-  `useProgress` di drei). Non riscriverlo.
-- **8.23 responsive.** I keyframe mobile ci sono già (`KEYFRAMES_MOBILE`), le
-  icone in riga e il testo in basso anche. Restano la sfumatura sotto il
-  testo, `100svh`, safe area iOS e il tablet verticale.
-- **8.24 accessibilità e fallback.** `prefers-reduced-motion` è già
-  rispettato in `Progress` (durate a 0,45 s), nell'HUD e nei testi. Mancano
-  il focus visibile su tutti i controlli, l'ordine di tabulazione e il
-  fallback senza WebGL2.
-- **8.25 audio (opzionale).** Il toggle e la persistenza ci sono. Mancano i
-  file: lascia documentato.
-- **8.26 birra dentro (opzionale).** `LatheGeometry` dal profilo 3.2.
-- **8.27 performance.** Da fare: DPR adattivo (scende di 0,25 se il frame
-  medio supera 20 ms per 2 s), sfondo a max 30 fps (il DPR 0,5 c'è già),
-  pausa con tab nascosta, `IntersectionObserver`. **E il budget**: oggi la
-  pagina dell'esperienza pesa ~373 KB gzip fra index, chunk suo e chunk
-  condiviso di three/drei, contro i 350 della sezione 9.1. Il sospetto è
-  `Environment` di drei: la spec 6.4 descrive comunque una PMREM fatta a mano
-  da piani emissivi, che sono ~40 righe senza drei. Misura prima di riscrivere.
-- **8.28 QA finale.** Script Playwright a 1440×900 e 390×844 che percorre 0 →
-  6 → 0 con la tastiera aspettando `step:enter` (l'evento esiste su
-  `sharedProgress()`), screenshot in `qa/screens/`, poi **guarda gli
-  screenshot** e correggi i keyframe dove sbagliano. Aggiorna il `README`.
+Un brief per task in `docs/tasks/`, con l'indice e le ondate in
+`docs/tasks/README.md`. Le note che stavano qui sono finite nei brief,
+corrette dove serviva: per esempio lo slider dell'hero non può seguire
+`sharedCarousel().index`, che con una birra sola vale sempre 0.
 
 ## Cosa resta non verificato a occhio
 
