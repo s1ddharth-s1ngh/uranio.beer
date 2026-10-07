@@ -22,7 +22,8 @@ scripts/postbuild.mjs`), `npm run deploy` / `deploy:test`.
 ## Come viene caricato oggi il GLB
 
 `src/components/about/AboutBottle.tsx` fa `useGLTF` su
-`public/3d/Crisi_Economica_etichettata.glb` (5,8 MB, non ottimizzato) e passa
+`public/models/crisi_economica.glb` (320 KB dal task 8.4; prima era il GLB
+grezzo da 5,8 MB in `public/3d/`) e passa
 la scena a `splitBottleGlb()` + `buildBottleAssembly()`
 (`src/components/about/bottleAssembly.ts`), che:
 
@@ -66,6 +67,31 @@ tocca l'altro.
 | `/coming-soon`, `/slash-experiment` | pagine a sé | **Non le tocco.** |
 | `lib/heroTransition.ts`, `hooks/useHeroLock.ts` | dissolvenza hero→about e blocco scroll su touch | **Riscritti** dal task 8.21: la logica di passaggio cambia del tutto. |
 
+## Correzioni alla spec emerse lavorando (regola 10.1.7)
+
+**3.1 — il tappo non si semplifica, se prima non si salda.** La spec dice
+"semplifica a ~8–12k vertici, errore massimo 0,0005" come se bastasse
+chiederlo. Non basta: il tappo esce dalla scultura con le normali spezzate su
+ogni faccia e con UV che non servono (il suo materiale è rosso metallico senza
+texture). `weld()` fonde solo vertici identici bit per bit, quindi non ne
+fonde nessuno, e senza saldatura il semplificatore non ha spigoli da
+collassare: si pianta a ~50k qualunque errore gli si conceda, da 0,0005 a 0,02.
+Togliendo i due attributi inutili prima di saldare si scende a 64k e da lì
+l'obiettivo si raggiunge: **10.160 vertici a errore 0,0005**.
+
+Le normali vanno poi rifatte, ma non con `normals()` di gltf-transform: quella
+chiama `unweld()` sull'INTERO documento (gonfiando anche vetro ed etichetta, da
+121k a 136k vertici e il file da 496 KB a 890 KB) e produce normali piatte, che
+su un metallo lucido danno un tappo sfaccettato. In `optimize-glb.mjs` c'è una
+`normaliLisce()` di venti righe che lavora sulla sola primitiva del tappo.
+
+**Compromesso accettato:** si perde il taglio netto sulla piega delle
+scanalature della corona. La superficie ondula ancora, ma l'ondulazione è
+sfumata invece che spigolosa. Misurato: l'inviluppo della silhouette passa da
+3,38% a 3,76% di ondulazione su 180 spicchi, tutti coperti — non sta
+poligonando. **Non è però un giudizio visivo:** nessuno l'ha ancora guardato in
+un browser. La manopola per tornare indietro è `CAP_TARGET_VERTS`.
+
 ## Scostamenti dalla spec, decisi qui (regola 10.1.7)
 
 1. **Niente branch `feat/scroll-3d`.** Il task 8.1 lo chiede, ma `CLAUDE.md`
@@ -89,6 +115,9 @@ tocca l'altro.
   `public/3d/old_antic_beer_bottle_cap.glb` (5,9 MB): non più referenziati da
   quando la sezione About usa il GLB di Crisi Economica. Finiscono comunque in
   `dist/`. Da cancellare, serve il via libera.
+- `public/3d/Crisi_Economica_etichettata.glb`: **cancellato al task 8.4**, lo
+  sostituisce `public/models/crisi_economica.glb` (320 KB). Il sorgente resta
+  in `assets-src/`, da cui lo script di ottimizzazione rigenera tutto.
 - `public/3d/Japanese_Sign_10.glb`, `KX418_003C0_V7.glb`,
   `PolygonalMindLogo_Art.glb` e `public/3d/optimized/`: nessun riferimento nel
   codice. Stesso discorso.

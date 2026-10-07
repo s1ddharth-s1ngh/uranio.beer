@@ -22,7 +22,7 @@ import type { Breakpoint } from "./aboutTimeline";
 // Un unico GLB con bottiglia etichettata e tappo: li separo io in due oggetti
 // e li reincastro (vedi bottleAssembly.ts) così sembra una bottiglia chiusa ma
 // il tappo può volare via per conto suo.
-const BOTTLE_URL = `${import.meta.env.BASE_URL}3d/Crisi_Economica_etichettata.glb`;
+const BOTTLE_URL = `${import.meta.env.BASE_URL}models/crisi_economica.glb`;
 useGLTF.preload(BOTTLE_URL);
 
 // Registro di debug (solo dev) per test e taratura: window.__aboutDebug

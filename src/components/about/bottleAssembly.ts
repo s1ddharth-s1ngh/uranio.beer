@@ -31,8 +31,10 @@ const CAP_CLEARANCE = 1.02;
 const CAP_SINK = 0.75;
 
 // Nome del nodo che nel GLB racchiude il tappo. È l'unico aggancio al file:
-// se il modello cambia, è qui che si guarda.
-const CAP_NODE = "Cylinder_2";
+// se il modello cambia, è qui che si guarda. Lo assegna
+// `scripts/optimize-glb.mjs`, che riscrive i nomi usciti da Blender (uno dei
+// quali aveva i byte corrotti) in `vetro` / `tappo` / `etichetta`.
+const CAP_NODE = "tappo";
 
 // Altezza finale dell'assieme in unità mondo: la timeline di scroll (scale
 // 1.15→1.7) è tarata su un oggetto alto 2.

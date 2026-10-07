@@ -8,6 +8,8 @@
     "build": "node scripts/check-tokens.mjs && tsc -b && vite build && node scripts/postbuild.mjs",
     "build:test": "node scripts/check-tokens.mjs && tsc -b && vite build && node scripts/postbuild.mjs --test",
     "lint": "eslint .",
+    "optimize:glb": "node scripts/optimize-glb.mjs",
+    "verify:glb": "node --experimental-strip-types scripts/verify-glb.mts",
     "preview": "vite preview",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist",
