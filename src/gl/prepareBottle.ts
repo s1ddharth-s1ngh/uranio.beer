@@ -22,6 +22,7 @@ import {
   GLASS_LOW_END,
   LABEL_MATERIAL,
   LABEL_RENDER_ORDER,
+  LIQUID,
 } from "../config/materials.ts";
 import {
   createBottleUniforms,
@@ -42,6 +43,8 @@ export interface PreparedBottle {
   /** dentro il pivot, spostato di −centerY: non si tocca */
   inner: THREE.Group;
   meshes: Record<NodeName, THREE.Mesh>;
+  /** la birra dentro (spec 6.10); `null` su GPU deboli o se spenta da config */
+  liquid: THREE.Mesh | null;
   /** le maschere degli shader (spec 6.5): ci scrive dentro `StateMapper` */
   uniforms: BottleUniforms;
   dispose(): void;
@@ -105,6 +108,103 @@ function bake(mesh: THREE.Mesh): THREE.BufferGeometry {
   g.computeBoundingBox();
   g.computeBoundingSphere();
   return g;
+}
+
+/**
+ * Il profilo della birra, misurato sulla **cavità** del vetro vero e staccato
+ * di `LIQUID.gap`: così sta dentro per costruzione anche dove la 3.2
+ * approssima (spalla, collo, fondo).
+ *
+ * Il vetro ha due pareti, quindi "il raggio massimo per fascia" sarebbe la
+ * parete esterna e la birra forerebbe quella interna. Si prende invece la
+ * parete più vicina all'asse:
+ *
+ * - **pareti:** ogni spigolo dei triangoli, portato nel piano (r, y), taglia
+ *   l'altezza y a un certo raggio; il minimo fra tutti è la parete interna, su
+ *   tutti gli angoli insieme (l'asse del vetro non è esattamente a x = 0).
+ *   Basta campionare ai livelli dei vertici: fra due anelli la parete è dritta.
+ * - **fondo:** qui gli spigoli non bastano, il cerchio in cima alla cupola del
+ *   fondo è chiuso da corde che attraversano l'asse senza toccarlo. Pochi
+ *   raggi verso il basso, dall'asse al tallone.
+ */
+function profiloBirra(vetro: THREE.BufferGeometry): THREE.Vector2[] {
+  const { fillY, gap, floorStep } = LIQUID;
+  const pos = vetro.attributes.position;
+  const idx = vetro.index;
+  const n = idx ? idx.count : pos.count;
+  const r = new Float32Array(pos.count);
+  for (let i = 0; i < pos.count; i++) r[i] = Math.hypot(pos.getX(i), pos.getZ(i));
+
+  // spigoli nel piano (r, y), quattro numeri l'uno; i doppi non fanno danno
+  const lati: number[] = [];
+  const vert = (k: number) => (idx ? idx.getX(k) : k);
+  for (let t = 0; t + 2 < n; t += 3) {
+    for (const [a, b] of [[0, 1], [1, 2], [2, 0]]) {
+      const i = vert(t + a);
+      const j = vert(t + b);
+      lati.push(r[i], pos.getY(i), r[j], pos.getY(j));
+    }
+  }
+  const parete = (y: number) => {
+    let min = Infinity;
+    for (let k = 0; k < lati.length; k += 4) {
+      const r1 = lati[k];
+      const y1 = lati[k + 1];
+      const r2 = lati[k + 2];
+      const y2 = lati[k + 3];
+      if (y1 === y2 || y < Math.min(y1, y2) || y > Math.max(y1, y2)) continue;
+      min = Math.min(min, r1 + ((r2 - r1) * (y - y1)) / (y2 - y1));
+    }
+    return min;
+  };
+
+  // il fondo: il primo vetro che si incontra scendendo da dentro il corpo
+  const sonda = new THREE.Mesh(
+    vetro,
+    new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }),
+  );
+  const rc = new THREE.Raycaster();
+  const giu = new THREE.Vector3(0, -1, 0);
+  const da = new THREE.Vector3();
+  const colpi: THREE.Intersection[] = [];
+  const fondo = (raggio: number) => {
+    rc.set(da.set(raggio, LABEL.minY, 0), giu);
+    colpi.length = 0;
+    sonda.raycast(rc, colpi);
+    if (!colpi.length) {
+      throw new Error(
+        `prepareBottle: nessun fondo sotto r = ${raggio.toFixed(3)}. Il vetro è ` +
+          `cambiato: il profilo della birra (spec 6.10) va rimisurato.`,
+      );
+    }
+    return colpi.reduce((max, c) => Math.max(max, c.point.y), -Infinity);
+  };
+
+  // Le pareti partono appena sopra la cupola del fondo: più in basso l'asse
+  // stesso è dentro il vetro e "la parete più vicina all'asse" non vuol dire
+  // più niente. Sotto quella quota comanda il fondo.
+  const pareteDa = fondo(0) + 2 * gap;
+  const punti: THREE.Vector2[] = [];
+  const rFondo = parete(pareteDa) - gap;
+  for (let x = 0; x < rFondo; x += floorStep) {
+    const y = fondo(x) + gap;
+    if (y >= pareteDa) break;
+    punti.push(new THREE.Vector2(x, y));
+  }
+  (sonda.material as THREE.Material).dispose();
+
+  // al millesimo: gli anelli sono una sessantina, i vertici migliaia
+  const livelli = new Set<number>([pareteDa, fillY]);
+  for (let i = 0; i < pos.count; i++) {
+    const y = Math.round(pos.getY(i) * 1000) / 1000;
+    if (y > pareteDa && y < fillY) livelli.add(y);
+  }
+  for (const y of [...livelli].sort((a, b) => a - b)) {
+    punti.push(new THREE.Vector2(parete(y) - gap, y));
+  }
+  // il tappo della birra: la superficie piatta a `fillY`
+  punti.push(new THREE.Vector2(0, fillY));
+  return punti;
 }
 
 export function prepareBottle(
@@ -193,6 +293,28 @@ export function prepareBottle(
   meshes.etichetta.scale.set(LABEL.scaleXZ, 1, LABEL.scaleXZ);
   meshes.etichetta.renderOrder = LABEL_RENDER_ORDER;
 
+  // La birra si vede solo attraverso la `transmission` del vetro: il vetro non
+  // è `transparent`, la copre del tutto e la restituisce dal render target
+  // della trasmissione, filtrata e già moltiplicata dalle maschere. Su GPU
+  // deboli la trasmissione è 0 e la birra sarebbe invisibile: non si crea,
+  // ed è una draw call in meno per bottiglia. Niente maschere qui, quindi
+  // geometria e materiale si possono condividere con i cloni.
+  let liquid: THREE.Mesh | null = null;
+  if (LIQUID.enabled && !lowEnd) {
+    liquid = new THREE.Mesh(
+      new THREE.LatheGeometry(profiloBirra(geometrie.vetro), LIQUID.segments),
+      new THREE.MeshPhysicalMaterial({
+        color: new THREE.Color(LIQUID.color),
+        emissive: new THREE.Color(LIQUID.emissive),
+        emissiveIntensity: LIQUID.emissiveIntensity,
+        roughness: LIQUID.roughness,
+        metalness: LIQUID.metalness,
+      }),
+    );
+    liquid.name = "birra";
+    inner.add(liquid);
+  }
+
   // Il centro geometrico va nell'origine del pivot: così ogni rotazione gira
   // attorno alla pancia della bottiglia e non attorno al suo fondo.
   inner.position.y = -BOTTLE.centerY;
@@ -205,10 +327,13 @@ export function prepareBottle(
     pivot,
     inner,
     meshes,
+    liquid,
     uniforms,
     dispose() {
       for (const g of Object.values(geometrie)) g.dispose();
       for (const m of Object.values(materiali)) m.dispose();
+      liquid?.geometry.dispose();
+      (liquid?.material as THREE.Material | undefined)?.dispose();
     },
   };
 }
@@ -245,6 +370,12 @@ export function cloneBottle(src: PreparedBottle): PreparedBottle {
     meshes[nome] = m;
     inner.add(m);
   }
+  let liquid: THREE.Mesh | null = null;
+  if (src.liquid) {
+    liquid = new THREE.Mesh(src.liquid.geometry, src.liquid.material);
+    liquid.name = src.liquid.name;
+    inner.add(liquid);
+  }
   inner.position.copy(src.inner.position);
 
   const pivot = new THREE.Group();
@@ -255,9 +386,11 @@ export function cloneBottle(src: PreparedBottle): PreparedBottle {
     pivot,
     inner,
     meshes,
+    liquid,
     uniforms,
     dispose() {
-      // le geometrie no: sono dell'originale, che le libera lui
+      // le geometrie no, e la birra nemmeno: sono dell'originale, che le
+      // libera lui
       for (const m of materiali) m.dispose();
     },
   };

@@ -14,7 +14,8 @@ import {
   buildBottleAssembly,
   splitBottleGlb,
 } from "../src/components/about/bottleAssembly.ts";
-import { prepareBottle } from "../src/gl/prepareBottle.ts";
+import { cloneBottle, prepareBottle } from "../src/gl/prepareBottle.ts";
+import { LIQUID } from "../src/config/materials.ts";
 import { BANDS, BOTTLE, CAP, LABEL, NODES } from "../src/config/bottle.ts";
 
 const SRC = "assets-src/Crisi_Economica_etichettata.glb";
@@ -300,6 +301,91 @@ assert(
     "prepareBottle ha modificato la geometria originale: la sezione About si troverebbe la bottiglia deformata",
   );
 
+  b.dispose();
+}
+
+// --- 4c. la birra dentro (task 8.26): sta nella cavità del vetro a ogni
+// altezza, arriva al livello giusto, non esce dal fondo; su GPU deboli non
+// c'è; i cloni del carosello la condividono per intero
+{
+  const b = prepareBottle(ottimizzato);
+  const birra = b.liquid;
+  assert(birra, "con LIQUID.enabled e senza lowEnd la birra deve esserci");
+  assert.equal(birra.parent, b.inner, "la birra deve stare in inner: segue il pivot");
+
+  // Il vetro è disegnato davanti alla birra solo se non è `transparent` e ha
+  // la trasmissione: è questo che la fa vedere filtrata e spenta dalle maschere
+  const vetroMat = b.meshes.vetro.material as THREE.MeshPhysicalMaterial;
+  assert(!vetroMat.transparent, "il vetro è transparent: la birra finirebbe sopra, non dietro");
+  assert(vetroMat.transmission > 0, "senza transmission la birra non si vede");
+
+  // Il controllo non riusa la misura di prepareBottle: spara raggi veri contro
+  // vetro e birra, dall'asse verso fuori e dall'alto verso il fondo
+  const lato = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+  const sondaVetro = new THREE.Mesh(b.meshes.vetro.geometry, lato);
+  const sondaBirra = new THREE.Mesh(birra.geometry, lato);
+  const rc = new THREE.Raycaster();
+  const primo = (sonda: THREE.Mesh, da: THREE.Vector3, dir: THREE.Vector3) => {
+    rc.set(da, dir);
+    const h: THREE.Intersection[] = [];
+    sonda.raycast(rc, h);
+    return h.length ? Math.min(...h.map((x) => x.distance)) : Infinity;
+  };
+
+  const scatolaBirra = new THREE.Box3().setFromBufferAttribute(
+    birra.geometry.attributes.position as THREE.BufferAttribute,
+  );
+  const scatolaVetro = new THREE.Box3().setFromBufferAttribute(
+    b.meshes.vetro.geometry.attributes.position as THREE.BufferAttribute,
+  );
+
+  // pareti: dall'asse in fuori, sopra la cupola del fondo
+  let minParete = Infinity;
+  for (let y = 0.09; y <= LIQUID.fillY - 0.005; y += 0.02) {
+    for (let k = 0; k < 6; k++) {
+      const a = 0.3 + (k * Math.PI) / 3;
+      const da = new THREE.Vector3(0, y, 0);
+      const dir = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
+      const rB = primo(sondaBirra, da, dir);
+      const rV = primo(sondaVetro, da, dir);
+      assert(rB < Infinity && rV < Infinity, `a y ${y.toFixed(2)} un raggio non trova birra o vetro`);
+      minParete = Math.min(minParete, rV - rB);
+    }
+  }
+  // fondo: dall'alto in giù, dall'asse fino quasi alla parete
+  let minFondo = Infinity;
+  for (let r = 0; r <= 0.57; r += 0.01) {
+    for (const a of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
+      const da = new THREE.Vector3(r * Math.cos(a), LABEL.minY, r * Math.sin(a));
+      const dir = new THREE.Vector3(0, -1, 0);
+      minFondo = Math.min(minFondo, primo(sondaVetro, da, dir) - primo(sondaBirra, da, dir));
+    }
+  }
+  console.log(
+    `birra  ${scatolaBirra.min.y.toFixed(4)}→${scatolaBirra.max.y.toFixed(4)}  ` +
+      `dalla parete ≥ ${minParete.toFixed(4)}  dal fondo ≥ ${minFondo.toFixed(4)}`,
+  );
+  assert(minParete > 0.002, `la birra tocca o fora la parete del vetro (${minParete.toFixed(4)})`);
+  assert(minFondo > 0.002, `la birra tocca o fora il fondo del vetro (${minFondo.toFixed(4)})`);
+  assert(Math.abs(scatolaBirra.max.y - LIQUID.fillY) < 0.01, `la birra arriva a ${scatolaBirra.max.y.toFixed(4)} invece di ${LIQUID.fillY}`);
+  assert(scatolaBirra.min.y > scatolaVetro.min.y, "la birra esce dal fondo della bottiglia");
+
+  // i cloni: stessa geometria e stesso materiale, una sola copia sulla GPU
+  const copia = cloneBottle(b);
+  assert(copia.liquid, "il clone ha perso la birra");
+  assert.equal(copia.liquid.geometry, birra.geometry, "il clone ha una geometria della birra sua");
+  assert.equal(copia.liquid.material, birra.material, "il clone ha un materiale della birra suo");
+  assert.equal(copia.liquid.parent, copia.inner);
+
+  // su GPU deboli la trasmissione è 0: la birra non si vedrebbe, quindi non c'è
+  const debole = prepareBottle(ottimizzato, { lowEnd: true });
+  assert.equal(debole.liquid, null, "con lowEnd la birra non deve essere creata");
+  assert(!debole.inner.getObjectByName("birra"), "con lowEnd c'è una birra nella scena");
+  assert.equal(cloneBottle(debole).liquid, null);
+
+  lato.dispose();
+  copia.dispose();
+  debole.dispose();
   b.dispose();
 }
 

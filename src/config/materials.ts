@@ -59,3 +59,34 @@ export const LABEL_MATERIAL = {
 
 /** ordine di disegno dell'etichetta: dopo vetro e tappo */
 export const LABEL_RENDER_ORDER = 2;
+
+/**
+ * La birra dentro (spec 6.10). Opaca di proposito: si vede solo attraverso la
+ * `transmission` del vetro, che la cattura nel suo render target e la
+ * restituisce filtrata e già spenta dalle maschere. Come la tinta del vetro,
+ * `#5a2a08` vive solo nel 3D e quindi sta qui e non in `COLORS`.
+ *
+ * Il profilo non è un numero di config: lo misura `prepareBottle` sulla cavità
+ * del vetro vero. Qui c'è solo quanto staccarsene.
+ */
+export const LIQUID = {
+  enabled: true,
+  color: "#5a2a08",
+  emissive: "#5a2a08",
+  /** il "filo" di emissivo: basta a non farla sparire nel nero del vetro */
+  emissiveIntensity: 0.12,
+  roughness: 0.15,
+  metalness: 0,
+  /** livello della birra, spazio oggetto della bottiglia (spec 6.10) */
+  fillY: 3.3,
+  /**
+   * Distanza dalla parete interna, in unità del modello. Il vetro ha due
+   * pareti (spessore ≈ 0,055 sul corpo, 0,037 nel collo): il raggio × 0,93
+   * della spec, preso sul profilo esterno, forerebbe quella interna.
+   */
+  gap: 0.008,
+  /** passo dei campioni sul fondo, dall'asse verso il tallone */
+  floorStep: 0.02,
+  /** spicchi della `LatheGeometry`: tanto, da dietro un vetro scuro */
+  segments: 32,
+} as const;
