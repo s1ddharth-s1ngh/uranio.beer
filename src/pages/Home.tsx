@@ -5,7 +5,7 @@ import { useInView } from "framer-motion";
 import Loader from "../components/Loader";
 import TopBar from "../components/TopBar";
 import InteractiveText from "../components/InteractiveText";
-import InvertCursor from "../components/InvertCursor";
+import AtomCursor from "../components/AtomCursor";
 import ScrollPill from "../components/ui/ScrollPill";
 import HeroLock from "../components/ui/HeroLock";
 import { usePrefersReducedMotion } from "../hooks/usePrefersReducedMotion";
@@ -116,8 +116,8 @@ export default function Home() {
     >
       <Loader onRevealStart={() => setRevealed(true)} />
       <TopBar revealed={revealed} />
-      {/* soglia unica pill/cursore: INVERT_TRIGGER in InvertCursor.tsx */}
-      <InvertCursor sectionId="about" />
+      {/* soglia unica pill/cursore: ATOM_TRIGGER in AtomCursor.tsx */}
+      <AtomCursor sectionId="about" />
 
       <main>
         {/* HERO: alta 100vh, ma ne consuma solo (1 - HERO_OVERLAP) di scroll:

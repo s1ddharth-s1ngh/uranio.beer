@@ -14,12 +14,12 @@
 }
 
 /* dopo il reveal iniziale: transizioni rapide e senza delay, così risalendo
-   dalla zona invert la pill ricompare subito */
+   dalla zona atomo la pill ricompare subito */
 .wrap.settled {
   transition: opacity 0.25s ease;
 }
 
-/* 2ª sezione arrivata (cursore invert attivo): pill dissolta.
+/* 2ª sezione arrivata (cursore atomo attivo): pill dissolta.
    Ultima regola a pari specificità: vince su .revealed e .settled */
 .wrap.hiddenByScroll {
   opacity: 0;

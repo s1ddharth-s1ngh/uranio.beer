@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { usePrefersReducedMotion } from "../../hooks/usePrefersReducedMotion";
-import { INVERT_TRIGGER } from "../InvertCursor";
+import { ATOM_TRIGGER } from "../AtomCursor";
 import { scramble } from "../../lib/scramble";
 import styles from "./ScrollPill.module.css";
 
 // la pill sparisce ESATTAMENTE quando "arriva" la seconda sezione, cioè
-// quando si accende il cursore invert (stessa soglia condivisa): risalendo
+// quando si accende il cursore atomo (stessa soglia condivisa): risalendo
 // torna da sola, senza zona morta e senza bisogno di muovere il mouse
 const SECTION_ID = "about";
 
@@ -31,7 +31,7 @@ export default function ScrollPill({
 
   // dopo il reveal iniziale (lento, col suo delay) le comparse/sparizioni
   // legate allo scroll devono essere immediate: niente delay di 0.7s quando
-  // si risale dalla zona del cursore invert
+  // si risale dalla zona del cursore atomo
   const [settled, setSettled] = useState(false);
   useEffect(() => {
     if (!revealed) return;
@@ -39,7 +39,7 @@ export default function ScrollPill({
     return () => clearTimeout(t);
   }, [revealed]);
 
-  // invito allo scroll: visibile finché il cursore invert è spento, nascosta
+  // invito allo scroll: visibile finché il cursore atomo è spento, nascosta
   // quando la 2ª sezione è arrivata. Vale anche su touch e in reduced-motion.
   const [hidden, setHidden] = useState(false);
   useEffect(() => {
@@ -48,7 +48,7 @@ export default function ScrollPill({
       setHidden(
         !!el &&
           el.getBoundingClientRect().top <=
-            window.innerHeight * INVERT_TRIGGER,
+            window.innerHeight * ATOM_TRIGGER,
       );
     };
     update();

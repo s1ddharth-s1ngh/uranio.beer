@@ -61,37 +61,58 @@ body {
   flex-direction: column;
 }
 
-/* Cursore "invert" (solo home, oltre l'hero — vedi InvertCursor.tsx):
-   cerchio trasparente che inverte i colori del backdrop, canvas compresi. */
-.invert-cursor {
+/* Cursore atomo (solo home, oltre l'hero — vedi AtomCursor.tsx): orbite
+   sottili attorno al 92 del puntatore nativo. pointer-events: none, quindi
+   non ruba mai click o hover a ciò che sta sotto. */
+.atom-cursor {
   position: fixed;
   top: 0;
   left: 0;
-  width: 110px;
-  height: 110px;
-  border-radius: 50%;
+  width: 96px;
+  height: 96px;
   pointer-events: none;
   z-index: 9999; /* sopra tutto: Loader è 1000, TopBar 50 */
   opacity: 0; /* nascosto finché non si supera l'hero */
   transition:
     opacity 0.25s ease,
-    width 0.2s ease,
-    height 0.2s ease;
+    width 0.25s ease,
+    height 0.25s ease;
   will-change: transform;
-  /* niente doppione -webkit- a mano: con i cssTarget in vite.config è il
-     minifier ad aggiungere il prefisso SENZA scartare la proprietà standard
-     (Chrome/Brave ignorano l'alias -webkit-backdrop-filter) */
-  backdrop-filter: invert(1);
 }
 
-/* feedback sugli elementi interattivi */
-.invert-cursor--grow {
-  width: 150px;
-  height: 150px;
+.atom-cursor svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.atom-cursor__orbit {
+  fill: none;
+  stroke: rgba(200, 215, 255, 0.28);
+  /* il tratto resta di 0.75px anche quando l'atomo si allarga */
+  stroke-width: 0.75;
+  vector-effect: non-scaling-stroke;
+}
+
+.atom-cursor__electron--blue {
+  fill: #8fd8ff;
+  filter: drop-shadow(0 0 3px #8fd8ff);
+}
+
+.atom-cursor__electron--violet {
+  fill: #b59cff;
+  filter: drop-shadow(0 0 3px #b59cff);
+}
+
+/* feedback sugli elementi interattivi: le orbite si aprono */
+.atom-cursor--grow {
+  width: 128px;
+  height: 128px;
 }
 
 /* Il puntatore è il 92, numero atomico dell'uranio, ovunque: anche su link e
-   bottoni (niente manina) e dentro il cerchio invert, che gli sta intorno.
+   bottoni (niente manina) e al centro dell'atomo della seconda sezione.
    Cursore nativo e non un div che insegue il mouse: zero ritardo e zero JS.
    Hotspot in alto a sinistra del 9, dove l'occhio cerca la punta. */
 * {
