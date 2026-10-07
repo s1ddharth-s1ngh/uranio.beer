@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { DecalGeometry } from "three/examples/jsm/geometries/DecalGeometry.js";
 
 // Montaggio della bottiglia della sezione "Chi siamo": due GLB scaricati
 // separatamente (la bottiglia e il tappo) incastrati in un unico oggetto che
@@ -305,4 +306,74 @@ export function buildBottleAssembly(
       capScale: capScale * scale,
     },
   };
+}
+
+// "Not stonks" stampati sulla bottiglia: [angolo attorno all'asse (rad, 0 =
+// verso la camera), altezza (frazione dal fondo), larghezza (frazione del
+// diametro), inclinazione (rad)]. Più d'uno e su lati diversi, così qualunque
+// faccia mostri la rotazione dello scroll ce n'è sempre almeno uno in vista.
+const NOT_STONKS: [number, number, number, number][] = [
+  [0, 0.34, 0.62, 0],
+  [0.55, 0.58, 0.32, 0.25],
+  [-0.7, 0.18, 0.36, -0.2],
+  [2.3, 0.42, 0.55, 0.1],
+  [-2.4, 0.28, 0.42, -0.15],
+];
+
+/**
+ * Proietta il PNG dei not stonks sulla superficie della bottiglia con
+ * DecalGeometry: segue la curvatura vera della scansione invece di un piano
+ * che galleggia davanti. Le decal diventano figlie della mesh colpita, quindi
+ * ereditano scroll, respiro e cursore senza codice in più.
+ *
+ * Va chiamata subito dopo buildBottleAssembly, con l'holder ancora senza
+ * genitore: le misure di `world` sono in quel frame.
+ */
+export function addNotStonks(asm: BottleAssembly, map: THREE.Texture): void {
+  const { holder, world } = asm;
+  holder.updateMatrixWorld(true);
+  const radius = world.bottleWidth / 2;
+  const bottom = world.bottleCenterY - world.bottleHeight / 2;
+  const material = new THREE.MeshBasicMaterial({
+    map,
+    transparent: true,
+    depthWrite: false,
+    // la bottiglia è unlit: niente tone mapping, il rosso resta rosso
+    toneMapped: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -4,
+  });
+  const ray = new THREE.Raycaster();
+  const helper = new THREE.Object3D();
+  const inv = new THREE.Matrix4();
+
+  for (const [angle, yFrac, wFrac, tilt] of NOT_STONKS) {
+    const y = bottom + world.bottleHeight * yFrac;
+    const dir = new THREE.Vector3(Math.sin(angle), 0, Math.cos(angle));
+    // raggio dall'esterno verso l'asse: il primo impatto è la faccia vicina
+    ray.set(dir.clone().multiplyScalar(radius * 4).setY(y), dir.clone().negate());
+    const hit = ray.intersectObject(holder, true)[0];
+    if (!hit?.face) continue;
+    const mesh = hit.object as THREE.Mesh;
+
+    const normal = hit.face.normal.clone().transformDirection(mesh.matrixWorld);
+    helper.position.copy(hit.point);
+    helper.lookAt(hit.point.clone().add(normal));
+    helper.rotateZ(tilt);
+    const size = radius * 2 * wFrac;
+    // profondità corta: col box lungo quanto la bottiglia la stampa
+    // passerebbe anche sul retro, specchiata
+    const geo = new DecalGeometry(
+      mesh,
+      hit.point,
+      helper.rotation,
+      new THREE.Vector3(size, size, radius * 0.5),
+    );
+    // DecalGeometry esce in coordinate mondo: le riporto nel frame della mesh
+    geo.applyMatrix4(inv.copy(mesh.matrixWorld).invert());
+    const decal = new THREE.Mesh(geo, material);
+    decal.name = "notStonks";
+    decal.renderOrder = 1;
+    mesh.add(decal);
+  }
 }

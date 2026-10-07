@@ -6,7 +6,7 @@ import * as THREE from "three";
 
 // Asset del grafico di trend negativo (stonks): caricato e specchiato
 // orizzontalmente così che la discesa vada da destra verso sinistra
-const TRENDING_URL = `${import.meta.env.BASE_URL}trending.png`;
+export const TRENDING_URL = `${import.meta.env.BASE_URL}trending.png`;
 useTexture.preload(TRENDING_URL);
 
 interface StonkConfig {

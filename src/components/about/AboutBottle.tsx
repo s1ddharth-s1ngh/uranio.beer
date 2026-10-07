@@ -1,9 +1,10 @@
 import { useMemo, useRef } from "react";
 import type { RefObject } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useGLTF } from "@react-three/drei";
+import { useGLTF, useTexture } from "@react-three/drei";
 import * as THREE from "three";
-import { buildBottleAssembly } from "./bottleAssembly";
+import { addNotStonks, buildBottleAssembly } from "./bottleAssembly";
+import { TRENDING_URL } from "./AboutStonks";
 import {
   CONFIG,
   PHASES,
@@ -66,10 +67,12 @@ export function AboutBottle({
   // Bottiglia raddrizzata + tappo calzato sulla bocca, centrati sull'origine e
   // alti 2 unità. Il tappo è un oggetto a sé, FUORI dall'assieme: dentro resta
   // solo `capAnchor`, il segnaposto della posa chiusa.
-  const asm = useMemo(
-    () => buildBottleAssembly(bottleGltf.scene, capGltf.scene),
-    [bottleGltf.scene, capGltf.scene],
-  );
+  const notStonks = useTexture(TRENDING_URL);
+  const asm = useMemo(() => {
+    const a = buildBottleAssembly(bottleGltf.scene, capGltf.scene);
+    addNotStonks(a, notStonks);
+    return a;
+  }, [bottleGltf.scene, capGltf.scene, notStonks]);
 
   // Un rig per responsabilità: così nessun oggetto ha due scrittori e la posa
   // finale è la composizione delle matrici, non una somma di Euler fragile.
