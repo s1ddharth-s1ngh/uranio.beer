@@ -16,8 +16,8 @@ Regole:
   `refactor:`, `chore:`, `perf:`, `style:`.
   Esempio: `feat(about): bottiglia Corona al posto della piramide`.
   Corpo su più righe quando serve spiegare il *perché* di una scelta.
-- **Si resta su `main`**, nessun branch: è l'autorizzazione esplicita del
-  proprietario del repo, vale per tutta la sessione e per quelle future.
+- **Si lavora su `dev-samuele`**, non su `main`: tutti i commit vanno su
+  quel branch, per questa sessione e per quelle future.
 - **Non fare `push`.** Le credenziali locali prendono 403 su `origin`: lo
   storico resta in locale e il push lo fa il proprietario del repo.
 - **Non usare `--amend`** su commit già fatti: meglio un commit in più che
