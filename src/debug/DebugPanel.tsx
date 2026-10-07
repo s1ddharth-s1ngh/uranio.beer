@@ -58,7 +58,8 @@ export default function DebugPanel() {
             knob?.options && typeof value === "string"
               ? f.add(sec.target, key, [...knob.options])
               : f.add(sec.target, key, knob?.min, knob?.max, knob?.step);
-          if (sec.onChange) c.onChange(sec.onChange);
+          if (knob?.readonly) c.listen().disable();
+          else if (sec.onChange) c.onChange(sec.onChange);
         }
         if (!sec.open) f.close();
       }

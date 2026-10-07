@@ -2,6 +2,11 @@ import { useSyncExternalStore } from "react";
 
 const QUERY = "(prefers-reduced-motion: reduce)";
 
+/** La stessa domanda fuori da React: la fanno anche i moduli di `core/`. */
+export function prefersReducedMotion(): boolean {
+  return window.matchMedia(QUERY).matches;
+}
+
 function subscribe(onChange: () => void) {
   const mql = window.matchMedia(QUERY);
   mql.addEventListener("change", onChange);

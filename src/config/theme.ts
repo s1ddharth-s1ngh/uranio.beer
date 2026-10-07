@@ -66,6 +66,13 @@ export const SCROLL = {
   newGestureRatio: 1.5,
   /** …purché superi questa soglia in px, per non scattare sul rumore */
   newGestureMinPx: 12,
+  /**
+   * …e purché l'onda precedente sia già sgonfiata sotto questa frazione del
+   * suo picco. Senza, la salita iniziale di una spinta di trackpad (1, 5, 12,
+   * 30, 50 px) viene letta come tre intenzioni diverse: vedi `docs/AUDIT.md`,
+   * correzione alla regola 5.1.3.
+   */
+  newGestureTailFraction: 0.5,
   /** accumulo che fa scattare lo step */
   triggerPx: 24,
   /** swipe: spostamento minimo in px */

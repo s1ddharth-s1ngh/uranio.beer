@@ -14,6 +14,8 @@ export interface DebugKnob {
   step?: number;
   /** elenco chiuso di valori, diventa una tendina */
   options?: readonly string[];
+  /** di sola lettura: un tabellone che si rilegge a ogni frame, non una manopola */
+  readonly?: boolean;
 }
 
 export interface DebugSection {

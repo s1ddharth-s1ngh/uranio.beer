@@ -1,5 +1,6 @@
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, useRef } from "react";
 import { DEBUG_MODE, DEBUG_ON } from "../debug/registry";
+import { useStepEngine } from "../hooks/useStepEngine";
 import styles from "./Experience.module.css";
 
 // Il codice di debug non deve pesare sul sito vero: import dinamico, quindi
@@ -16,6 +17,11 @@ const DebugPanel = lazy(() => import("../debug/DebugPanel"));
  * vuota: ogni task successivo ne riempie uno.
  */
 export default function Experience() {
+  const page = useRef<HTMLDivElement>(null);
+  // il motore di scroll si aggancia al contenitore, non a window: fuori
+  // dall'esperienza (task 8.21) la rotella deve tornare alla pagina
+  useStepEngine(page);
+
   // La pagina non scorre: l'unico movimento è quello della scena. Riuso la
   // classe già esistente in index.css (la stessa del lock dell'hero su touch):
   // toglie le barre e il rimbalzo elastico, che qui sembrerebbe un difetto.
@@ -25,7 +31,7 @@ export default function Experience() {
   }, []);
 
   return (
-    <div className={styles.page}>
+    <div className={styles.page} ref={page} tabIndex={-1}>
       <canvas className={`${styles.layer} ${styles.bg}`} id="bg" />
       <div className={`${styles.layer} ${styles.bigword}`} />
       <canvas className={`${styles.layer} ${styles.gl}`} id="gl" />

@@ -92,6 +92,25 @@ sfumata invece che spigolosa. Misurato: l'inviluppo della silhouette passa da
 poligonando. **Non è però un giudizio visivo:** nessuno l'ha ancora guardato in
 un browser. La manopola per tornare indietro è `CAP_TARGET_VERTS`.
 
+**5.1.3 — l'accelerazione da sola non distingue un gesto nuovo.** La regola
+dice: gesto nuovo se sono passati 160 ms *oppure* se il delta è più di 1,5
+volte il precedente e supera 12 px. Preso alla lettera, una spinta sola di
+trackpad conta per tre: anche la **salita** iniziale accelera (8, 24, 40 px a
+16 ms l'uno) e ogni scatto in salita azzera l'accumulo e fa scattare uno step.
+
+Corretto in `WheelGesture` (`src/core/StepController.ts`): la risalita vale
+come gesto nuovo solo se **un gesto ha già fatto scattare uno step** e se la
+sua onda è **già sgonfiata sotto metà del picco** — cioè siamo nella coda
+dell'inerzia, non nella spinta. La frazione è
+`SCROLL.newGestureTailFraction = 0.5` in `src/config/theme.ts`. Verificato in
+`npm run verify:core` con tre tracce: spinta di trackpad con coda (1 step),
+seconda spinta dentro la coda (2° step), mouse a tacche (1 step per tacca).
+
+**5.1.4 — il lock non può chiedere `tween.isActive()`.** GSAP considera un
+tween attivo solo dal primo tick successivo alla creazione: nel frame in cui
+parte la transizione `moving` sarebbe falso e un secondo gesto passerebbe.
+`Progress` tiene il suo flag.
+
 ## Scostamenti dalla spec, decisi qui (regola 10.1.7)
 
 1. **Niente branch `feat/scroll-3d`.** Il task 8.1 lo chiede, ma `CLAUDE.md`
