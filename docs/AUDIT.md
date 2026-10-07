@@ -111,6 +111,32 @@ tween attivo solo dal primo tick successivo alla creazione: nel frame in cui
 parte la transizione `moving` sarebbe falso e un secondo gesto passerebbe.
 `Progress` tiene il suo flag.
 
+**7.2 — la colonna "pivot atteso" non torna, le ancore sì.** Risolvendo le
+ancore della tabella 7.2 con `solvePivot` (camera FOV 28, 1440×900) i pivot
+vengono:
+
+| step | atteso dalla spec | risolto |
+| --- | --- | --- |
+| 0 | (0, 0,35, 0) | (0, 0,45, 0) |
+| 1 | (0,66, −0,41, 0) | (0,67, −0,50, 0) |
+| 2 | (0,41, 0,73, 0) | (0,71, 0,84, 0) |
+| 3 | (0,41, 0,92, 0) | (0,71, 1,03, 0) |
+| 4 | (0,41, 1,20, 0) | (0,71, 1,20, 0) |
+| 5 | (0,42, 1,53, 0) | (0,70, 1,54, 0) |
+| 6 | (0, −0,15, 0) | (0, −0,15, 0) |
+
+Sulle y lo scarto è ≤ 0,11; sulle x degli step 2–5 è 0,30 fisso, e viene dal
+fatto che lì la bottiglia è girata di π: la componente x dell'offset
+dell'ancora cambia segno, e la colonna della spec sembra non tenerne conto.
+
+**Non si corregge niente**: la colonna è dichiarata "solo per controllo" e
+sono le **ancore** la fonte di verità (spec 7.1: "non scrivere a mano la
+posizione della bottiglia"). Quello che si verifica in
+`npm run verify:core` non è il numero ma la proprietà, ed è più forte:
+riproiettando in camera il punto ancorato, per **ogni** keyframe e a 1440×900,
+2560×1080 e 390×844, cade entro 1e-3 dal punto di schermo dichiarato. È la
+composizione a essere giusta, su ogni formato.
+
 ## Scostamenti dalla spec, decisi qui (regola 10.1.7)
 
 1. **Niente branch `feat/scroll-3d`.** Il task 8.1 lo chiede, ma `CLAUDE.md`

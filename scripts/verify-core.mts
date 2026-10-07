@@ -21,6 +21,9 @@ import {
   WheelGesture,
 } from "../src/core/StepController.ts";
 import { SCROLL, STEP_DURATION } from "../src/config/theme.ts";
+import { StateMapper } from "../src/core/StateMapper.ts";
+import { KEYFRAMES, SEGMENTS } from "../src/config/keyframes.ts";
+import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
 
 // --- viewport: tetto al DPR e breakpoint
 {
@@ -184,6 +187,149 @@ import { SCROLL, STEP_DURATION } from "../src/config/theme.ts";
   assert.equal(pr.p, 0);
   assert.equal(pr.moving, false, "jump() ha lasciato un tween in corso");
   pr.dispose();
+}
+
+// --- StateMapper: lo stato è una funzione pura di `p`
+{
+  const desktop = computeViewport(1440, 900, 2);
+  const sm = new StateMapper(desktop);
+  assert.equal(sm.last, KEYFRAMES.length - 1);
+  assert.equal(SEGMENTS.length, sm.last, "un segmento per ogni passaggio");
+
+  // sugli interi lo stato è esattamente il keyframe
+  for (let i = 0; i <= sm.last; i++) {
+    const s = sm.apply(i);
+    const k = KEYFRAMES[i];
+    assert.deepEqual(
+      s.camera.position.toArray().map((n) => +n.toFixed(6)),
+      k.camera.position.map((n) => +n.toFixed(6)),
+      `camera allo step ${i}`,
+    );
+    assert.deepEqual(
+      [s.rotation.x, s.rotation.y, s.rotation.z].map((n) => +n.toFixed(6)),
+      k.rotation.map((n) => +n.toFixed(6)),
+      `rotazione allo step ${i}`,
+    );
+    assert.equal(s.uniforms.focus, k.focus, `focus allo step ${i}`);
+    assert.equal(s.uniforms.reveal, k.reveal, `reveal allo step ${i}`);
+    assert.equal(s.spot, k.spot, `spot allo step ${i}`);
+    assert.equal(s.background.hero, k.background[0]);
+    assert.equal(s.background.step, k.background[1]);
+    assert.equal(s.background.finale, k.background[2]);
+    // nelle pause la lama di luce è spenta e parcheggiata fuori campo
+    assert.equal(s.uniforms.sweepAmt, 0, `lama accesa in pausa allo step ${i}`);
+    assert.equal(s.uniforms.sweep, SHADER.sweepIdle);
+  }
+
+  // i pivot risolti dalle ancore: la tabella 7.2 dà i valori attesi a 16:10
+  const pivot = (p: number) => {
+    const v = sm.apply(p).pivot;
+    return [v.x, v.y, v.z].map((n) => +n.toFixed(2));
+  };
+  console.log("pivot desktop:", [0, 1, 2, 3, 4, 5, 6].map((i) => pivot(i)));
+
+  // la cima della bottiglia allo step 1 deve finire al 14% dall'alto: se il
+  // pivot è giusto, il punto ancorato ricade dove dice il keyframe. Qui si
+  // verifica la proprietà, non il numero: è la proprietà che regge su ogni
+  // formato (spec 7.1).
+  for (const vp of [computeViewport(1440, 900, 2), computeViewport(2560, 1080, 1), computeViewport(390, 844, 3)]) {
+    const m = new StateMapper(vp);
+    for (let i = 0; i <= m.last; i++) {
+      const s = m.apply(i);
+      const kf = (vp.mobile ? "mobile" : "desktop") + " step " + i;
+      // ricostruzione: punto ancorato = pivot + offset ruotato
+      const off = new (await import("three")).Vector3(0, (vp.mobile ? KEYFRAMES : KEYFRAMES)[i].anchor.localY, 0).applyEuler(s.rotation);
+      const mondo = s.pivot.clone().add(off);
+      const cam = new (await import("three")).PerspectiveCamera(28, vp.aspect, 0.1, 100);
+      cam.position.copy(s.camera.position);
+      cam.lookAt(s.camera.look);
+      cam.updateMatrixWorld(true);
+      const ndc = mondo.clone().project(cam);
+      const schermo = [(ndc.x + 1) / 2, (1 - ndc.y) / 2];
+      const atteso = (vp.mobile ? await import("../src/config/keyframes.ts").then((m) => m.KEYFRAMES_MOBILE) : KEYFRAMES)[i].anchor.screen;
+      assert(
+        Math.abs(schermo[0] - atteso[0]) < 1e-3 && Math.abs(schermo[1] - atteso[1]) < 1e-3,
+        `${kf}: l'ancora cade a ${schermo.map((n) => n.toFixed(3))} invece di ${atteso}`,
+      );
+    }
+  }
+
+  // nessun salto fra la fine di un segmento e l'inizio del successivo
+  for (let i = 1; i < sm.last; i++) {
+    const prima = { ...sm.apply(i - 1e-4).uniforms };
+    const pPrima = sm.apply(i - 1e-4).pivot.clone();
+    const dopo = { ...sm.apply(i + 1e-4).uniforms };
+    const pDopo = sm.apply(i + 1e-4).pivot.clone();
+    assert(
+      pPrima.distanceTo(pDopo) < 1e-2,
+      `salto del pivot al confine ${i}: ${pPrima.distanceTo(pDopo)}`,
+    );
+    for (const key of ["reveal", "focus", "focusY", "focusHalf"] as const) {
+      assert(
+        Math.abs(prima[key] - dopo[key]) < 1e-2,
+        `salto di ${key} al confine ${i}: ${prima[key]} → ${dopo[key]}`,
+      );
+    }
+  }
+
+  // la bottiglia gira sempre nello stesso verso: 0 → π → 2π, mai indietro
+  let ultima = -Infinity;
+  for (let p = 0; p <= sm.last; p += 0.05) {
+    const y = sm.apply(p).rotation.y;
+    assert(y >= ultima - 1e-9, `la rotazione torna indietro a p=${p.toFixed(2)}`);
+    ultima = y;
+  }
+  assert(Math.abs(sm.apply(sm.last).rotation.y - Math.PI * 2) < 1e-9);
+
+  // la lama di luce vive solo dentro la transizione e tocca il massimo a metà
+  {
+    const meta = sm.apply(0.6).uniforms;
+    assert(meta.sweepAmt > 0.9, `la lama non si accende: ${meta.sweepAmt}`);
+    assert(meta.sweep > SHADER.sweepFrom && meta.sweep < SHADER.sweepTo);
+    // nei segmenti fra le fasce è volutamente più timida
+    assert(sm.apply(2.5).uniforms.sweepAmt <= SEGMENTS[2].sweepAmt + 1e-9);
+  }
+
+  // le finestre sfalsano davvero: a metà del primo segmento le laterali sono
+  // già fuori e la maschera della cima non è ancora partita
+  {
+    const s = sm.apply(0.5);
+    assert.equal(s.carousel.escape, 1, "le laterali non sono ancora uscite");
+    assert.equal(s.props, 1, "faro e piedistallo non sono ancora usciti");
+    assert(s.uniforms.reveal > 0 && s.uniforms.reveal < 0.3, `reveal a metà: ${s.uniforms.reveal}`);
+  }
+
+  // il rimbalzo ai bordi deve **vedersi**: `p` sotto zero extrapola
+  {
+    const fermo = sm.apply(0).pivot.clone();
+    const rimbalzo = sm.apply(-SCROLL.bounceAmount);
+    assert(
+      fermo.distanceTo(rimbalzo.pivot) > 1e-4,
+      "il rimbalzo non muove nulla: lo stato è congelato sotto zero",
+    );
+  }
+
+  // le fasce dell'etichetta coincidono con le ancore degli step 2–5
+  for (const [i, b] of [BANDS.f1, BANDS.f2, BANDS.f3, BANDS.f4].entries()) {
+    const s = sm.apply(i + 2);
+    assert.equal(+s.uniforms.focusY.toFixed(6), +b.y.toFixed(6));
+    assert.equal(
+      +KEYFRAMES[i + 2].anchor.localY.toFixed(6),
+      +(b.y - BOTTLE.centerY).toFixed(6),
+      `l'ancora dello step ${i + 2} non è la sua fascia`,
+    );
+  }
+  // e salgono di step in step, raddrizzandosi (spec 7.2)
+  for (let i = 2; i < 5; i++) {
+    assert(
+      sm.apply(i + 1).pivot.y > sm.apply(i).pivot.y,
+      `la bottiglia non sale dallo step ${i} al ${i + 1}`,
+    );
+    assert(
+      Math.abs(KEYFRAMES[i + 1].rotation[2]) < Math.abs(KEYFRAMES[i].rotation[2]),
+      `la bottiglia non si raddrizza dallo step ${i} al ${i + 1}`,
+    );
+  }
 }
 
 console.log("verify-core: OK");
