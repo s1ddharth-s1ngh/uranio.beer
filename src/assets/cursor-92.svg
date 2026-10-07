@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="44" height="32" viewBox="0 0 44 32">
+  <!-- 92 = numero atomico dell'uranio. Cromato: bande chiare/scure come un
+       metallo che riflette cielo e orizzonte, dall'azzurro al viola -->
+  <defs>
+    <linearGradient id="chrome" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f2f8ff"/>
+      <stop offset="0.28" stop-color="#8fd8ff"/>
+      <stop offset="0.5" stop-color="#3a2a8c"/>
+      <stop offset="0.54" stop-color="#5b3fd6"/>
+      <stop offset="0.8" stop-color="#b59cff"/>
+      <stop offset="1" stop-color="#ece4ff"/>
+    </linearGradient>
+  </defs>
+  <!-- font "da tavola periodica": grottesco bold, solo di sistema perché un
+       SVG usato come cursore non può caricare webfont -->
+  <text x="1" y="27" font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
+        font-weight="700" font-size="30" letter-spacing="-1"
+        fill="url(#chrome)" stroke="#120a2a" stroke-width="1.6"
+        stroke-linejoin="round" paint-order="stroke">92</text>
+</svg>

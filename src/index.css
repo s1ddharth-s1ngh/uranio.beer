@@ -90,8 +90,10 @@ body {
   height: 150px;
 }
 
-/* nasconde il cursore nativo quando l'effetto è attivo */
-body.invert-cursor-active,
-body.invert-cursor-active * {
-  cursor: none;
+/* Il puntatore è il 92, numero atomico dell'uranio, ovunque: anche su link e
+   bottoni (niente manina) e dentro il cerchio invert, che gli sta intorno.
+   Cursore nativo e non un div che insegue il mouse: zero ritardo e zero JS.
+   Hotspot in alto a sinistra del 9, dove l'occhio cerca la punta. */
+* {
+  cursor: url("./assets/cursor-92.svg") 2 6, auto;
 }
