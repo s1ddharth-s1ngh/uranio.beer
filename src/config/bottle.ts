@@ -137,6 +137,8 @@ export const SHADER = {
   focusSoft: 0.05,
   focusAngle: Math.PI,
   focusAngleHalf: 0.75,
+  /** sfumatura ai bordi dell'arco acceso, in radianti */
+  focusAngleSoft: 0.25,
   focusFloor: 0.06,
   focusGlowAmt: 0.35,
   /** la lama di luce entra ed esce da qui, in spazio normale */

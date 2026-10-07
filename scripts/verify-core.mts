@@ -332,4 +332,86 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
   }
 }
 
+// --- shader della bottiglia: i marcatori di three e la patch (task 8.10)
+{
+  const THREE = await import("three");
+  const { MARKERS, createBottleUniforms, patchBottleMaterial } = await import(
+    "../src/gl/materials/patchBottle.ts"
+  );
+
+  // Le API di three cambiano spesso (regola 10.1.5) e questi tre `#include`
+  // sono l'unico appiglio della patch: se un aggiornamento li rinomina, la
+  // bottiglia resterebbe illuminata per intero senza un errore.
+  for (const nome of ["physical", "standard"] as const) {
+    const lib = THREE.ShaderLib[nome];
+    assert(
+      lib.vertexShader.includes(MARKERS.common) &&
+        lib.vertexShader.includes(MARKERS.beginVertex),
+      `shader ${nome}: i marcatori del vertex shader non ci sono più (three ${THREE.REVISION})`,
+    );
+    assert(
+      lib.fragmentShader.includes(MARKERS.common) &&
+        lib.fragmentShader.includes(MARKERS.dithering),
+      `shader ${nome}: i marcatori del fragment shader non ci sono più (three ${THREE.REVISION})`,
+    );
+  }
+
+  // la patch si applica davvero e porta dentro i suoi uniform
+  for (const etichetta of [false, true]) {
+    const mat = etichetta
+      ? new THREE.MeshStandardMaterial()
+      : new THREE.MeshPhysicalMaterial();
+    const u = createBottleUniforms();
+    patchBottleMaterial(mat, u, etichetta);
+    const lib = THREE.ShaderLib[etichetta ? "standard" : "physical"];
+    const shader = {
+      uniforms: {} as Record<string, unknown>,
+      vertexShader: lib.vertexShader,
+      fragmentShader: lib.fragmentShader,
+    };
+    mat.onBeforeCompile(shader as never, null as never);
+    assert(shader.vertexShader.includes("vObjPos = position;"), "vertex non patchato");
+    assert(shader.fragmentShader.includes("uniform float uReveal"), "uniform non dichiarati");
+    assert(shader.fragmentShader.includes("gl_FragColor.rgb *= reveal * focus * uDim;"), "maschere non applicate");
+    assert(
+      shader.fragmentShader.includes("uFocusGlow") === true,
+      "il bagliore è dichiarato in entrambi: è la riga che lo usa a cambiare",
+    );
+    assert.equal(
+      shader.fragmentShader.includes("gl_FragColor.rgb += uFocusGlow"),
+      etichetta,
+      "il bagliore rosso deve stare solo sull'etichetta",
+    );
+    // `pow(base, 2.0)` con base negativa è indefinito in GLSL: la lama di luce
+    // va scritta come prodotto
+    assert(
+      !shader.fragmentShader.includes("pow((normal.x"),
+      "la lama di luce usa pow() con base negativa",
+    );
+    assert.equal(shader.uniforms.uReveal, u.uReveal, "gli uniform non sono condivisi");
+    assert.equal(
+      mat.customProgramCacheKey(),
+      etichetta ? "bottle-label" : "bottle-surface",
+      "senza chiave di cache three riuserebbe il programma sbagliato",
+    );
+    mat.dispose();
+  }
+
+  // e se un marcatore sparisse, si fallisce a voce alta
+  {
+    const mat = new THREE.MeshPhysicalMaterial();
+    patchBottleMaterial(mat, createBottleUniforms());
+    assert.throws(
+      () =>
+        mat.onBeforeCompile(
+          { uniforms: {}, vertexShader: "void main(){}", fragmentShader: "void main(){}" } as never,
+          null as never,
+        ),
+      /non c.è più nello shader/,
+      "una patch che non trova il suo marcatore deve fallire, non passare in silenzio",
+    );
+    mat.dispose();
+  }
+}
+
 console.log("verify-core: OK");

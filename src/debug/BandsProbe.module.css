@@ -1,0 +1,31 @@
+/* Il provino delle fasce (`?debug=bands`): in basso a sinistra, fuori dai
+   punti in cui sta la bottiglia negli step del retro (che è a destra). */
+
+.host {
+  position: fixed;
+  left: 12px;
+  bottom: 12px;
+  z-index: 9998;
+  width: min(44vw, 520px);
+  pointer-events: none;
+  font-family: var(--u-font-body);
+  color: var(--u-white);
+}
+
+.canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: #000;
+}
+
+.legenda {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11px;
+  line-height: 1.5;
+  opacity: 0.8;
+  font-variant-numeric: tabular-nums;
+}

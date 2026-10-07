@@ -164,6 +164,23 @@ GLB lo carica la sezione "Chi siamo" (regola 10.1.10): `prepareBottle` clona
 tutto ciò che modifica, e `verify:glb` verifica che dopo la preparazione il
 bbox della geometria sorgente sia identico.
 
+**6.5 — `pow(x, 2.0)` con base negativa è indefinito in GLSL.** Lo snippet
+della lama di luce nella spec scrive
+`exp(-pow((normal.x - uSweep) / uSweepWidth, 2.0))`. In GLSL ES `pow` è
+definito solo per base ≥ 0, e qui la base è negativa su mezza bottiglia: a
+seconda del driver viene 0, NaN o una banda nera. Scritto come prodotto
+(`d * d`) in `src/gl/materials/patchBottle.ts`.
+
+Nello stesso file, ogni sostituzione nello shader di three passa da un
+controllo che **fallisce a voce alta** se il marcatore non c'è
+(`#include <common>`, `<begin_vertex>`, `<dithering_fragment>`): sono l'unico
+appiglio della patch e le API di three cambiano spesso (regola 10.1.5). Senza
+il controllo, un aggiornamento che li rinomina lascerebbe la bottiglia
+illuminata per intero senza un errore. `npm run verify:core` verifica che i
+tre marcatori esistano ancora negli shader `physical` e `standard` della
+versione installata, che la patch si applichi, che gli uniform siano condivisi
+e che il bagliore rosso finisca solo sull'etichetta.
+
 ## Scostamenti dalla spec, decisi qui (regola 10.1.7)
 
 1. **Niente branch `feat/scroll-3d`.** Il task 8.1 lo chiede, ma `CLAUDE.md`

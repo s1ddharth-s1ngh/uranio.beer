@@ -23,6 +23,11 @@ import {
   LABEL_MATERIAL,
   LABEL_RENDER_ORDER,
 } from "../config/materials.ts";
+import {
+  createBottleUniforms,
+  patchBottleMaterial,
+  type BottleUniforms,
+} from "./materials/patchBottle.ts";
 
 export interface PrepareOptions {
   /** GPU debole: via la `transmission`, che costa un passaggio in più */
@@ -37,6 +42,8 @@ export interface PreparedBottle {
   /** dentro il pivot, spostato di −centerY: non si tocca */
   inner: THREE.Group;
   meshes: Record<NodeName, THREE.Mesh>;
+  /** le maschere degli shader (spec 6.5): ci scrive dentro `StateMapper` */
+  uniforms: BottleUniforms;
   dispose(): void;
 }
 
@@ -159,6 +166,15 @@ export function prepareBottle(
     materiali.etichetta.map = mappa;
   }
 
+  // Le tre maschere (cima accesa, fascia accesa, lama di luce) si innestano
+  // nei materiali standard invece di sostituirli: il vetro fisico e il metallo
+  // devono continuare a illuminarsi come li illumina three, le maschere
+  // decidono solo quanta di quella luce resta.
+  const uniforms = createBottleUniforms();
+  patchBottleMaterial(materiali.vetro, uniforms);
+  patchBottleMaterial(materiali.tappo, uniforms);
+  patchBottleMaterial(materiali.etichetta, uniforms, true);
+
   const inner = new THREE.Group();
   inner.name = "bottiglia-inner";
   const meshes = {} as Record<NodeName, THREE.Mesh>;
@@ -189,6 +205,7 @@ export function prepareBottle(
     pivot,
     inner,
     meshes,
+    uniforms,
     dispose() {
       for (const g of Object.values(geometrie)) g.dispose();
       for (const m of Object.values(materiali)) m.dispose();
