@@ -1,21 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { HERO_OVERLAP } from "../lib/heroTransition";
 
 // niente cursore custom su touch (valutato una volta al mount)
 const isTouchDevice = () =>
   window.matchMedia("(hover: none), (pointer: coarse)").matches;
 
 /**
- * Soglia condivisa (frazione di viewport): quando il top della 2ª sezione
- * sale oltre questa linea, la sezione "è arrivata" → cursore invert attivo.
- * ScrollPill usa la STESSA soglia al contrario (pill visibile solo prima),
- * così non esiste mai una zona morta senza né pill né cursore invert.
- *
- * Lo 0.8 di partenza è la soglia voluta; il meno HERO_OVERLAP la compensa,
- * perché la 2ª sezione ora sta più in alto nel documento (margine negativo
- * dell'hero) e senza correzione scatterebbe già a scroll fermo.
+ * Soglia (frazione di viewport): quando il top della 2ª sezione sale oltre
+ * questa linea, la sezione "è arrivata" → cursore invert attivo.
  */
-export const INVERT_TRIGGER = 0.8 - HERO_OVERLAP;
+export const INVERT_TRIGGER = 0.8;
 
 /**
  * Cerchio che segue il mouse e inverte i colori di ciò che ha sotto

@@ -1,111 +1,90 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
+import { SCROLL } from "../config/theme";
+import type { ScrollHost } from "../core/StepController";
+import { setTickerAwake } from "../core/Ticker";
 
 /**
- * Scorrimento animato controllato da noi (non `scroll-behavior: smooth`): così
- * sappiamo ESATTAMENTE quando finisce, e possiamo ribloccare lo scroll solo a
- * animazione conclusa senza dipendere da `scrollend`, che Safari ha aggiunto
- * tardi.
+ * La stessa classe del vecchio blocco dell'hero (index.css): toglie barre e
+ * rimbalzo elastico, che dentro l'esperienza sembrerebbero un difetto.
  */
-function animateScrollTo(y: number, ms: number, instant: boolean) {
-  return new Promise<void>((resolve) => {
-    const start = window.scrollY;
-    const delta = y - start;
-    if (instant || Math.abs(delta) < 1) {
-      window.scrollTo(0, y);
-      resolve();
-      return;
-    }
-    const t0 = performance.now();
-    // easeInOutCubic
-    const ease = (t: number) =>
-      t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-    const step = (now: number) => {
-      const t = Math.min(1, (now - t0) / ms);
-      window.scrollTo(0, start + delta * ease(t));
-      if (t < 1) requestAnimationFrame(step);
-      else resolve();
+const LOCK = "scroll-locked";
+
+// l'IntersectionObserver può riportare 0,8999 attraversando la soglia 0,9
+const RATIO_EPS = 0.01;
+
+/**
+ * Chi possiede lo scroll della pagina (task 8.21): l'esperienza a step finché
+ * non si esce dal finale, poi la pagina nativa fino al riaggancio. La
+ * decisione è di `edgeAction` in `core/StepController.ts`; qui c'è solo il
+ * DOM che la esegue.
+ *
+ * Fa anche da sentinella: con l'esperienza fuori vista il ticker dorme, e
+ * `onHudChange` dice a `Home` quale header mostrare.
+ */
+export function useHeroLock(
+  root: RefObject<HTMLElement | null>,
+  onHudChange?: (visible: boolean) => void,
+): ScrollHost {
+  // un oggetto solo per tutta la vita del componente: il controller lo tiene
+  // e lo interroga a ogni evento, lo stato vive nella sua chiusura
+  const [host] = useState<ScrollHost>(() => {
+    // ricaricando a pagina scrollata (l'hash resta `#step-6`) il browser
+    // ripristina la posizione: bloccare lì intrappolerebbe l'utente a metà
+    let sbloccato = window.scrollY > 0;
+    return {
+      sbloccato: () => sbloccato,
+      haSotto: () => {
+        const el = root.current;
+        if (!el) return false;
+        const fondo = el.getBoundingClientRect().bottom + window.scrollY;
+        return fondo < document.documentElement.scrollHeight - 1;
+      },
+      sblocca(px) {
+        sbloccato = true;
+        document.documentElement.classList.remove(LOCK);
+        if (px) window.scrollBy({ top: px, behavior: "smooth" });
+      },
+      riaggancia() {
+        sbloccato = false;
+        document.documentElement.classList.add(LOCK);
+        // il rimbalzo elastico di Safari lascia `scrollY` negativo
+        window.scrollTo(0, 0);
+      },
     };
-    requestAnimationFrame(step);
   });
-}
 
-interface UseHeroLockArgs {
-  /** attivo solo dove non esiste l'hover: il gesto serve al 3D, non allo scroll */
-  enabled: boolean;
-  /** id della sezione a cui porta il pulsante */
-  targetId?: string;
-  /** chiamata ogni volta che si torna nell'hero e lo scroll si riblocca */
-  onRelock?: () => void;
-}
-
-/**
- * Sul touch la prima sezione non si scorre: il dito serve a spingere il logo.
- * Si scende solo col pulsante; risalendo, appena l'hero è scoperto per più
- * della metà la pagina si riaggancia da sola e il blocco torna attivo.
- */
-export function useHeroLock({
-  enabled,
-  targetId = "about",
-  onRelock,
-}: UseHeroLockArgs) {
-  // se la pagina viene ricaricata già scrollata, il browser ripristina la
-  // posizione: bloccare lì dentro intrappolerebbe l'utente a metà pagina
-  const [locked, setLocked] = useState(
-    () => enabled && (typeof window === "undefined" || window.scrollY < 1),
-  );
-  // un'animazione di scroll è in corso: il guardiano non deve interferire
-  const busy = useRef(false);
-  // in un ref, così cambiare la callback non fa ri-registrare il guardiano
-  const relockRef = useRef(onRelock);
+  // il cleanup toglie sempre: anche partiti sbloccati, un riaggancio può
+  // averla rimessa, e uscendo dalla pagina resterebbe bloccata
   useEffect(() => {
-    relockRef.current = onRelock;
-  }, [onRelock]);
+    const html = document.documentElement;
+    if (!host.sbloccato()) html.classList.add(LOCK);
+    return () => html.classList.remove(LOCK);
+  }, [host]);
 
-  // il blocco vero e proprio. Classe sull'<html> invece di stili inline: così
-  // resta tutto in un posto solo e il cleanup non deve ricordare i valori
-  // precedenti di overflow.
+  // in un ref, così cambiare la callback non rifà l'osservatore
+  const hudRef = useRef(onHudChange);
   useEffect(() => {
-    if (!enabled) return;
-    const root = document.documentElement;
-    root.classList.toggle("scroll-locked", locked);
-    return () => root.classList.remove("scroll-locked");
-  }, [enabled, locked]);
+    hudRef.current = onHudChange;
+  }, [onHudChange]);
 
-  const reduced = () =>
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-  /** il pulsante: sblocca e porta alla sezione successiva */
-  const release = useCallback(async () => {
-    if (busy.current) return;
-    busy.current = true;
-    setLocked(false);
-    // un frame perché React tolga la classe: con overflow:hidden ancora
-    // applicato window.scrollTo non andrebbe da nessuna parte
-    await new Promise((r) => requestAnimationFrame(r));
-    const el = document.getElementById(targetId);
-    const y = el
-      ? el.getBoundingClientRect().top + window.scrollY
-      : window.innerHeight;
-    await animateScrollTo(y, 700, reduced());
-    busy.current = false;
-  }, [targetId]);
-
-  /** guardiano del ritorno: hero scoperto per più di metà → riaggancia */
   useEffect(() => {
-    if (!enabled || locked) return;
-    const onScroll = () => {
-      if (busy.current) return;
-      if (window.scrollY >= window.innerHeight * 0.5) return;
-      busy.current = true;
-      animateScrollTo(0, 450, reduced()).then(() => {
-        setLocked(true);
-        busy.current = false;
-        relockRef.current?.();
-      });
+    const el = root.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      ([e]) => {
+        // scrollata via, l'esperienza è ferma allo step finale: si esce
+        // solo da fermi, quindi nessun tween di `p` resta a metà
+        setTickerAwake(e.isIntersecting);
+        hudRef.current?.(e.intersectionRatio >= SCROLL.hudVisibleRatio - RATIO_EPS);
+      },
+      { threshold: [0, SCROLL.hudVisibleRatio] },
+    );
+    io.observe(el);
+    return () => {
+      io.disconnect();
+      setTickerAwake(true);
     };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [enabled, locked]);
+  }, [root]);
 
-  return { locked: enabled && locked, release };
+  return host;
 }

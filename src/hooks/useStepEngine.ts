@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { sharedProgress, type StepEnterDetail, type StepLeaveDetail } from "../core/Progress";
-import { StepController } from "../core/StepController";
+import { StepController, type ScrollHost } from "../core/StepController";
 import { onTick } from "../core/Ticker";
 import { registerDebug } from "../debug/registry";
 import { LAST_STEP } from "../config/theme";
@@ -22,7 +22,10 @@ export function stepFromHash(hash = window.location.hash): number | null {
  * Il valore continuo `p` non passa da React — lo leggono i moduli GL nel tick
  * condiviso: farne uno stato farebbe 60 render al secondo.
  */
-export function useStepEngine(root: RefObject<HTMLElement | null>) {
+export function useStepEngine(
+  root: RefObject<HTMLElement | null>,
+  host: ScrollHost,
+) {
   const progress = sharedProgress({
     start: stepFromHash() ?? 0,
     reducedMotion: prefersReducedMotion,
@@ -35,7 +38,7 @@ export function useStepEngine(root: RefObject<HTMLElement | null>) {
   useEffect(() => {
     const el = root.current;
     if (!el) return;
-    const controller = new StepController(progress, el);
+    const controller = new StepController(progress, el, host);
 
     const onLeave = (e: Event) => {
       setStep((e as CustomEvent<StepLeaveDetail>).detail.to);
@@ -68,7 +71,7 @@ export function useStepEngine(root: RefObject<HTMLElement | null>) {
       progress.removeEventListener("step:enter", onEnter);
       controller.dispose();
     };
-  }, [progress, root]);
+  }, [progress, root, host]);
 
   return { progress, step };
 }

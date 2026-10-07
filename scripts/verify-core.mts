@@ -16,6 +16,8 @@ import {
 } from "../src/core/Viewport.ts";
 import { durationFor, Progress } from "../src/core/Progress.ts";
 import {
+  edgeAction,
+  type EdgeState,
   keyIntent,
   swipeDirection,
   WheelGesture,
@@ -101,6 +103,42 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
   assert.deepEqual(keyIntent("Home", false), { to: "first" });
   assert.deepEqual(keyIntent("End", false), { to: "last" });
   assert.equal(keyIntent("a", false), null);
+}
+
+// --- uscita verso il resto della pagina (task 8.21, regola 5.1.6)
+{
+  const fermo6: EdgeState = {
+    target: 6, last: 6, moving: false, dir: 1,
+    haSotto: true, sbloccato: false, scrollY: 0,
+  };
+  assert.equal(edgeAction(fermo6), "sblocca", "allo step 6 un gesto giù deve sbloccare");
+  assert.equal(edgeAction({ ...fermo6, haSotto: false }), "rimbalzo", "senza niente sotto si rimbalza");
+  assert.equal(edgeAction({ ...fermo6, moving: true }), "step", "a corsa in atto non si esce");
+  assert.equal(edgeAction({ ...fermo6, target: 5 }), "step");
+  assert.equal(edgeAction({ ...fermo6, dir: -1 }), "step", "allo step 6 un gesto su torna al 5");
+  assert.equal(edgeAction({ ...fermo6, dir: 0 }), "step");
+
+  const fuori = { ...fermo6, sbloccato: true };
+  assert.equal(edgeAction({ ...fuori, dir: -1 }), "riaggancia", "in cima un gesto su riaggancia");
+  // rimbalzo elastico di Safari: `scrollY` negativo vale come cima
+  assert.equal(edgeAction({ ...fuori, dir: -1, scrollY: -12 }), "riaggancia");
+  assert.equal(edgeAction({ ...fuori, dir: 1 }), "nativo", "in cima un gesto giù scorre");
+  for (const dir of [-1, 0, 1]) {
+    assert.equal(edgeAction({ ...fuori, dir, scrollY: 300 }), "nativo", "sotto la cima è tutto nativo");
+  }
+
+  // riaggancio con la rotella: lo fa il primo evento verso l'alto, poi la
+  // coda d'inerzia dello stesso gesto non deve far scattare 6 → 5
+  const g = new WheelGesture();
+  let t = 9000;
+  g.feed(-30, 0, (t += 16), 900);
+  g.consume();
+  let step = 0;
+  for (const d of [-40, -32, -24, -16, -9, -5, -2, -1]) step += g.feed(d, 0, (t += 16), 900);
+  assert.equal(step, 0, "la coda dopo il riaggancio ha fatto uno step");
+  // un gesto nuovo dopo la pausa invece sì
+  step += g.feed(-40, 0, (t += 400), 900);
+  assert.equal(step, -1, "dopo il riaggancio il gesto nuovo non torna al 5");
 }
 
 // --- durate (spec 5.2 e regola 5.1.7)
@@ -332,6 +370,94 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
   }
 }
 
+// --- dove cadono protagonista e piedistallo nell'hero (task 8.19)
+{
+  const { heroLayout } = await import("../src/core/heroLayout.ts");
+  const { KEYFRAMES_MOBILE } = await import("../src/config/keyframes.ts");
+  for (const vp of [computeViewport(1440, 900, 2), computeViewport(2560, 1080, 1), computeViewport(390, 844, 3)]) {
+    const l = heroLayout(vp);
+    const ancora = (vp.mobile ? KEYFRAMES_MOBILE : KEYFRAMES)[0].anchor.screen[1];
+    const nome = `${vp.width}×${vp.height}`;
+    console.log(`hero ${nome}:`, { centerY: +l.centerY.toFixed(3), pedestalTopY: +l.pedestalTopY.toFixed(3) });
+    assert(Math.abs(l.centerY - ancora) < 1e-3, `${nome}: il pivot cade a ${l.centerY} invece che all'ancora ${ancora}`);
+    assert(l.pedestalTopY > l.centerY && l.pedestalTopY < 1, `${nome}: piedistallo fuori posto (${l.pedestalTopY})`);
+  }
+}
+
+// --- finale: tempi della scritta gigante e spazio delle CTA (task 8.20)
+{
+  const THREE = await import("three");
+  const { FINALE } = await import("../src/config/text.ts");
+  const { REST_LIFE } = await import("../src/config/keyframes.ts");
+  const { EASE_NAME, LAST_STEP } = await import("../src/config/theme.ts");
+  const ease = gsap.parseEase(EASE_NAME);
+  const sm = new StateMapper(computeViewport(1440, 900, 2));
+  const giro = Math.PI * 2;
+  const durata = STEP_DURATION[LAST_STEP - 1];
+
+  // all'andata la scritta entra quando la rotazione è quasi finita: si legge
+  // lo stato vero a quel punto, non si ricalcolano le finestre a mano
+  const pEntrata = LAST_STEP - 1 + ease(FINALE.enterAt);
+  const mancante = (giro - sm.apply(pEntrata).rotation.y) / Math.PI;
+  console.log(
+    `finale: entrata a p=${pEntrata.toFixed(3)}, manca il ${(mancante * 100).toFixed(1)}% del mezzo giro`,
+  );
+  assert(mancante < 0.05, `la scritta entra con la bottiglia ancora in rotazione: ${mancante}`);
+
+  // al ritorno la rotazione riparte quando `p` ha percorso la parte del
+  // segmento che sta oltre la finestra: con la curva `uranio`, che parte
+  // piano, quel tratto prende una frazione di tempo molto più grande
+  const fine = SEGMENTS[LAST_STEP - 1].windows.rotazione![1];
+  let lo = 0;
+  let hi = 1;
+  for (let k = 0; k < 50; k++) {
+    const mid = (lo + hi) / 2;
+    if (ease(mid) < 1 - fine) lo = mid;
+    else hi = mid;
+  }
+  const ferma = lo * durata;
+  console.log(
+    `finale: al ritorno la bottiglia resta ferma ${ferma.toFixed(3)} s, la scritta esce in ${FINALE.exit.duration} s`,
+  );
+  assert(FINALE.exit.duration < ferma, "la scritta esce dopo che la bottiglia è ripartita");
+  // e la proprietà vera, letta dallo stato: a uscita finita non ha ancora girato
+  const pUscita = LAST_STEP - ease(FINALE.exit.duration / durata);
+  assert(
+    Math.abs(sm.apply(pUscita).rotation.y - giro) < 1e-9,
+    "la bottiglia ruota prima che la scritta sia uscita",
+  );
+
+  // spazio: il fondo della bottiglia, riproiettato come le ancore, sta sopra
+  // le CTA. Il fondo è un anello del raggio del corpo (per eccesso), e la
+  // vita a riposo può abbassarlo di `REST_LIFE.y.amp`.
+  for (const [vp, top] of [
+    [computeViewport(1440, 900, 2), FINALE.ctaTop.desktop],
+    [computeViewport(390, 844, 3), FINALE.ctaTop.mobile],
+  ] as const) {
+    const s = new StateMapper(vp).apply(LAST_STEP);
+    const cam = new THREE.PerspectiveCamera(28, vp.aspect, 0.1, 100);
+    cam.position.copy(s.camera.position);
+    cam.lookAt(s.camera.look);
+    cam.updateMatrixWorld(true);
+    let fondo = 0;
+    for (let a = 0; a < Math.PI * 2; a += Math.PI / 16) {
+      const punto = new THREE.Vector3(
+        Math.cos(a) * BOTTLE.bodyRadius,
+        BOTTLE.minY - BOTTLE.centerY,
+        Math.sin(a) * BOTTLE.bodyRadius,
+      )
+        .applyEuler(s.rotation)
+        .add(s.pivot);
+      punto.y -= REST_LIFE.y.amp;
+      fondo = Math.max(fondo, (1 - punto.project(cam).y) / 2);
+    }
+    console.log(
+      `finale ${vp.width}×${vp.height}: fondo bottiglia a ${fondo.toFixed(3)}, CTA da ${top}`,
+    );
+    assert(top - fondo > 0.02, `CTA sotto la bottiglia senza margine a ${vp.width}×${vp.height}`);
+  }
+}
+
 // --- shader della bottiglia: i marcatori di three e la patch (task 8.10)
 {
   const THREE = await import("three");
@@ -517,6 +643,28 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
     c.nudge(-1);
     avanza(CAROUSEL.snapDuration + 0.01);
     assert.equal(c.active, 1, "la freccia indietro non torna");
+
+    // due click rapidi sulla stessa freccia valgono due passi, non uno: il
+    // secondo arriva a scatto in corso, prima della rinormalizzazione
+    c.nudge(1);
+    avanza(0.1);
+    c.nudge(1);
+    avanza(CAROUSEL.snapDuration + 0.01);
+    assert.equal(c.active, 3, `due frecce rapide hanno fatto ${c.active - 1} passi invece di 2`);
+    assert.equal(c.rot, 0);
+
+    // il pallino dello slider: continuo durante lo scatto, fermo dopo
+    assert(Math.abs(c.ring - 3 / N) < 1e-12, `slider a ${c.ring} invece di ${3 / N}`);
+    c.nudge(1);
+    let ultimo = c.ring;
+    for (let i = 0; i < 20; i++) {
+      avanza(CAROUSEL.snapDuration / 20);
+      assert(c.ring >= ultimo - 1e-9 && c.ring - ultimo < 1 / N, "lo slider salta durante lo scatto");
+      ultimo = c.ring;
+    }
+    avanza(0.01);
+    assert(Math.abs(c.ring - 4 / N) < 1e-9, `slider a ${c.ring} dopo lo scatto invece di ${4 / N}`);
+    c.active = 1;
 
     // eventi nello stesso millisecondo: la velocità non deve diventare Infinity
     c.grab(2000);

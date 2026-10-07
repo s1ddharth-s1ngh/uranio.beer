@@ -30,3 +30,12 @@ export function onTick(fn: TickFn): () => void {
 export function tickerTime(): number {
   return gsap.ticker.time;
 }
+
+/**
+ * Ferma o riavvia il loop. A esperienza scrollata fuori vista non c'è niente
+ * da disegnare: il ticker è l'unico loop della scena, quindi basta lui.
+ */
+export function setTickerAwake(awake: boolean) {
+  if (awake) gsap.ticker.wake();
+  else gsap.ticker.sleep();
+}

@@ -1,18 +1,26 @@
-/* Gli strati dell'esperienza, dal fondo verso l'alto (spec 4.2). Sono tutti
-   `fixed` e sovrapposti: la pagina non scorre, a muoversi è la scena. Qui ci
-   sono solo i contenitori vuoti — ogni task successivo ne riempie uno. */
+/* Gli strati dell'esperienza, dal fondo verso l'alto (spec 4.2), sovrapposti
+   dentro un blocco alto una schermata in cima alla home. Finché lo scroll è
+   dell'esperienza la pagina non scorre; dal finale il blocco scorre via con
+   il resto (task 8.21). La spec dice `sticky` dentro un contenitore alto
+   100svh: della stessa altezza, `sticky` non farebbe niente. */
 
 .page {
-  position: fixed;
+  position: absolute;
   inset: 0;
   background: #050505;
   /* nessuno strato intercetta i gesti: la rotella e il dito devono arrivare
      a .page, che è ciò su cui si aggancia StepController (task 8.6). I
      singoli controlli si riaccendono da sé con pointer-events: auto */
   overflow: hidden;
-  /* il verticale lo gestisce StepController e l'orizzontale il carosello:
-     al browser non resta nessun gesto da interpretare, e senza questo su
-     telefono il trascinamento del carosello scrollerebbe la pagina */
+  /* sbloccata, il dito scorre la pagina come altrove */
+  touch-action: pan-y;
+}
+
+/* bloccata: il verticale lo gestisce StepController e l'orizzontale il
+   carosello. Al browser non resta nessun gesto da interpretare, e senza
+   questo su telefono il trascinamento del carosello scrollerebbe la pagina.
+   La classe la mette `useHeroLock` */
+:global(html.scroll-locked) .page {
   touch-action: none;
 }
 

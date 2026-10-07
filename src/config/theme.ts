@@ -85,6 +85,12 @@ export const SCROLL = {
   /** rimbalzo ai bordi */
   bounceAmount: 0.03,
   bounceDuration: 0.5,
+  /**
+   * Uscita verso il resto della pagina (task 8.21): sotto questa frazione
+   * dell'esperienza in vista l'header dell'HUD è già scivolato via in alto, e
+   * al suo posto compare la `TopBar` del sito.
+   */
+  hudVisibleRatio: 0.9,
 } as const;
 
 /** con `prefers-reduced-motion` tutto si appiattisce a questa durata */

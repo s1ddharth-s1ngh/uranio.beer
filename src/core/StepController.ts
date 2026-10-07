@@ -7,11 +7,16 @@
 // Entrambi devono fare uno step per gesto.
 //
 // La logica di riconoscimento sta in classi/funzioni pure (`WheelGesture`,
-// `swipeDirection`, `keyIntent`): niente DOM, così si provano in Node. La
-// classe `StepController` è solo il cablaggio degli ascoltatori.
+// `swipeDirection`, `keyIntent`, `edgeAction`): niente DOM, così si provano
+// in Node. La classe `StepController` è solo il cablaggio degli ascoltatori.
 
 import { SCROLL } from "../config/theme.ts";
 import type { Progress } from "./Progress.ts";
+
+/** Il delta della rotella in px (spec 5.1 regola 2): righe ×16, pagine × altezza. */
+export function wheelPx(deltaY: number, deltaMode: number, viewportHeight: number): number {
+  return deltaY * (deltaMode === 1 ? 16 : deltaMode === 2 ? viewportHeight : 1);
+}
 
 /**
  * Accumula i `wheel` e dice quando è nato un gesto nuovo.
@@ -35,8 +40,7 @@ export class WheelGesture {
     now: number,
     viewportHeight: number,
   ): number {
-    const k = deltaMode === 1 ? 16 : deltaMode === 2 ? viewportHeight : 1;
-    const d = deltaY * k;
+    const d = wheelPx(deltaY, deltaMode, viewportHeight);
     const abs = Math.abs(d);
     // Gesto nuovo se c'è stata una pausa, oppure se il delta risale dentro la
     // coda del gesto precedente: la seconda spinta di un trackpad arriva
@@ -68,6 +72,14 @@ export class WheelGesture {
     if (Math.abs(this.acc) < SCROLL.triggerPx) return 0;
     this.fired = true;
     return Math.sign(this.acc);
+  }
+
+  /**
+   * Dichiara "sparato" il gesto in corso: la sua coda d'inerzia non farà
+   * step. Serve al riaggancio, che il gesto lo ha già usato.
+   */
+  consume() {
+    this.fired = true;
   }
 
   reset() {
@@ -118,6 +130,51 @@ export function keyIntent(key: string, shift: boolean): KeyIntent {
   }
 }
 
+export type EdgeAction = "step" | "rimbalzo" | "sblocca" | "riaggancia" | "nativo";
+
+export interface EdgeState {
+  target: number;
+  last: number;
+  moving: boolean;
+  /** verso del gesto: +1 avanti (giù), −1 indietro, 0 nessuno */
+  dir: number;
+  /** sotto l'esperienza c'è altro contenuto da raggiungere */
+  haSotto: boolean;
+  /** lo scroll è già stato restituito alla pagina */
+  sbloccato: boolean;
+  scrollY: number;
+}
+
+/**
+ * Cosa fare di un gesto al confine fra motore a step e scroll nativo (spec
+ * 5.1 regola 6, task 8.21).
+ *
+ * Si esce solo **da fermi** allo step finale: a corsa in atto il gesto nello
+ * stesso verso lo ignora già `Progress.request`, e uscire a metà lascerebbe
+ * la scena congelata in un fotogramma intermedio. Da sbloccati il motore
+ * tace, tranne quando la pagina è tutta su e il gesto chiede di salire
+ * ancora: lì si riaggancia allo step finale.
+ */
+export function edgeAction(s: EdgeState): EdgeAction {
+  if (s.sbloccato) return s.dir < 0 && s.scrollY <= 0 ? "riaggancia" : "nativo";
+  if (s.dir > 0 && s.target === s.last && !s.moving) {
+    return s.haSotto ? "sblocca" : "rimbalzo";
+  }
+  return "step";
+}
+
+/**
+ * Chi possiede lo scroll della pagina. Il DOM (classe sull'`<html>`,
+ * `scrollBy`) sta in `hooks/useHeroLock.ts`, non qui.
+ */
+export interface ScrollHost {
+  sbloccato(): boolean;
+  haSotto(): boolean;
+  /** restituisce lo scroll alla pagina e la fa già scendere di `px` */
+  sblocca(px: number): void;
+  riaggancia(): void;
+}
+
 export class StepController {
   private wheel = new WheelGesture();
   private touchY = 0;
@@ -125,10 +182,12 @@ export class StepController {
   private touchT = 0;
   private progress: Progress;
   private root: HTMLElement;
+  private host: ScrollHost;
 
-  constructor(progress: Progress, root: HTMLElement) {
+  constructor(progress: Progress, root: HTMLElement, host: ScrollHost) {
     this.progress = progress;
     this.root = root;
+    this.host = host;
     // `passive: false` perché serve il `preventDefault`: senza, Chrome scrolla
     // la pagina sotto l'esperienza mentre noi animiamo `p`
     root.addEventListener("wheel", this.onWheel, { passive: false });
@@ -150,11 +209,42 @@ export class StepController {
     if (dir !== 0) this.progress.request(this.progress.target + dir, dir);
   }
 
+  private edge(dir: number): EdgeAction {
+    return edgeAction({
+      target: this.progress.target,
+      last: this.progress.last,
+      moving: this.progress.moving,
+      dir,
+      haSotto: this.host.haSotto(),
+      sbloccato: this.host.sbloccato(),
+      scrollY: window.scrollY,
+    });
+  }
+
   private onWheel = (e: WheelEvent) => {
+    const vh = window.innerHeight;
+    // il gesto si segue anche da sbloccati: al riaggancio serve sapere che la
+    // coda in arrivo è inerzia dello stesso gesto, non un gesto nuovo
+    const dir = this.wheel.feed(e.deltaY, e.deltaMode, performance.now(), vh);
+    if (this.host.sbloccato()) {
+      // da sbloccati conta il verso del singolo evento, non lo scatto: la
+      // pagina deve riagganciarsi appena tocca la cima
+      if (this.edge(Math.sign(e.deltaY)) !== "riaggancia") return;
+      e.preventDefault();
+      this.wheel.consume();
+      this.host.riaggancia();
+      return;
+    }
     e.preventDefault();
-    this.step(
-      this.wheel.feed(e.deltaY, e.deltaMode, performance.now(), window.innerHeight),
-    );
+    if (this.edge(dir) === "sblocca") {
+      // `scrollBy` invece di lasciar passare l'evento: lo scroll da rotella lo
+      // decide il compositore, che non ha ancora visto sparire l'`overflow:
+      // hidden`, e il primo evento andrebbe perso. Il resto della spinta
+      // arriva a pagina sbloccata e scorre nativo
+      this.host.sblocca(wheelPx(e.deltaY, e.deltaMode, vh));
+    } else {
+      this.step(dir);
+    }
   };
 
   private onTouchStart = (e: TouchEvent) => {
@@ -164,19 +254,25 @@ export class StepController {
   };
 
   // il dito non deve trascinare la pagina: dentro l'esperienza il movimento
-  // verticale è nostro
-  private onTouchMove = (e: TouchEvent) => e.preventDefault();
+  // verticale è nostro, finché non è stato restituito alla pagina
+  private onTouchMove = (e: TouchEvent) => {
+    if (!this.host.sbloccato()) e.preventDefault();
+  };
 
   private onTouchEnd = (e: TouchEvent) => {
     const y = e.changedTouches[0]?.clientY ?? this.touchY;
     const x = e.changedTouches[0]?.clientX ?? this.touchX;
-    this.step(
-      swipeDirection(
-        y - this.touchY,
-        performance.now() - this.touchT,
-        x - this.touchX,
-      ),
+    const dir = swipeDirection(
+      y - this.touchY,
+      performance.now() - this.touchT,
+      x - this.touchX,
     );
+    const action = this.edge(dir);
+    // il dito è già alzato, non c'è inerzia nativa da lasciar partire: la
+    // pagina scende di quanto si è mosso il dito
+    if (action === "sblocca") this.host.sblocca(this.touchY - y);
+    else if (action === "riaggancia") this.host.riaggancia();
+    else if (action !== "nativo") this.step(dir);
   };
 
   private onKey = (e: KeyboardEvent) => {
@@ -185,10 +281,24 @@ export class StepController {
     if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) {
       return;
     }
+    // la barra spaziatrice su un bottone lo preme: il `preventDefault` qui
+    // sotto annullerebbe il click e farebbe uno step al suo posto
+    if (t?.tagName === "BUTTON" && (e.key === " " || e.key === "Spacebar")) return;
     const intent = keyIntent(e.key, e.shiftKey);
     if (!intent) return;
+    const action = this.edge("dir" in intent ? intent.dir : 0);
+    // sbloccata, la tastiera torna alla pagina. Allo sblocco l'evento passa
+    // com'è: lo scroll da tastiera lo fa il thread principale dopo l'evento,
+    // quando l'`overflow: hidden` è già sparito
+    if (action === "nativo") return;
+    if (action === "sblocca") {
+      this.host.sblocca(0);
+      return;
+    }
     e.preventDefault();
-    if ("to" in intent) {
+    if (action === "riaggancia") {
+      this.host.riaggancia();
+    } else if ("to" in intent) {
       this.progress.goTo(intent.to === "first" ? 0 : this.progress.last);
     } else {
       this.step(intent.dir);

@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect } from "react";
+import { useProgress } from "@react-three/drei";
 import { Canvas, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { CAMERA } from "../config/solvePivot.ts";
@@ -7,11 +8,25 @@ import { sharedMapper } from "../core/StateMapper.ts";
 import { onTick } from "../core/Ticker.ts";
 import { DEBUG_MODE } from "../debug/registry";
 import { sharedViewport, useViewport } from "../hooks/useViewport";
+import { setAssetProgress } from "../lib/assetProgress";
 import { Bottle } from "./Bottle";
 import { Carousel } from "./Carousel";
 import { LightRig } from "./Environment";
 import { HeroProps } from "./HeroProps";
 import { Lights } from "./Lights";
+
+// Il progresso reale dei GLB per il Loader del sito, che sta nel bundle
+// principale e non può importare drei. A livello di modulo: parte appena il
+// chunk dell'esperienza arriva, prima che il canvas monti. Il preload di
+// `Bottle.tsx` gira prima (import qui sopra) e il suo avvio sincrono non
+// arriva alla sottoscrizione: lo recupera la lettura iniziale.
+useProgress.subscribe((s) => {
+  setAssetProgress({ progress: s.progress, active: s.active });
+});
+setAssetProgress({
+  progress: useProgress.getState().progress,
+  active: useProgress.getState().active,
+});
 
 const EnvProbe = lazy(() => import("../debug/EnvProbe"));
 // `postprocessing` sono ~60 KB: non devono stare sul percorso del primo
