@@ -5,6 +5,7 @@ import { Stage } from "../gl/Stage";
 import { useCarouselDrag } from "../hooks/useCarouselDrag";
 import { useStepEngine } from "../hooks/useStepEngine";
 import { Hud } from "../ui/Hud";
+import { StepTextLayer } from "../ui/StepTextLayer";
 import styles from "./Experience.module.css";
 
 // Il codice di debug non deve pesare sul sito vero: import dinamico, quindi
@@ -46,7 +47,7 @@ export default function Experience() {
       <BackgroundLayer className={`${styles.layer} ${styles.bg}`} />
       <div className={`${styles.layer} ${styles.bigword}`} />
       <Stage className={`${styles.layer} ${styles.gl}`} />
-      <div className={`${styles.layer} ${styles.stageUi}`} />
+      <StepTextLayer className={`${styles.layer} ${styles.stageUi}`} />
       <Hud step={step} className={`${styles.layer} ${styles.hud}`} />
       <div className={`${styles.layer} ${styles.loader}`} />
       <Suspense fallback={null}>

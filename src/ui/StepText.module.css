@@ -1,0 +1,104 @@
+/* Il blocco di testo a sinistra (spec 8.18). */
+
+.block {
+  position: absolute;
+  left: 10vw;
+  top: 45%;
+  transform: translateY(-50%);
+  width: min(520px, 42vw);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  /* gli angolari piccoli del blocco: in alto a sinistra e in basso a destra,
+     disegnati con due gradienti invece di due elementi vuoti */
+  padding: 14px 0 14px 14px;
+}
+
+.block::before,
+.block::after {
+  content: "";
+  position: absolute;
+  width: 8px;
+  height: 8px;
+}
+
+.block::before {
+  top: 0;
+  left: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.45);
+  border-left: 1px solid rgba(255, 255, 255, 0.45);
+}
+
+.block::after {
+  bottom: 0;
+  right: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.45);
+  border-right: 1px solid rgba(255, 255, 255, 0.45);
+}
+
+/* --- il tag: quadratino rosso con la × + etichetta bianca */
+
+.tag {
+  display: inline-flex;
+  align-items: stretch;
+  align-self: flex-start;
+  gap: 0;
+  /* l'animazione lo apre da sinistra */
+  transform-origin: left center;
+}
+
+.tagMark {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  background: var(--u-red);
+  color: var(--u-white);
+  font-style: normal;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.tagText {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+  background: var(--u-white);
+  color: #000;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* la riga che cancella il testo del tag */
+.strike {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  top: 50%;
+  height: 1.5px;
+  background: #000;
+  transform-origin: left center;
+}
+
+@media (max-width: 767px) {
+  /* su mobile il testo va in basso, sopra una sfumatura scura (spec 7.3):
+     la bottiglia sta sopra e non deve mai coprirlo */
+  .block {
+    left: 0;
+    right: 0;
+    top: auto;
+    bottom: 8%;
+    transform: none;
+    width: auto;
+    padding: 24px 16px 16px;
+    gap: 12px;
+  }
+
+  .block::before,
+  .block::after {
+    display: none;
+  }
+}
