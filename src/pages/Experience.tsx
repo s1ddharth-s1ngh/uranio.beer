@@ -1,10 +1,12 @@
-import { lazy, Suspense, useRef } from "react";
+import { lazy, Suspense, useRef, useState } from "react";
 import { DEBUG_MODE, DEBUG_ON } from "../debug/registry";
 import { BackgroundLayer } from "../gl/BackgroundLayer";
 import { Stage } from "../gl/Stage";
 import { useCarouselDrag } from "../hooks/useCarouselDrag";
 import { useHeroLock } from "../hooks/useHeroLock";
 import { useStepEngine } from "../hooks/useStepEngine";
+import { hasWebGL2 } from "../gl/webgl";
+import { Fallback } from "../ui/Fallback";
 import { HeroUi } from "../ui/HeroUi";
 import { Finale } from "../ui/Finale";
 import { Hud } from "../ui/Hud";
@@ -28,10 +30,12 @@ const DRAG_CLASSES = { grab: styles.grab, grabbing: styles.grabbing };
  * `onHudChange` dice alla home se l'header dell'HUD è in vista: quando non lo
  * è, al suo posto va la `TopBar` del sito.
  */
-export default function Experience({
+function Scene({
   onHudChange,
+  onContextLost,
 }: {
   onHudChange?: (visible: boolean) => void;
+  onContextLost: () => void;
 }) {
   const page = useRef<HTMLDivElement>(null);
   const host = useHeroLock(page, onHudChange);
@@ -44,17 +48,19 @@ export default function Experience({
 
   return (
     <div className={styles.page} ref={page} tabIndex={-1}>
+      {/* l'ordine nel DOM è l'ordine di tabulazione (task 8.24): header,
+          controlli dell'hero, testo, call to action del finale. Chi sta
+          davanti a chi lo decide lo z-index, non la posizione qui */}
+      <Hud step={step} className={`${styles.layer} ${styles.hud}`} />
       <BackgroundLayer className={`${styles.layer} ${styles.bg}`} />
-      <Stage className={`${styles.layer} ${styles.gl}`} />
+      <Stage className={`${styles.layer} ${styles.gl}`} onContextLost={onContextLost} />
+      <HeroUi step={step} className={`${styles.layer} ${styles.stageUi}`} />
       <StepTextLayer className={`${styles.layer} ${styles.stageUi}`} />
-      {/* due strati, uno dietro e uno davanti alla bottiglia: lo z-index li
-          ordina, la posizione nel DOM no */}
+      {/* due strati, uno dietro e uno davanti alla bottiglia */}
       <Finale
         wordClassName={`${styles.layer} ${styles.bigword}`}
         uiClassName={`${styles.layer} ${styles.stageUi}`}
       />
-      <HeroUi step={step} className={`${styles.layer} ${styles.stageUi}`} />
-      <Hud step={step} className={`${styles.layer} ${styles.hud}`} />
       <div className={`${styles.layer} ${styles.loader}`} />
       <Suspense fallback={null}>
         {DEBUG_ON && <DebugPanel />}
@@ -63,4 +69,17 @@ export default function Experience({
       </Suspense>
     </div>
   );
+}
+
+/**
+ * Senza WebGL2, o con il contesto perso a metà, la versione statica (task
+ * 8.24). La prova si fa una volta, prima di montare scena e sfondo: un
+ * contesto perso dopo non torna, e la pagina resta statica fino al reload.
+ */
+export default function Experience(
+  props: Omit<Parameters<typeof Scene>[0], "onContextLost">,
+) {
+  const [statica, setStatica] = useState(() => !hasWebGL2());
+  if (statica) return <Fallback onHudChange={props.onHudChange} />;
+  return <Scene {...props} onContextLost={() => setStatica(true)} />;
 }

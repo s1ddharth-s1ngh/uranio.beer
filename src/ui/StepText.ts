@@ -72,6 +72,10 @@ export class StepText {
     // metà corsa: se non lo si fa, il blocco vecchio continua a entrare
     // mentre esce
     vecchio.tl?.kill();
+    // per lo screen reader il blocco che esce sparisce subito: due regioni
+    // `aria-live` insieme farebbero annunciare anche il testo vecchio
+    vecchio.el.removeAttribute("aria-live");
+    vecchio.el.setAttribute("aria-hidden", "true");
     const via = () => {
       vecchio.split.revert();
       vecchio.el.remove();

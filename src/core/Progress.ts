@@ -32,6 +32,30 @@ export interface StepEnterDetail {
   step: number;
 }
 
+/** Uscita di `reducedPose`: un oggetto riusato, il loop non alloca. */
+export interface ReducedPose {
+  /** lo step da disegnare, sempre intero */
+  p: number;
+  /** opacità della scena 3D */
+  alpha: number;
+}
+
+/**
+ * Moto ridotto (spec 5.1.9): niente rotazioni ampie, una dissolvenza.
+ *
+ * Invece della `p` continua la scena riceve uno step intero: nella prima metà
+ * della corsa quello di partenza che sfuma via, nella seconda quello d'arrivo
+ * che sfuma dentro. Si ragiona sulla corsa `from → to` e non sul segmento
+ * di `p`: in un salto con le icone da 1 a 4 gli step 2 e 3 non devono
+ * lampeggiare a metà strada.
+ */
+export function reducedPose(p: number, from: number, to: number, out: ReducedPose) {
+  const t = from === to ? 1 : Math.min(1, Math.max(0, (p - from) / (to - from)));
+  out.p = t < 0.5 ? from : to;
+  out.alpha = Math.abs(1 - 2 * t);
+  return out;
+}
+
 /**
  * Durata della corsa da `from` a `to` (spec 5.2 e regola 5.1.7).
  *

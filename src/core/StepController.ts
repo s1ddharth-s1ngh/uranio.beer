@@ -130,6 +130,34 @@ export function keyIntent(key: string, shift: boolean): KeyIntent {
   }
 }
 
+/**
+ * Che cosa ha il fuoco, per quanto riguarda la tastiera: un campo di testo
+ * (tutti i tasti sono suoi), un controllo che si preme (bottone, link,
+ * `summary`) o niente di interessante.
+ */
+export type FocusKind = "testo" | "controllo" | null;
+
+/**
+ * Il tasto spetta all'elemento col fuoco e non all'esperienza? (task 8.24)
+ *
+ * Su un controllo lo Spazio lo preme: il motore non deve farci uno step né
+ * chiamare `preventDefault`, che annullerebbe il click. Le frecce, PagSu/Giù,
+ * Home e Fine restano all'esperienza; Invio non è mai un tasto del motore.
+ */
+export function keyBelongsToFocus(key: string, focus: FocusKind): boolean {
+  if (focus === "testo") return true;
+  return focus === "controllo" && (key === " " || key === "Spacebar");
+}
+
+const TESTO = "input, textarea, select";
+const CONTROLLO = "button, a[href], [role=button], summary";
+
+function focusKind(t: EventTarget | null): FocusKind {
+  if (!(t instanceof HTMLElement)) return null;
+  if (t.isContentEditable || t.closest(TESTO)) return "testo";
+  return t.closest(CONTROLLO) ? "controllo" : null;
+}
+
 export type EdgeAction = "step" | "rimbalzo" | "sblocca" | "riaggancia" | "nativo";
 
 export interface EdgeState {
@@ -276,14 +304,7 @@ export class StepController {
   };
 
   private onKey = (e: KeyboardEvent) => {
-    // se il fuoco è su un controllo, la tastiera è sua (regola 8.24)
-    const t = e.target as HTMLElement | null;
-    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) {
-      return;
-    }
-    // la barra spaziatrice su un bottone lo preme: il `preventDefault` qui
-    // sotto annullerebbe il click e farebbe uno step al suo posto
-    if (t?.tagName === "BUTTON" && (e.key === " " || e.key === "Spacebar")) return;
+    if (keyBelongsToFocus(e.key, focusKind(e.target))) return;
     const intent = keyIntent(e.key, e.shiftKey);
     if (!intent) return;
     const action = this.edge("dir" in intent ? intent.dir : 0);

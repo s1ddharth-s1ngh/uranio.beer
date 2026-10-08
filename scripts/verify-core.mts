@@ -14,10 +14,11 @@ import {
   DPR_CAP,
   MOBILE_MAX_WIDTH,
 } from "../src/core/Viewport.ts";
-import { durationFor, Progress } from "../src/core/Progress.ts";
+import { durationFor, Progress, reducedPose } from "../src/core/Progress.ts";
 import {
   edgeAction,
   type EdgeState,
+  keyBelongsToFocus,
   keyIntent,
   swipeDirection,
   WheelGesture,
@@ -115,6 +116,15 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
   assert.equal(keyIntent("a", false), null);
 }
 
+// --- la tastiera non ruba i tasti ai controlli (task 8.24)
+{
+  assert.equal(keyBelongsToFocus(" ", "controllo"), true, "lo Spazio su un bottone lo preme");
+  assert.equal(keyBelongsToFocus("ArrowDown", "controllo"), false, "le frecce restano all'esperienza");
+  assert.equal(keyBelongsToFocus("End", "controllo"), false);
+  assert.equal(keyBelongsToFocus(" ", null), false, "senza fuoco lo Spazio fa uno step");
+  assert.equal(keyBelongsToFocus("ArrowDown", "testo"), true, "in un campo tutti i tasti sono suoi");
+}
+
 // --- uscita verso il resto della pagina (task 8.21, regola 5.1.6)
 {
   const fermo6: EdgeState = {
@@ -162,6 +172,27 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
   // salto lungo: il tetto
   assert.equal(durationFor(0, 6), SCROLL.jumpMaxDuration);
   assert.equal(durationFor(0, 1, true), 0.45, "reduced motion ignorata");
+}
+
+// --- moto ridotto: gradini e dissolvenza al posto della rotazione (task 8.24)
+{
+  const o = { p: -1, alpha: -1 };
+  assert.deepEqual(reducedPose(1, 1, 2, o), { p: 1, alpha: 1 }, "alla partenza");
+  assert.deepEqual(reducedPose(2, 1, 2, o), { p: 2, alpha: 1 }, "all'arrivo");
+  assert.equal(reducedPose(1.5, 1, 2, o).alpha, 0, "a metà la scena è sparita");
+  assert.equal(reducedPose(1.25, 1, 2, o).p, 1, "prima metà: lo step di partenza");
+  assert.equal(reducedPose(1.75, 1, 2, o).p, 2, "seconda metà: lo step d'arrivo");
+  assert.equal(reducedPose(2.6, 1, 4, o).p, 4, "un salto non mostra gli step di mezzo");
+  assert.equal(reducedPose(3, 4, 4, o).p, 4, "da fermi vale lo step");
+  assert.equal(reducedPose(-0.03, 0, 0, o).alpha, 1, "il rimbalzo non fa sparire niente");
+  // inversione a metà corsa: da 1 → 2 a p 1,3 si torna a 1. La scena era
+  // allo step 1 con alpha 0,4 e ci resta, senza salti
+  assert.equal(reducedPose(1.3, 2, 1, o).p, 1);
+  assert.ok(Math.abs(reducedPose(1.3, 2, 1, o).alpha - 0.4) < 1e-9);
+  for (let p = 0; p <= 1; p += 0.05) {
+    const { p: step } = reducedPose(p, 0, 1, o);
+    assert.ok(Number.isInteger(step), `p intera anche a ${p}`);
+  }
 }
 
 // --- Progress: il motore vero, con il tempo guidato a mano

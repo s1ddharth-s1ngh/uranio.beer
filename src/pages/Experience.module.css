@@ -42,6 +42,13 @@
   cursor: grabbing;
 }
 
+/* il fuoco da tastiera su ogni controllo dell'esperienza, in un posto solo
+   (task 8.24): i moduli dei singoli strati ne cambiano al massimo l'opacità */
+.page :focus-visible {
+  outline: 2px solid var(--u-white);
+  outline-offset: 3px;
+}
+
 .layer {
   position: absolute;
   inset: 0;

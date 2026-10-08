@@ -3,10 +3,18 @@ import { useProgress } from "@react-three/drei";
 import { Canvas, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { CAMERA } from "../config/solvePivot.ts";
-import { sharedProgress } from "../core/Progress.ts";
-import { sharedMapper } from "../core/StateMapper.ts";
+import {
+  reducedPose,
+  sharedProgress,
+  type Progress,
+  type ReducedPose,
+  type StepEnterDetail,
+  type StepLeaveDetail,
+} from "../core/Progress.ts";
+import { sharedMapper, type StateMapper } from "../core/StateMapper.ts";
 import { onTick } from "../core/Ticker.ts";
 import { DEBUG_MODE } from "../debug/registry";
+import { usePrefersReducedMotion } from "../hooks/usePrefersReducedMotion";
 import { sharedViewport, useViewport } from "../hooks/useViewport";
 import { setAssetProgress } from "../lib/assetProgress";
 import { Bottle } from "./Bottle";
@@ -60,9 +68,51 @@ const GL = {
   toneMappingExposure: 1,
 } as const;
 
+/**
+ * Moto ridotto (spec 5.1.9, task 8.24): la scena va a gradini e il canvas
+ * sfuma, invece di girare la bottiglia per tutta la corsa. Lo sfondo resta
+ * sulla `p` continua: è morbido di suo, e a gradini cambierebbe colore di
+ * scatto proprio mentre la bottiglia è sparita.
+ */
+function reducedMotion(progress: Progress, canvas: HTMLCanvasElement) {
+  // la corsa in atto: `step:enter` copre anche il salto da `#step-N`
+  let from = progress.target;
+  let to = progress.target;
+  const onLeave = (e: Event) => {
+    ({ from, to } = (e as CustomEvent<StepLeaveDetail>).detail);
+  };
+  const onEnter = (e: Event) => {
+    from = to = (e as CustomEvent<StepEnterDetail>).detail.step;
+  };
+  progress.addEventListener("step:leave", onLeave);
+  progress.addEventListener("step:enter", onEnter);
+  const pose: ReducedPose = { p: 0, alpha: 1 };
+  let alpha = 1;
+  return {
+    apply(mapper: StateMapper) {
+      reducedPose(progress.p, from, to, pose);
+      const { hero, step, finale } = mapper.apply(progress.p).background;
+      const s = mapper.apply(pose.p);
+      s.background.hero = hero;
+      s.background.step = step;
+      s.background.finale = finale;
+      // si scrive solo quando cambia: a riposo nessuna stringa nel loop
+      if (pose.alpha !== alpha) canvas.style.opacity = String((alpha = pose.alpha));
+      return s;
+    },
+    dispose() {
+      progress.removeEventListener("step:leave", onLeave);
+      progress.removeEventListener("step:enter", onEnter);
+      canvas.style.opacity = "";
+    },
+  };
+}
+
 function Driver() {
   const camera = useThree((s) => s.camera);
   const advance = useThree((s) => s.advance);
+  const canvas = useThree((s) => s.gl.domElement);
+  const reduced = usePrefersReducedMotion();
 
   useEffect(() => {
     const progress = sharedProgress();
@@ -70,8 +120,9 @@ function Driver() {
     const mapper = sharedMapper(vp.state);
     // le ancore sono in coordinate schermo: a ogni resize i pivot si rifanno
     const stopVp = vp.subscribe((s) => mapper.prepare(s));
+    const ridotto = reduced ? reducedMotion(progress, canvas) : undefined;
     const stopTick = onTick((time) => {
-      const s = mapper.apply(progress.p);
+      const s = ridotto ? ridotto.apply(mapper) : mapper.apply(progress.p);
       camera.position.copy(s.camera.position);
       camera.lookAt(s.camera.look);
       advance(time * 1000);
@@ -79,8 +130,9 @@ function Driver() {
     return () => {
       stopVp();
       stopTick();
+      ridotto?.dispose();
     };
-  }, [camera, advance]);
+  }, [camera, advance, canvas, reduced]);
 
   return null;
 }
@@ -90,7 +142,14 @@ function Driver() {
  * canvas dello sfondo. Ci vivranno bottiglie, faro, piedistallo e
  * post-processing.
  */
-export function Stage({ className }: { className?: string }) {
+export function Stage({
+  className,
+  onContextLost,
+}: {
+  className?: string;
+  /** il contesto WebGL è perso: l'esperienza passa alla versione statica */
+  onContextLost?: () => void;
+}) {
   const vp = useViewport();
   return (
     <Canvas
@@ -100,6 +159,9 @@ export function Stage({ className }: { className?: string }) {
       dpr={vp.dpr}
       gl={GL}
       camera={{ fov: CAMERA.fov, near: CAMERA.near, far: CAMERA.far, position: [0, 0, 17] }}
+      onCreated={({ gl }) => {
+        if (onContextLost) gl.domElement.addEventListener("webglcontextlost", onContextLost);
+      }}
     >
       <Driver />
       <LightRig />

@@ -26,6 +26,11 @@ export interface Step {
   /** solo hero */
   subtitle?: string;
   scrollHint?: string;
+  /**
+   * Immagine della versione senza WebGL (task 8.24): un file di
+   * `public/images/`, ritagliato dalla texture con `scripts/crop-label.mjs`.
+   */
+  image?: { file: string; alt: string };
   /** solo finale: due righe, entrano lettera per lettera */
   bigWord?: [string, string];
   note?: string;
@@ -44,6 +49,7 @@ export const STEPS: Step[] = [
     title: "CRISI ECONOMICA",
     subtitle: "ORDINARY BITTER · 4,2%",
     scrollHint: "SCORRI PER SCOPRIRE",
+    image: { file: "crisi-economica-logotipo.webp", alt: "Il logotipo Crisi Economica dell'etichetta" },
   },
   {
     id: "closeup",
@@ -54,6 +60,7 @@ export const STEPS: Step[] = [
     id: "f1",
     tag: { text: "4 INGREDIENTI" },
     icon: "wheat",
+    image: { file: "crisi-economica-fascia-1.webp", alt: "Il retro dell'etichetta: nome della birra e ingredienti" },
     title: "ORDINARY BITTER",
     body: "Acqua, malto d'orzo, luppolo, lievito. Nient'altro in etichetta.",
   },
@@ -61,6 +68,7 @@ export const STEPS: Step[] = [
     id: "f2",
     tag: { text: "CRISI", strike: true },
     icon: "zap",
+    image: { file: "crisi-economica-fascia-2.webp", alt: "Il retro dell'etichetta: motto e produttore" },
     title: "TRASFORMA LA CRISI IN PIACERE",
     body: "Prodotta e confezionata per Uranio a Castelletto Stura (CN), in Piemonte.",
   },
@@ -68,6 +76,7 @@ export const STEPS: Step[] = [
     id: "f3",
     tag: { text: "4,2% VOL" },
     icon: "droplet",
+    image: { file: "crisi-economica-fascia-3.webp", alt: "Il retro dell'etichetta: gradazione, formato e marchio Uranio" },
     title: "33 CL DI LEGGEREZZA",
     body: "Gradazione bassa, bottiglia da 33 cl: una birra da sessione, da stappare senza pensarci troppo.",
   },
@@ -75,6 +84,7 @@ export const STEPS: Step[] = [
     id: "f4",
     tag: { text: "INDIFFERENZIATA", strike: true },
     icon: "recycle",
+    image: { file: "crisi-economica-fascia-4.webp", alt: "Il retro dell'etichetta: raccolta differenziata e scadenza" },
     title: "VETRO, METALLO, PLASTICA",
     body: "Bottiglia in vetro GL72, tappo in metallo C/FE91, etichetta in plastica PP5. Verifica le regole del tuo comune.",
   },

@@ -104,7 +104,6 @@ export function Hud({
     >
       <HudLetters />
       <ProgressBar step={step} />
-      <StepIcons step={step} />
 
       {/* angolari a L ai quattro angoli del frame */}
       <div className={styles.corners} aria-hidden="true">
@@ -172,6 +171,10 @@ export function Hud({
           </a>
         </div>
       </header>
+
+      {/* dopo l'header: nell'ordine di tabulazione le icone seguono il menu
+          del sito, non lo precedono (task 8.24) */}
+      <StepIcons step={step} />
 
       {/* il menu è quello del sito: voci e switch di lingua arrivano da
           `components/nav.tsx`, condiviso con la TopBar (regola 10.1.10) */}
