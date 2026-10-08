@@ -14,9 +14,12 @@ import { gzipSync } from 'node:zlib'
 const DIST = 'dist'
 const BUDGET_KB = 350
 
-// Lazy ma chiesti appena la home monta, prima che il canvas disegni. Un chunk
-// che monta solo dopo il primo frame (PostFX, task 8.27) non sta qui.
-const EAGER = ['src/pages/Experience.tsx']
+// Lazy ma necessari al primo frame composto. Dal b8673b9 la prima sezione è di
+// nuovo il hero originale: il primo frame è il suo. L'esperienza (seconda
+// sezione) e Chi siamo si chiedono al mount ma non servono a quel frame:
+// compaiono in "fuori dal primo frame", con il loro peso. Un chunk che monta
+// solo dopo il primo frame (PostFX, task 8.27) non sta qui.
+const EAGER = ['src/components/scene/HeroScene.tsx']
 
 const manifest = JSON.parse(readFileSync(join(DIST, '.vite', 'manifest.json'), 'utf8'))
 const entry = Object.keys(manifest).find((k) => manifest[k].isEntry)
