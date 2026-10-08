@@ -16,5 +16,7 @@ export default defineConfig({
     // target reali per la minificazione CSS: senza, LightningCSS può fondere
     // le proprietà prefissate scartando quella standard (es. backdrop-filter)
     cssTarget: ['chrome107', 'edge107', 'firefox115', 'safari15'],
+    // il grafo dei chunk per `scripts/measure-bundle.mjs` (budget 9.1)
+    manifest: true,
   },
 })

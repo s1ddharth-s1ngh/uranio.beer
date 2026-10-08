@@ -61,6 +61,40 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
   assert.equal(computeViewport(1440, 0, 2).aspect, 1);
 }
 
+// --- DPR adattivo (spec 6.1, task 8.27): tempi finti, frame per frame
+{
+  const { AdaptiveDpr } = await import("../src/core/AdaptiveDpr.ts");
+  const { ADAPTIVE_DPR } = await import("../src/config/theme.ts");
+  // `secondi` di frame lunghi `ms`; restituisce il DPR a fine corsa
+  const gira = (a: InstanceType<typeof AdaptiveDpr>, dpr: number, ms: number, secondi: number) => {
+    for (let t = 0; t < secondi; t += ms / 1000) dpr = a.feed(ms / 1000, dpr) ?? dpr;
+    return dpr;
+  };
+  const W = ADAPTIVE_DPR.warmup;
+
+  // nessun campione durante il riscaldamento, per quanto lenti siano i frame
+  const intro = new AdaptiveDpr();
+  assert.equal(gira(intro, 1.75, 100, W - 0.2), 1.75, "il DPR scende mentre compilano gli shader");
+
+  // sotto soglia non scende mai
+  const veloce = new AdaptiveDpr();
+  assert.equal(gira(veloce, 1.75, 16.7, W + 20), 1.75, "a 60 fps il DPR è sceso");
+  assert.equal(gira(new AdaptiveDpr(), 1.75, 19.5, W + 20), 1.75, "appena sotto i 20 ms è sceso");
+
+  // 2 s sopra soglia: un gradino da 0,25, non di più
+  const lenta = new AdaptiveDpr();
+  gira(lenta, 1.75, 25, W);
+  assert.equal(gira(lenta, 1.75, 25, ADAPTIVE_DPR.window - 0.1), 1.75, "è sceso prima dei 2 s");
+  assert.equal(gira(lenta, 1.75, 25, 0.2), 1.5, "2 s sopra soglia non hanno fatto scendere di 0,25");
+
+  // e mai sotto 1, per quanto a lungo resti lenta
+  assert.equal(gira(new AdaptiveDpr(), 1.75, 40, W + 60), ADAPTIVE_DPR.min, "il DPR è andato sotto 1");
+
+  // dopo un resize il riscaldamento riparte
+  lenta.reset();
+  assert.equal(gira(lenta, 1.75, 40, W - 0.2), 1.75, "il reset non riavvia il riscaldamento");
+}
+
 // --- gesti di rotella: una spinta = uno step
 {
   // trackpad: una spinta sola, decine di eventi che calano a 16 ms l'uno

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { BG } from "../config/background.ts";
 import { sharedMapper } from "../core/StateMapper.ts";
 import { onTick } from "../core/Ticker.ts";
 import { sharedViewport } from "../hooks/useViewport";
@@ -20,7 +21,15 @@ export function BackgroundLayer({ className }: { className?: string }) {
     bg.resize(vp.state);
     const stopVp = vp.subscribe((s) => bg.resize(s));
     const mapper = sharedMapper(vp.state);
-    const stopTick = onTick((time) => bg.render(time, mapper.state.background));
+    // 2 ms di tolleranza: a 60 Hz due frame arrivano a 33,2 ms invece di
+    // 33,3, e un confronto secco ne salterebbe un altro, scendendo a 20 fps
+    const soglia = 1 / BG.maxFps - 0.002;
+    let ultimo = -Infinity;
+    const stopTick = onTick((time) => {
+      if (time - ultimo < soglia) return;
+      ultimo = time;
+      bg.render(time, mapper.state.background);
+    });
     return () => {
       stopVp();
       stopTick();

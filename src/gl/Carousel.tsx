@@ -3,7 +3,12 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import { MODEL_URL } from "../config/bottle.ts";
 import { CAROUSEL } from "../config/beers.ts";
-import { sharedCarousel, slotPose, type CarouselState } from "../core/Carousel.ts";
+import {
+  sharedCarousel,
+  slotPose,
+  type CarouselState,
+  type SlotPose,
+} from "../core/Carousel.ts";
 import { sharedMapper, type SceneState } from "../core/StateMapper.ts";
 import { SHADER } from "../config/bottle.ts";
 import { applyMasks, type BottleMasks } from "./materials/patchBottle.ts";
@@ -27,6 +32,9 @@ const SPENTE: BottleMasks = {
   sweep: SHADER.sweepIdle,
   sweepAmt: 0,
 };
+
+// la posa dello slot, riscritta a ogni frame invece di allocarne una nuova
+const POSA: SlotPose = { angle: 0, x: 0, y: 0, z: 0, rotX: 0, rotY: 0, rotZ: 0 };
 
 /**
  * Mette ogni bottiglia al suo posto sull'anello.
@@ -53,7 +61,7 @@ function disponi(
     if (!b.pivot.visible) continue;
 
     const slot = k + 1;
-    const pose = slotPose(slot, carousel.active, carousel.rot, carousel.count);
+    const pose = slotPose(slot, carousel.active, carousel.rot, carousel.count, POSA);
     // le laterali scappano verso l'esterno, ognuna dalla parte in cui già sta:
     // chi è a sinistra esce a sinistra (spec 7.4)
     const verso = Math.sign(pose.x) || 1;

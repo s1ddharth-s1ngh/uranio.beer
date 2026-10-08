@@ -53,7 +53,9 @@ export function useStepEngine(
     progress.addEventListener("step:enter", onEnter);
 
     const stopTick = onTick(() => {
-      spia.current.p = Number(progress.p.toFixed(3));
+      // arrotondata senza `toFixed`: una stringa nuova a ogni frame solo per
+      // la spia di debug sarebbe spazzatura per il GC
+      spia.current.p = Math.round(progress.p * 1000) / 1000;
       spia.current.target = progress.target;
       spia.current.moving = progress.moving;
     });

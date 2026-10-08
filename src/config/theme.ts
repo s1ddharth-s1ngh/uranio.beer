@@ -93,5 +93,22 @@ export const SCROLL = {
   hudVisibleRatio: 0.9,
 } as const;
 
+/** DPR adattivo della scena (spec 6.1, task 8.27), tempi in secondi */
+export const ADAPTIVE_DPR = {
+  /** frame medio oltre il quale la scena è "lenta" (20 ms = 50 fps) */
+  slowFrame: 0.02,
+  /** la media si fa su finestre di questa durata */
+  window: 2,
+  /** di quanto scende il DPR a ogni finestra lenta */
+  step: 0.25,
+  /** sotto non si va: il canvas diventerebbe più sgranato della pagina */
+  min: 1,
+  /**
+   * Nessun campione nei primi secondi: i primi frame compilano gli shader e
+   * sono lenti per forza. Diventerà la fine dell'intro (task 8.22).
+   */
+  warmup: 3,
+} as const;
+
 /** con `prefers-reduced-motion` tutto si appiattisce a questa durata */
 export const REDUCED_DURATION = 0.45;

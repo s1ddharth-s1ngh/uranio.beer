@@ -9,6 +9,11 @@ export const BG = {
    * DPR pieno costa più di tutta la bottiglia.
    */
   dpr: 0.5,
+  /**
+   * Al massimo 30 disegni al secondo (task 8.27): la nebbia respira in
+   * decine di secondi, a 60 fps non si vedrebbe la differenza.
+   */
+  maxFps: 30,
   /** il pavimento da studio dell'hero: grigio chiaro, non bianco */
   floor: "#5E5E5E",
   /** gli sbuffi più chiari della nebbia del finale */

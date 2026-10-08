@@ -1,8 +1,9 @@
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { useProgress } from "@react-three/drei";
-import { Canvas, useThree } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { CAMERA } from "../config/solvePivot.ts";
+import { AdaptiveDpr } from "../core/AdaptiveDpr.ts";
 import {
   reducedPose,
   sharedProgress,
@@ -37,9 +38,30 @@ setAssetProgress({
 });
 
 const EnvProbe = lazy(() => import("../debug/EnvProbe"));
-// `postprocessing` sono ~60 KB: non devono stare sul percorso del primo
+// `postprocessing` sono ~15 KB gzip: non devono stare sul percorso del primo
 // frame, e su mobile il bloom non si accende nemmeno (task 8.27).
 const PostFX = lazy(() => import("./PostFX"));
+
+/**
+ * Il post-processing monta solo dopo il primo frame con la bottiglia (task
+ * 8.27): il suo chunk esce dal JavaScript del primo frame (budget 9.1) e i
+ * suoi shader non si sommano a quelli della scena nello stesso frame. Il
+ * prezzo è un primo frame senza bloom né vignetta, coperto dal Loader.
+ *
+ * Su mobile monta comunque: senza bloom, ma è il composer a fare l'antialias
+ * (il contesto ha `antialias: false`), e senza i bordi del vetro seghettano.
+ */
+function DeferredPostFX() {
+  const [on, setOn] = useState(false);
+  useFrame(() => {
+    if (!on) setOn(true);
+  });
+  return on ? (
+    <Suspense fallback={null}>
+      <PostFX />
+    </Suspense>
+  ) : null;
+}
 
 /**
  * Il cuore del frame: calcola lo stato da `p` e **poi** disegna.
@@ -111,6 +133,7 @@ function reducedMotion(progress: Progress, canvas: HTMLCanvasElement) {
 function Driver() {
   const camera = useThree((s) => s.camera);
   const advance = useThree((s) => s.advance);
+  const setDpr = useThree((s) => s.setDpr);
   const canvas = useThree((s) => s.gl.domElement);
   const reduced = usePrefersReducedMotion();
 
@@ -118,10 +141,19 @@ function Driver() {
     const progress = sharedProgress();
     const vp = sharedViewport();
     const mapper = sharedMapper(vp.state);
-    // le ancore sono in coordinate schermo: a ogni resize i pivot si rifanno
-    const stopVp = vp.subscribe((s) => mapper.prepare(s));
     const ridotto = reduced ? reducedMotion(progress, canvas) : undefined;
-    const stopTick = onTick((time) => {
+    const adattivo = new AdaptiveDpr();
+    let dpr = vp.state.dpr;
+    // le ancore sono in coordinate schermo: a ogni resize i pivot si rifanno.
+    // Il DPR torna al tetto da sé: lo riapplica la prop `dpr` del Canvas
+    const stopVp = vp.subscribe((s) => {
+      mapper.prepare(s);
+      dpr = s.dpr;
+      adattivo.reset();
+    });
+    const stopTick = onTick((time, delta) => {
+      const nuovo = adattivo.feed(delta, dpr);
+      if (nuovo !== null) setDpr((dpr = nuovo));
       const s = ridotto ? ridotto.apply(mapper) : mapper.apply(progress.p);
       camera.position.copy(s.camera.position);
       camera.lookAt(s.camera.look);
@@ -132,7 +164,7 @@ function Driver() {
       stopTick();
       ridotto?.dispose();
     };
-  }, [camera, advance, canvas, reduced]);
+  }, [camera, advance, setDpr, canvas, reduced]);
 
   return null;
 }
@@ -167,14 +199,12 @@ export function Stage({
       <LightRig />
       <Lights />
       <HeroProps />
-      <Suspense fallback={null}>
-        <PostFX />
-      </Suspense>
       {/* la bottiglia sospende finché il GLB non è arrivato: il fondo è già
           nero, quindi il fallback è il nulla e non un lampo */}
       <Suspense fallback={null}>
         <Bottle />
         <Carousel />
+        <DeferredPostFX />
       </Suspense>
       {DEBUG_MODE === "env" && (
         <Suspense fallback={null}>

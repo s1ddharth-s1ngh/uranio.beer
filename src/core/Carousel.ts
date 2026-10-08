@@ -54,6 +54,9 @@ export function slotPose(
   active: number,
   rot: number,
   count: number,
+  // nel loop si passa un oggetto riusato: la chiamano la protagonista e ogni
+  // slot del carosello a ogni frame (task 8.27, zero allocazioni)
+  out: SlotPose = { angle: 0, x: 0, y: 0, z: 0, rotX: 0, rotY: 0, rotZ: 0 },
   radius = CAROUSEL.radius,
 ): SlotPose {
   const angle = slotAngle(slot, active, rot, count);
@@ -61,18 +64,17 @@ export function slotPose(
   // lo slot 0 è la protagonista: la sua posa è quella del keyframe dell'hero,
   // non una pescata dal seme
   const protagonista = slot === 0;
-  return {
-    angle,
-    x: Math.sin(angle) * radius,
-    y: protagonista ? 0 : (seme(slot, 4) - 0.5) * 2 * tilt.yOffsetMax,
-    z: Math.cos(angle) * radius - radius,
-    rotX: protagonista
-      ? 0.22
-      : tilt.xMin + seme(slot, 1) * (tilt.xMax - tilt.xMin),
-    // ogni bottiglia mostra un pezzo diverso di etichetta
-    rotY: protagonista ? 0 : seme(slot, 3) * Math.PI * 2,
-    rotZ: protagonista ? 0.3 : (seme(slot, 2) - 0.5) * 2 * tilt.zMax,
-  };
+  out.angle = angle;
+  out.x = Math.sin(angle) * radius;
+  out.y = protagonista ? 0 : (seme(slot, 4) - 0.5) * 2 * tilt.yOffsetMax;
+  out.z = Math.cos(angle) * radius - radius;
+  out.rotX = protagonista
+    ? 0.22
+    : tilt.xMin + seme(slot, 1) * (tilt.xMax - tilt.xMin);
+  // ogni bottiglia mostra un pezzo diverso di etichetta
+  out.rotY = protagonista ? 0 : seme(slot, 3) * Math.PI * 2;
+  out.rotZ = protagonista ? 0.3 : (seme(slot, 2) - 0.5) * 2 * tilt.zMax;
+  return out;
 }
 
 /** Il colore della rim light di uno slot: cicla sulle birre disponibili. */

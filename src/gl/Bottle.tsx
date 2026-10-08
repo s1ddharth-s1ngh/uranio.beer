@@ -5,7 +5,7 @@ import * as THREE from "three";
 import { BAND_ORDER, BANDS, MODEL_URL } from "../config/bottle.ts";
 import { CAROUSEL } from "../config/beers.ts";
 import { REST_LIFE } from "../config/keyframes.ts";
-import { sharedCarousel, slotPose } from "../core/Carousel.ts";
+import { sharedCarousel, slotPose, type SlotPose } from "../core/Carousel.ts";
 import { sharedProgress } from "../core/Progress.ts";
 import { sharedMapper } from "../core/StateMapper.ts";
 import { DEBUG_MODE, registerDebug } from "../debug/registry";
@@ -21,6 +21,9 @@ import { prepareBottle } from "./prepareBottle.ts";
 
 /** quanto resta accesa ogni fascia nel ciclo di `?debug=bands`, in secondi */
 const BANDS_CYCLE_S = 1.6;
+
+// la posa dello slot, riscritta a ogni frame invece di allocarne una nuova
+const POSA: SlotPose = { angle: 0, x: 0, y: 0, z: 0, rotX: 0, rotY: 0, rotZ: 0 };
 
 /** un'onda di periodo `periodo` secondi */
 const onda = (t: number, periodo: number) => Math.sin((t * Math.PI * 2) / periodo);
@@ -87,7 +90,7 @@ export function Bottle() {
     const anello = 1 - s.carousel.escape;
     const pose =
       anello > 0
-        ? slotPose(0, carousel.active, carousel.rot, carousel.count)
+        ? slotPose(0, carousel.active, carousel.rot, carousel.count, POSA)
         : undefined;
     if (pose) {
       g.position.set(

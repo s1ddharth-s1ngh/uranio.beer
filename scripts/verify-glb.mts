@@ -389,6 +389,30 @@ assert(
   b.dispose();
 }
 
+// --- 4d. una sola texture dell'etichetta (task 8.27): `Bottle.tsx` e
+// `Carousel.tsx` preparano ognuno la sua copia, e i cloni del carosello
+// clonano i materiali. Tutti devono puntare alla texture del GLB, non a copie:
+// sono 8,8 MB di GPU ciascuna, con le mipmap
+{
+  const etichetta = (b: { meshes: { etichetta: THREE.Mesh } }) =>
+    (b.meshes.etichetta.material as THREE.MeshStandardMaterial).map;
+  const a = prepareBottle(ottimizzato);
+  const c = prepareBottle(ottimizzato);
+  const copia = cloneBottle(c);
+  const mappa = etichetta(a);
+  assert(mappa, "l'etichetta preparata non ha la texture");
+  assert.equal(etichetta(c), mappa, "due preparazioni, due texture dell'etichetta");
+  assert.equal(etichetta(copia), mappa, "il clone ha una texture dell'etichetta sua");
+  let texture = 0;
+  for (const m of [...Object.values(a.meshes), ...Object.values(copia.meshes)]) {
+    if ((m.material as THREE.MeshStandardMaterial).map) texture++;
+  }
+  assert.equal(texture, 2, "solo l'etichetta deve avere una texture");
+  copia.dispose();
+  c.dispose();
+  a.dispose();
+}
+
 // --- 5. budget
 const peso = fs.statSync(DST).size;
 console.log(`peso      ${(peso / 1024).toFixed(0)} KB`);

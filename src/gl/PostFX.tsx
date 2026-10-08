@@ -73,9 +73,12 @@ export default function PostFX() {
 
   useEffect(() => () => composer.dispose(), [composer]);
 
+  // anche col DPR: le render target del composer si misurano sul drawing
+  // buffer, e il DPR adattivo (task 8.27) lo cambia senza cambiare `size`
+  const dpr = useThree((s) => s.viewport.dpr);
   useEffect(() => {
     composer.setSize(size.width, size.height);
-  }, [composer, size]);
+  }, [composer, size, dpr]);
 
   // `priority = 1`: con una priorità diversa da zero R3F smette di disegnare
   // da sé e lascia il rendering a noi. Gli aggiornamenti della scena
