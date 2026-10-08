@@ -1,0 +1,138 @@
+/* Pulsante di discesa + avviso di scroll bloccato. Esistono solo sul touch:
+   sul desktop il loro posto è preso dalla ScrollPill che insegue il cursore. */
+
+.button {
+  position: fixed;
+  right: clamp(1rem, 5vw, 2rem);
+  bottom: clamp(1.25rem, 6vw, 2.5rem);
+  z-index: 40; /* sopra l'overlay dell'hero (10) e la pill (20), sotto TopBar (50) */
+
+  display: grid;
+  place-items: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  padding: 0;
+
+  color: #ffd91f;
+  background: rgba(10, 10, 10, 0.55);
+  border: 1px solid rgba(255, 217, 31, 0.45);
+  border-radius: 50%;
+  backdrop-filter: blur(6px);
+  cursor: pointer;
+
+  opacity: 0;
+  transform: translateY(0.5rem);
+  pointer-events: none;
+  transition:
+    opacity 0.45s ease,
+    transform 0.45s ease,
+    background-color 0.2s ease;
+}
+
+.visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.button:active {
+  background: rgba(255, 217, 31, 0.18);
+}
+
+.button:focus-visible {
+  outline: 2px solid #ffd91f;
+  outline-offset: 3px;
+}
+
+/* freccia disegnata a mano: niente webfont da aspettare per una glifo sola */
+.arrow {
+  width: 1.05rem;
+  height: 1.05rem;
+  display: block;
+}
+
+/* respiro verticale: invita a premere senza rubare attenzione al logo */
+@media (prefers-reduced-motion: no-preference) {
+  .visible .arrow {
+    animation: nudge 2.2s ease-in-out infinite;
+  }
+}
+
+@keyframes nudge {
+  0%,
+  100% {
+    transform: translateY(-8%);
+  }
+  50% {
+    transform: translateY(18%);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+
+/* IN ALTO, CENTRATO. Non in basso: lì ci vivono già il titolo "ATOMIC BEER"
+   (a sinistra) e il pulsante (a destra), e l'avviso ci finiva sopra.
+   Il minimo di 4.25rem lo tiene sotto la TopBar (alta ~47px sul mobile) anche
+   quando 12vh sarebbe troppo poco, cioè in landscape. */
+.hint {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + clamp(4.25rem, 12vh, 6.5rem));
+  left: 50%;
+  z-index: 40;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  max-width: min(88vw, 24rem);
+  padding: 0.55rem 0.95rem;
+
+  font-family: var(--font-mono, ui-monospace, monospace);
+  text-align: center;
+  text-transform: uppercase;
+  text-wrap: balance;
+  pointer-events: none;
+
+  /* fondo proprio: l'avviso sta sopra il campo stellare e il logo cromato,
+     senza non sarebbe leggibile in tutte le pose */
+  background: rgba(8, 8, 8, 0.72);
+  border: 1px solid rgba(255, 217, 31, 0.28);
+  border-radius: 0.7rem;
+  backdrop-filter: blur(8px);
+
+  opacity: 0;
+  transform: translate(-50%, -0.45rem);
+  transition:
+    opacity 0.35s ease,
+    transform 0.35s ease;
+}
+
+.hintVisible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.hintTitle {
+  font-size: 0.6rem;
+  letter-spacing: 0.22em;
+  color: #ffd91f;
+}
+
+.hintBody {
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  line-height: 1.35;
+  color: rgba(242, 242, 242, 0.72);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}

@@ -24,13 +24,16 @@ html {
   background-color: #0a0a0a;
   overflow-x: clip;
   max-width: 100%;
+  /* passaggio ed esperienza bloccano lo scroll (.scroll-locked): senza spazio
+     riservato la barra sparirebbe e la pagina si allargherebbe di colpo */
+  scrollbar-gutter: stable;
 }
 
-/* Lo scroll è dell'esperienza a step (vedi hooks/useHeroLock.ts): la pagina
-   non scorre finché dal finale non si esce verso il basso. `overscroll-behavior`
-   toglie anche il rimbalzo elastico, che altrimenti farebbe sembrare lo
-   schermo "rotto". Attiva solo con l'esperienza in cima alla pagina, quindi
-   lo sticky della sezione About non ne risente mai. */
+/* Pagina bloccata (vedi lib/pageScroll.ts): nel hero su touch, dove si scende
+   solo col pulsante, durante il passaggio verso l'esperienza e
+   nell'esperienza a step. `overscroll-behavior` toglie anche il rimbalzo
+   elastico, che altrimenti farebbe sembrare lo schermo "rotto". Mai nella
+   pagina sotto il finale, quindi lo sticky della sezione About non ne risente. */
 html.scroll-locked,
 html.scroll-locked body {
   overflow: hidden;

@@ -59,13 +59,13 @@ tocca l'altro.
 
 | Sezione | Cosa fa | Decisione |
 | --- | --- | --- |
-| `#hero` (`components/scene/HeroScene.tsx`) | Canvas R3F col logo Uranio 3D a lettere fisiche, starfield, pointer parallax, lock dei gesti su touch | **Sostituita** dall'esperienza a step (hero a carosello di bottiglie). È questo il pezzo che la spec rimpiazza. |
+| `#hero` (`components/scene/HeroScene.tsx`) | Canvas R3F col logo Uranio 3D a lettere fisiche, starfield, pointer parallax, lock dei gesti su touch | **Tengo intatta** (decisione del proprietario, 2026-10-08): resta la prima sezione, file per file come prima del task 8.21. L'esperienza a step diventa la **seconda** sezione, raggiunta con un passaggio animato (`lib/pageScroll.ts`). |
 | `#about` (`components/about/`) | Scrollytelling con bottiglia + tappo pinnato, card, arco, "stonks" | **Tengo intatta** (regola 10.1.10). Diventa il contenuto sotto l'esperienza, raggiunto dal task 8.21. |
 | `TopBar` | header con nav, menu hamburger sotto 861 px, switch lingua IT/EN | **Riuso il menu**, rifaccio il guscio come header HUD (8.16): "AUDIO", logo al centro, "⁚⁚ MENU", pillola "CONTATTI". |
 | `Loader` | preloader agganciato al progresso reale dei GLB (`lib/assetProgress.ts` + `useProgress` di drei) | **Tengo il meccanismo**, rivesto la grafica (8.22). |
-| `InvertCursor`, `ScrollPill`, `HeroLock`, `InteractiveText` | cursore che inverte, pill "scorri", lock dell'hero su touch | `ScrollPill` e `HeroLock` muoiono con l'hero attuale (li sostituiscono lo "SCORRI PER SCOPRIRE" e il motore a step). `InvertCursor` e `InteractiveText` da rivalutare in fase D. |
+| `InvertCursor`, `ScrollPill`, `HeroLock`, `InteractiveText` | cursore che inverte, pill "scorri", lock dell'hero su touch | **Tengo intatti**, con l'hero (2026-10-08). `HeroLock` ora fa partire il passaggio verso l'esperienza invece dello scroll verso Chi siamo. |
 | `/coming-soon`, `/slash-experiment` | pagine a sé | **Non le tocco.** |
-| `lib/heroTransition.ts`, `hooks/useHeroLock.ts` | dissolvenza hero→about e blocco scroll su touch | **Riscritti** dal task 8.21: la logica di passaggio cambia del tutto. |
+| `lib/heroTransition.ts`, `hooks/useHeroLock.ts` | dissolvenza hero→about e blocco scroll su touch | `heroTransition.ts` **tenuto intatto**: le sue dissolvenze fanno da passaggio hero → esperienza. Il blocco su touch di `useHeroLock.ts` lo fa ora `lib/pageScroll.ts`, che possiede lo scroll di tutta la home (hero, passaggio, esperienza, pagina). |
 
 ## Correzioni alla spec emerse lavorando (regola 10.1.7)
 

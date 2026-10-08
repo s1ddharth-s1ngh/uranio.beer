@@ -158,7 +158,13 @@ function focusKind(t: EventTarget | null): FocusKind {
   return t.closest(CONTROLLO) ? "controllo" : null;
 }
 
-export type EdgeAction = "step" | "rimbalzo" | "sblocca" | "riaggancia" | "nativo";
+export type EdgeAction =
+  | "step"
+  | "rimbalzo"
+  | "sblocca"
+  | "riaggancia"
+  | "esci"
+  | "nativo";
 
 export interface EdgeState {
   target: number;
@@ -168,8 +174,11 @@ export interface EdgeState {
   dir: number;
   /** sotto l'esperienza c'è altro contenuto da raggiungere */
   haSotto: boolean;
+  /** sopra l'esperienza c'è la prima sezione della home, il hero */
+  haSopra: boolean;
   /** lo scroll è già stato restituito alla pagina */
   sbloccato: boolean;
+  /** scroll della pagina **rispetto alla cima dell'esperienza**: 0 = agganciata */
   scrollY: number;
 }
 
@@ -177,30 +186,39 @@ export interface EdgeState {
  * Cosa fare di un gesto al confine fra motore a step e scroll nativo (spec
  * 5.1 regola 6, task 8.21).
  *
- * Si esce solo **da fermi** allo step finale: a corsa in atto il gesto nello
- * stesso verso lo ignora già `Progress.request`, e uscire a metà lascerebbe
- * la scena congelata in un fotogramma intermedio. Da sbloccati il motore
- * tace, tranne quando la pagina è tutta su e il gesto chiede di salire
+ * Si esce solo **da fermi**, dallo step finale verso il basso e dallo step 0
+ * verso l'alto (dove c'è il hero): a corsa in atto il gesto nello stesso
+ * verso lo ignora già `Progress.request`, e uscire a metà lascerebbe la scena
+ * congelata in un fotogramma intermedio. Da sbloccati il motore tace, tranne
+ * quando l'esperienza è tornata tutta in vista e il gesto chiede di salire
  * ancora: lì si riaggancia allo step finale.
  */
 export function edgeAction(s: EdgeState): EdgeAction {
   if (s.sbloccato) return s.dir < 0 && s.scrollY <= 0 ? "riaggancia" : "nativo";
-  if (s.dir > 0 && s.target === s.last && !s.moving) {
-    return s.haSotto ? "sblocca" : "rimbalzo";
-  }
+  if (s.moving) return "step";
+  if (s.dir > 0 && s.target === s.last) return s.haSotto ? "sblocca" : "rimbalzo";
+  if (s.dir < 0 && s.target === 0 && s.haSopra) return "esci";
   return "step";
 }
 
 /**
- * Chi possiede lo scroll della pagina. Il DOM (classe sull'`<html>`,
- * `scrollBy`) sta in `hooks/useHeroLock.ts`, non qui.
+ * Chi possiede lo scroll della pagina: la home (`lib/pageScroll.ts`), che
+ * sa del hero sopra e della pagina sotto. Il motore le chiede solo cosa può
+ * fare e le passa i gesti di confine.
  */
 export interface ScrollHost {
+  /** il motore comanda: esperienza agganciata, o pagina sbloccata sotto */
+  attivo(): boolean;
   sbloccato(): boolean;
   haSotto(): boolean;
+  haSopra(): boolean;
+  /** dove si aggancia l'esperienza, in px dalla cima del documento */
+  top(): number;
   /** restituisce lo scroll alla pagina e la fa già scendere di `px` */
   sblocca(px: number): void;
   riaggancia(): void;
+  /** il passaggio animato all'indietro, fino al hero */
+  esci(): void;
 }
 
 export class StepController {
@@ -244,8 +262,9 @@ export class StepController {
       moving: this.progress.moving,
       dir,
       haSotto: this.host.haSotto(),
+      haSopra: this.host.haSopra(),
       sbloccato: this.host.sbloccato(),
-      scrollY: window.scrollY,
+      scrollY: window.scrollY - this.host.top(),
     });
   }
 
@@ -254,6 +273,12 @@ export class StepController {
     // il gesto si segue anche da sbloccati: al riaggancio serve sapere che la
     // coda in arrivo è inerzia dello stesso gesto, non un gesto nuovo
     const dir = this.wheel.feed(e.deltaY, e.deltaMode, performance.now(), vh);
+    // nel hero e durante il passaggio i gesti sono della home: questo, per il
+    // motore, è un gesto già speso
+    if (!this.host.attivo()) {
+      this.wheel.consume();
+      return;
+    }
     if (this.host.sbloccato()) {
       // da sbloccati conta il verso del singolo evento, non lo scatto: la
       // pagina deve riagganciarsi appena tocca la cima
@@ -264,12 +289,16 @@ export class StepController {
       return;
     }
     e.preventDefault();
-    if (this.edge(dir) === "sblocca") {
+    const action = this.edge(dir);
+    if (action === "sblocca") {
       // `scrollBy` invece di lasciar passare l'evento: lo scroll da rotella lo
       // decide il compositore, che non ha ancora visto sparire l'`overflow:
       // hidden`, e il primo evento andrebbe perso. Il resto della spinta
       // arriva a pagina sbloccata e scorre nativo
       this.host.sblocca(wheelPx(e.deltaY, e.deltaMode, vh));
+    } else if (action === "esci") {
+      this.wheel.consume();
+      this.host.esci();
     } else {
       this.step(dir);
     }
@@ -288,6 +317,7 @@ export class StepController {
   };
 
   private onTouchEnd = (e: TouchEvent) => {
+    if (!this.host.attivo()) return;
     const y = e.changedTouches[0]?.clientY ?? this.touchY;
     const x = e.changedTouches[0]?.clientX ?? this.touchX;
     const dir = swipeDirection(
@@ -300,10 +330,12 @@ export class StepController {
     // pagina scende di quanto si è mosso il dito
     if (action === "sblocca") this.host.sblocca(this.touchY - y);
     else if (action === "riaggancia") this.host.riaggancia();
+    else if (action === "esci") this.host.esci();
     else if (action !== "nativo") this.step(dir);
   };
 
   private onKey = (e: KeyboardEvent) => {
+    if (!this.host.attivo()) return;
     if (keyBelongsToFocus(e.key, focusKind(e.target))) return;
     const intent = keyIntent(e.key, e.shiftKey);
     if (!intent) return;
@@ -319,6 +351,8 @@ export class StepController {
     e.preventDefault();
     if (action === "riaggancia") {
       this.host.riaggancia();
+    } else if (action === "esci") {
+      this.host.esci();
     } else if ("to" in intent) {
       this.progress.goTo(intent.to === "first" ? 0 : this.progress.last);
     } else {

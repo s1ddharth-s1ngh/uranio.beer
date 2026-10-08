@@ -163,7 +163,7 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
 {
   const fermo6: EdgeState = {
     target: 6, last: 6, moving: false, dir: 1,
-    haSotto: true, sbloccato: false, scrollY: 0,
+    haSotto: true, haSopra: true, sbloccato: false, scrollY: 0,
   };
   assert.equal(edgeAction(fermo6), "sblocca", "allo step 6 un gesto giù deve sbloccare");
   assert.equal(edgeAction({ ...fermo6, haSotto: false }), "rimbalzo", "senza niente sotto si rimbalza");
@@ -181,6 +181,14 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
     assert.equal(edgeAction({ ...fuori, dir, scrollY: 300 }), "nativo", "sotto la cima è tutto nativo");
   }
 
+  // allo step 0, sopra c'è il hero: un gesto su torna indietro col passaggio
+  const fermo0 = { ...fermo6, target: 0, dir: -1 };
+  assert.equal(edgeAction(fermo0), "esci", "allo step 0 un gesto su torna al hero");
+  assert.equal(edgeAction({ ...fermo0, haSopra: false }), "step", "senza hero sopra rimbalza Progress");
+  assert.equal(edgeAction({ ...fermo0, moving: true }), "step", "a corsa in atto non si esce");
+  assert.equal(edgeAction({ ...fermo0, dir: 1 }), "step", "allo step 0 un gesto giù va all'1");
+  assert.equal(edgeAction({ ...fermo0, target: 1 }), "step");
+
   // riaggancio con la rotella: lo fa il primo evento verso l'alto, poi la
   // coda d'inerzia dello stesso gesto non deve far scattare 6 → 5
   const g = new WheelGesture();
@@ -193,6 +201,30 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
   // un gesto nuovo dopo la pausa invece sì
   step += g.feed(-40, 0, (t += 400), 900);
   assert.equal(step, -1, "dopo il riaggancio il gesto nuovo non torna al 5");
+}
+
+// --- la home: hero, passaggio, esperienza, pagina (lib/pageScroll.ts)
+{
+  const { passageEase, syncAction } = await import("../src/lib/pageScroll.ts");
+  assert.equal(passageEase(0), 0);
+  assert.equal(passageEase(1), 1);
+  assert.equal(passageEase(0.5), 0.5, "curva simmetrica");
+  for (let t = 0; t < 1; t += 0.05) {
+    assert.ok(passageEase(t + 0.05) >= passageEase(t), "lo scroll del passaggio non torna indietro");
+  }
+
+  // cima dell'esperienza a 720 px (una schermata di 900 meno la
+  // sovrapposizione del 20%)
+  const top = 720;
+  assert.equal(syncAction(0, top, "hero", true), "hero");
+  assert.equal(syncAction(300, top, "hero", true), "scendi", "dal hero non ci si ferma a metà");
+  assert.equal(syncAction(top, top, "hero", true), "esperienza", "ripristinata in cima all'esperienza");
+  assert.equal(syncAction(top, top, "hero", false), "pagina", "senza motore niente blocco");
+  assert.equal(syncAction(top + 0.5, top, "pagina", true), "pagina", "appena sbloccata non si riblocca");
+  assert.equal(syncAction(top + 400, top, "esperienza", true), "pagina");
+  assert.equal(syncAction(300, top, "pagina", true), "riaggancia", "risalendo oltre la cima si riaggancia");
+  assert.equal(syncAction(300, top, "pagina", false), "sali", "senza motore si torna al hero");
+  assert.equal(syncAction(0.5, top, "pagina", true), "hero", "Home dalla pagina porta al hero");
 }
 
 // --- durate (spec 5.2 e regola 5.1.7)
@@ -819,6 +851,106 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
     c.release();
     assert.equal(c.active, prima);
     c.dispose();
+  }
+}
+
+// --- l'ingresso dopo il preloader, funzione di `intro` (task 8.22)
+{
+  const { faroLevel, introOrder, Intro, slotDrop, slotRise, UI_AT } = await import(
+    "../src/core/Intro.ts"
+  );
+  const { slotPose } = await import("../src/core/Carousel.ts");
+  const { CAROUSEL } = await import("../src/config/beers.ts");
+  const { INTRO } = await import("../src/config/intro.ts");
+  const { configureCamera } = await import("../src/config/solvePivot.ts");
+  const THREE = await import("three");
+
+  for (const [vp, N] of [
+    [computeViewport(1440, 900, 2), CAROUSEL.count],
+    [computeViewport(2560, 1080, 1), CAROUSEL.count],
+    [computeViewport(390, 844, 3), CAROUSEL.countMobile],
+  ] as const) {
+    const nome = `${vp.width}×${vp.height}`;
+    // l'ordine di salita è una permutazione: ogni slot sale una volta
+    const ordini = Array.from({ length: N }, (_, s) => introOrder(s, N));
+    assert.deepEqual([...ordini].sort((a, b) => a - b), [...Array(N).keys()], `${nome}: ordine di salita non valido ${ordini}`);
+    assert.equal(introOrder(0, N), 0, "la protagonista non sale per prima");
+
+    // a `intro` 0 tutto spento e sotto il frame: la cima di ogni bottiglia,
+    // abbassata del `drop`, si proietta sotto il bordo basso
+    const s = new StateMapper(vp).apply(0);
+    const cam = configureCamera(
+      new THREE.PerspectiveCamera(),
+      { position: s.camera.position.toArray(), look: s.camera.look.toArray() },
+      vp.aspect,
+    );
+    const cima = BOTTLE.maxY - BOTTLE.centerY;
+    for (let slot = 0; slot < N; slot++) {
+      assert.equal(slotRise(0, slot, N), 0, `${nome}: slot ${slot} acceso a intro 0`);
+      const p = slotPose(slot, 0, 0, N);
+      const punto = new THREE.Vector3(0, cima, 0)
+        .applyEuler(new THREE.Euler(p.rotX, p.rotY, p.rotZ))
+        .add(new THREE.Vector3(p.x, p.y + slotDrop(0, slot, N), p.z))
+        .add(s.pivot);
+      const y = (1 - punto.project(cam).y) / 2;
+      assert(y > 1, `${nome}: a intro 0 la cima dello slot ${slot} è in vista (y ${y.toFixed(3)})`);
+    }
+
+    // a `intro` 1 identico allo stato senza intro: nessun salto alla fine
+    for (let slot = 0; slot < N; slot++) {
+      assert.equal(slotRise(1, slot, N), 1, `${nome}: slot ${slot} non arrivato a intro 1`);
+      assert(slotDrop(1, slot, N) === 0, `${nome}: slot ${slot} ancora abbassato a intro 1`);
+    }
+
+    // sfalsamento monotono: chi parte dopo non è mai più avanti
+    const perOrdine = [...Array(N).keys()].sort((a, b) => introOrder(a, N) - introOrder(b, N));
+    for (let u = 0; u <= 1; u += 0.01) {
+      for (let k = 1; k < N; k++) {
+        assert(
+          slotRise(u, perOrdine[k - 1], N) >= slotRise(u, perOrdine[k], N),
+          `${nome}: a intro ${u.toFixed(2)} lo slot ${perOrdine[k]} supera il precedente`,
+        );
+      }
+    }
+  }
+
+  // il faro: spento, due sfarfallii (due ricadute dopo un'accensione), acceso
+  assert.equal(faroLevel(0), 0, "faro acceso a intro 0");
+  assert.equal(faroLevel(1), 1, "lo sfarfallio non finisce acceso");
+  let ricadute = 0;
+  let prima = 0;
+  for (let u = 0; u <= 1; u += 0.001) {
+    const l = faroLevel(u);
+    if (l < prima) ricadute++;
+    prima = l;
+  }
+  assert.equal(ricadute, 2, `il faro sfarfalla ${ricadute} volte invece di 2`);
+
+  // l'interfaccia entra per ultima: dopo che tutte le bottiglie sono partite
+  const ultimaPartenza = INTRO.bottles.start + (CAROUSEL.count - 1) * INTRO.bottles.stagger;
+  assert(UI_AT * INTRO.duration > ultimaPartenza, "l'interfaccia entra prima delle bottiglie");
+
+  // il valore: `play` arriva a 1 e avvisa una volta sola, `skip` subito
+  {
+    gsap.ticker.lagSmoothing(0);
+    const avanza = (dt: number) =>
+      gsap.globalTimeline.time(gsap.globalTimeline.time() + dt);
+    const intro = new Intro();
+    let avvisi = 0;
+    intro.subscribe(() => avvisi++);
+    assert(!intro.uiReady);
+    intro.play();
+    for (let i = 0; i < 50; i++) avanza(INTRO.duration / 40);
+    assert.equal(intro.value, 1, `play si ferma a ${intro.value}`);
+    assert(intro.uiReady);
+    assert.equal(avvisi, 1, `uiReady ha avvisato ${avvisi} volte`);
+
+    const saltata = new Intro();
+    let avvisiSalto = 0;
+    saltata.subscribe(() => avvisiSalto++);
+    saltata.skip();
+    assert.equal(saltata.value, 1);
+    assert.equal(avvisiSalto, 1);
   }
 }
 

@@ -1,10 +1,14 @@
-import { lazy, Suspense, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { DEBUG_MODE, DEBUG_ON } from "../debug/registry";
 import { BackgroundLayer } from "../gl/BackgroundLayer";
 import { Stage } from "../gl/Stage";
+import { sharedIntro } from "../core/Intro.ts";
+import { sharedProgress } from "../core/Progress.ts";
 import { useCarouselDrag } from "../hooks/useCarouselDrag";
-import { useHeroLock } from "../hooks/useHeroLock";
+import { useExperienceLock } from "../hooks/useExperienceLock";
+import { prefersReducedMotion } from "../hooks/usePrefersReducedMotion";
 import { useStepEngine } from "../hooks/useStepEngine";
+import type { PageScroll } from "../lib/pageScroll";
 import { hasWebGL2 } from "../gl/webgl";
 import { Fallback } from "../ui/Fallback";
 import { HeroUi } from "../ui/HeroUi";
@@ -23,31 +27,46 @@ const BandsProbe = lazy(() => import("../debug/BandsProbe"));
 const DRAG_CLASSES = { grab: styles.grab, grabbing: styles.grabbing };
 
 /**
- * Lo scroll 3D a step (spec `docs/URANIO_SCROLL_SPEC.md`), in cima alla home
- * al posto del vecchio hero. Dal finale un gesto verso il basso restituisce lo
- * scroll alla pagina (task 8.21, `useHeroLock`).
+ * Lo scroll 3D a step (spec `docs/URANIO_SCROLL_SPEC.md`), seconda sezione
+ * della home dopo il hero. Ci si arriva col passaggio animato dal hero, e dal
+ * finale un gesto verso il basso restituisce lo scroll alla pagina: lo scroll
+ * lo comanda la home (`page`, `lib/pageScroll.ts`).
  *
  * `onHudChange` dice alla home se l'header dell'HUD è in vista: quando non lo
  * è, al suo posto va la `TopBar` del sito.
  */
 function Scene({
+  page,
   onHudChange,
   onContextLost,
 }: {
+  page: PageScroll;
   onHudChange?: (visible: boolean) => void;
   onContextLost: () => void;
 }) {
-  const page = useRef<HTMLDivElement>(null);
-  const host = useHeroLock(page, onHudChange);
+  const root = useRef<HTMLDivElement>(null);
+  const reveal = useExperienceLock(root, page, onHudChange);
   // il motore di scroll si aggancia al contenitore, non a window: fuori
   // dall'esperienza la rotella deve tornare alla pagina
-  const { step } = useStepEngine(page, host);
+  const { step } = useStepEngine(root, page);
   // il carosello si trascina solo nell'hero: convive con il motore a step
   // sullo stesso elemento, vince l'asse del primo movimento
-  useCarouselDrag(page, DRAG_CLASSES);
+  useCarouselDrag(root, DRAG_CLASSES);
+
+  // l'ingresso (faro, bottiglie che salgono) parte nell'ultimo tratto del
+  // passaggio dal hero: fino ad allora `intro` resta a 0, la scena è composta
+  // ma spenta e sotto il frame. Con `#step-N` nell'URL non c'è un carosello
+  // da far salire e si salta
+  useEffect(() => {
+    if (reveal === "wait") return;
+    const intro = sharedIntro();
+    const daHero = sharedProgress().target === 0;
+    if (reveal === "play" && daHero && !prefersReducedMotion()) intro.play();
+    else intro.skip();
+  }, [reveal]);
 
   return (
-    <div className={styles.page} ref={page} tabIndex={-1}>
+    <div className={styles.page} ref={root} tabIndex={-1}>
       {/* l'ordine nel DOM è l'ordine di tabulazione (task 8.24): header,
           controlli dell'hero, testo, call to action del finale. Chi sta
           davanti a chi lo decide lo z-index, non la posizione qui */}
@@ -61,7 +80,6 @@ function Scene({
         wordClassName={`${styles.layer} ${styles.bigword}`}
         uiClassName={`${styles.layer} ${styles.stageUi}`}
       />
-      <div className={`${styles.layer} ${styles.loader}`} />
       <Suspense fallback={null}>
         {DEBUG_ON && <DebugPanel />}
         {DEBUG_MODE === "type" && <TypeSpecimen />}

@@ -37,6 +37,27 @@ npm run verify:glb    # il modello e la sua preparazione
 Quando arrivi in fondo al 8.28, fermati e scrivi un resoconto finale di cosa
 è stato fatto e cosa resta non verificabile.
 
+## Cambio di direzione del 2026-10-08: il hero resta
+
+Il proprietario del repo l'ha detto chiaro: **la prima sezione della home, il
+hero col logo Uranio 3D, resta la prima sezione e non si cambia**. La spec
+(e il task 8.21) la sostituivano con l'esperienza: non vale più.
+
+- Il hero è tornato com'era prima del task 8.21, file per file (scene,
+  `HeroLock`, `ScrollPill`, `InteractiveText`, `lib/heroTransition.ts`,
+  `lib/scramble.ts`, verificati per hash). **Non toccarli.**
+- L'esperienza a step è la **seconda** sezione (`<section id="esperienza">`
+  in `pages/Home.tsx`), poi "Chi siamo" a scroll nativo.
+- Fra le due c'è un **passaggio animato**: un gesto verso il basso nel hero
+  (rotella, frecce, spazio; su touch il pulsante in basso) fa scorrere la
+  pagina fino alla cima dell'esperienza con le dissolvenze di sempre del hero,
+  e nell'ultimo tratto parte l'ingresso dell'esperienza (8.22). Dallo step 0
+  un gesto verso l'alto rifà il passaggio al contrario.
+- Lo scroll di tutta la home lo possiede `lib/pageScroll.ts` (stati `hero`,
+  `passaggio`, `esperienza`, `pagina`); il motore a step lo usa come
+  `ScrollHost`. `hooks/useHeroLock.ts` è diventato
+  `hooks/useExperienceLock.ts` (ticker, header, ingresso).
+
 ## Dove sei
 
 Fase A, B e C finite, fase D fino al 8.18 compreso. I commit su `main`:

@@ -93,6 +93,23 @@ export const SCROLL = {
   hudVisibleRatio: 0.9,
 } as const;
 
+/**
+ * Il passaggio fra la prima sezione della home (il hero) e l'esperienza, che
+ * è la seconda: un gesto, poi uno scroll animato fino alla cima
+ * dell'esperienza. Le dissolvenze sono quelle di sempre del hero
+ * (`lib/heroTransition.ts`), legate allo scroll; qui c'è solo il ritmo.
+ */
+export const PASSAGE = {
+  /** durata del passaggio intero; a metà strada (inversione) si accorcia */
+  durationMs: 1400,
+  /**
+   * Quando l'esperienza è in vista per questa frazione parte il suo ingresso
+   * (faro che si accende, bottiglie che salgono: task 8.22). Prima, il hero
+   * la copre ancora quasi tutta e lo sfarfallio del faro andrebbe perso.
+   */
+  introRatio: 0.6,
+} as const;
+
 /** DPR adattivo della scena (spec 6.1, task 8.27), tempi in secondi */
 export const ADAPTIVE_DPR = {
   /** frame medio oltre il quale la scena è "lenta" (20 ms = 50 fps) */

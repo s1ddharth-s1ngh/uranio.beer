@@ -26,7 +26,7 @@
 /* bloccata: il verticale lo gestisce StepController e l'orizzontale il
    carosello. Al browser non resta nessun gesto da interpretare, e senza
    questo su telefono il trascinamento del carosello scrollerebbe la pagina.
-   La classe la mette `useHeroLock` */
+   La classe la mette `lib/pageScroll.ts` */
 :global(html.scroll-locked) .page {
   touch-action: none;
 }

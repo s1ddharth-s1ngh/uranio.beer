@@ -9,6 +9,12 @@ Il contesto comune (architettura, fatti misurati, trappole, risposte di
 default) **non** è ripetuto nei brief: sta in `docs/CONTINUA.md`, che ogni
 sessione legge per primo.
 
+> **Cambio di direzione del 2026-10-08.** Il hero originale della home resta
+> la prima sezione, intatto; l'esperienza è la seconda, con un passaggio
+> animato fra le due (`lib/pageScroll.ts`). Dove un brief dice che
+> l'esperienza sta "in cima alla home" o "al posto del hero", vale questo.
+> Dettagli in `docs/CONTINUA.md`, sezione "Cambio di direzione".
+
 ## Stato al 2026-10-08
 
 - Fasi A, B e C finite; fase D fino al 8.18 compreso.
