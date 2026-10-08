@@ -181,6 +181,55 @@ tre marcatori esistano ancora negli shader `physical` e `standard` della
 versione installata, che la patch si applichi, che gli uniform siano condivisi
 e che il bagliore rosso finisca solo sull'etichetta.
 
+### Dai task 8.19–8.28 (consolidato dal 8.28)
+
+Le note complete stanno nella sezione **Esito** di ogni brief in
+`docs/tasks/`; qui le correzioni alla spec, una riga di perché ciascuna.
+
+**6.10 — la birra non è "raggio × 0,93" (8.26).** Il vetro ha due pareti:
+sul corpo l'esterna è a 0,6495 e l'interna a 0,594, nel collo 0,2835 contro
+0,2466. Il raggio massimo × 0,93 forerebbe la parete interna di 0,01–0,02.
+`profiloBirra()` in `prepareBottle.ts` misura la parete più vicina all'asse e
+se ne stacca di `LIQUID.gap` (0,008). `verify:glb` lo controlla sparando
+raggi contro vetro e birra, senza riusare la misura.
+
+**7.6 — la scritta del finale non sta a 390 px (8.20, 8.23).**
+`clamp(120px, 22vw, 360px)` a 390 dà 120 px e "CRISI" in corsivo 900 esce
+dallo schermo. Nel layout mobile è `min(22vw, 360px)`.
+
+**7.2 — il raggio del carosello dipende dal formato (8.28).** Con 6 a
+1440×900 le estreme cadevano a 0,84 della larghezza: l'anello era un mucchio
+al centro, non "sette bottiglie, le estreme tagliate dai bordi". Ora
+`ringRadius(vp)` in `config/beers.ts`: 10 a desktop, 6 sul tablet verticale,
+3 sul telefono (dove la 7.3 vuole cinque bottiglie: con 6 se ne vedeva una e
+mezza). `verify:core` conta i centri proiettati a 1440×900, 1024×768,
+768×1024 e 390×844.
+
+**Titoli degli step tagliati a desktop (8.28).** Il corpo `t-display`
+(`clamp(40px, 4.6vw, 72px)`) cresce fino a 1565 px di finestra, il blocco di
+testo si ferma a 520 px già da 1238: "LEGGEREZZA" (8,51 volte il corpo,
+misurata in Chromium) veniva 564 px contro 506 e la maschera delle righe la
+tagliava, come "TRASFORMA". Il titolo ora segue la larghezza del blocco
+(`StepText.module.css`). Il blocco non si può allargare: la fascia accesa
+comincia 33 px più a destra.
+
+**Lo sfondo copriva un quarto dello schermo (8.28).** Il canvas `#bg` era
+posizionato con `inset: 0`, che su un elemento sostituito non stira niente:
+restava grande quanto il suo buffer. Con lo sfondo a DPR × 0,5 (8.27) il
+buffer è mezzo schermo per lato. Visto solo negli screenshot: `width/height:
+100%` in `Experience.module.css`.
+
+**L'header HUD usciva dallo schermo sui telefoni (8.28).** Misurato a 390:
+audio 122 + logo 88 + menu 72 + pillola 92 = 449 px con padding e gap.
+Sotto i 460 px la pillola "CONTATTI" dell'header sparisce (la voce resta nel
+menu) e il gap scende a 8 px. Attenzione: i bottoni del finale ereditano la
+pillola con `composes`, la regola vale solo dentro `.header`.
+
+**Il bake della maschera del logotipo è in negativo (8.19).**
+`sharp().dilate()` nella 0.35.5 allarga il nero, non il bianco: la maschera
+si costruisce a lettere nere e si inverte dopo. Con la maschera dritta il
+risultato era tutto trasparente, senza errori.
+
 ## Scostamenti dalla spec, decisi qui (regola 10.1.7)
 
 1. **Niente branch `feat/scroll-3d`.** Il task 8.1 lo chiede, ma `CLAUDE.md`
@@ -197,6 +246,37 @@ e che il bagliore rosso finisca solo sull'etichetta.
    restano classi TypeScript pure, fuori da React: così sono testabili in Node
    come già si fa con `bottleAssembly.ts`. Solo i moduli `gl/` e `ui/`
    diventano componenti.
+
+4. **La home non è più solo l'esperienza (2026-10-08, decisione del
+   proprietario).** Il vecchio hero (logo Uranio 3D, `components/scene/`) è
+   tornato prima sezione, l'esperienza è la seconda (`#esperienza`), poi Chi
+   siamo. Un gesto verso il basso nel hero fa un passaggio animato; dallo step
+   0 un gesto verso l'alto torna al hero. Lo scroll lo possiede
+   `lib/pageScroll.ts` (`b8673b9`). Il 8.21 aveva cancellato quei file: sono
+   tornati com'erano prima di `b4e2d63`.
+5. **Icone degli step sotto il testo su mobile, non sopra (8.23).** Metterle
+   sopra vuol dire conoscere l'altezza del testo, che cambia da step a step e
+   vive in un altro strato.
+6. **Layout mobile = `width < 768` oppure `aspect <= 1` (8.23).** Il tablet
+   verticale ha la composizione del telefono (`KEYFRAMES_TABLET`, camera ×1,1)
+   ma DPR e nove bottiglie del desktop.
+7. **Moto ridotto sulla corsa, non sul segmento (8.24).** `reducedPose`
+   ragiona su `from → to`: un salto con le icone da 1 a 4 non fa lampeggiare
+   2 e 3.
+8. **Ordine di tabulazione: le icone degli step vengono prima dei controlli
+   dell'hero e del testo (8.24),** perché stanno nello strato HUD dopo
+   l'header.
+9. **Finale nascosto con `inert` (8.20),** al posto di `tabIndex={-1}` più
+   `pointer-events: none`.
+10. **Il piedistallo sale insieme alla protagonista nell'ingresso (8.22):**
+    altrimenti lei lo attraverserebbe salendo da sotto. L'ingresso parte
+    all'arrivo dal hero, non alla fine del Loader.
+11. **Lo stappo suona a ogni `step:leave` da 0 (8.25),** non solo 0 → 1: le
+    icone saltano anche da 0 a 3.
+12. **PostFX anche su mobile, montato dopo il primo frame (8.27):** senza
+    bloom, ma è il composer a fare l'antialias.
+13. **Su telefono la pillola "CONTATTI" dell'header non c'è (8.28):** non ci
+    sta. La voce resta nel menu.
 
 ## Pesi morti trovati
 
@@ -224,3 +304,117 @@ e che il bagliore rosso finisca solo sull'etichetta.
 - [ ] Link Instagram e destinazione di "DOVE TROVARLA".
 - [ ] Via libera a cancellare i GLB morti elencati sopra.
 - [ ] Branch sì o no (punto 1 degli scostamenti).
+- [ ] **`#contatti` non esiste** (8.20): "DOVE TROVARLA", la pillola
+      "CONTATTI" dell'HUD e "Contatti" del menu (`components/nav.tsx`)
+      puntano a un'ancora che nessun elemento ha. Serve la destinazione vera.
+
+Domande per il proprietario del repo, non per il birrificio:
+
+- [ ] **Senza WebGL il hero e Chi siamo lanciano errori** (8.28): l'esperienza
+      monta il suo fallback, ma i canvas di `#hero` e `#about` lanciano
+      "Error creating WebGL context" non gestiti (quattro a pagina, visti con
+      Playwright). La pagina resta leggibile; il hero resta un fondo nero col
+      solo testo. Sono file che il 8.28 non tocca (regola 10.1.10 e accordo
+      col cambio della home).
+- [ ] **`scrollbar-gutter: stable`** (`index.css`) evita il salto di layout
+      quando lo scroll si blocca, ma su Windows con barre classiche lascia una
+      colonna nera di ~15 px a destra dell'esperienza (si vede negli
+      screenshot QA). Su Mac e telefono le barre sono sovrapposte e non si
+      vede.
+- [ ] **Draw call e memoria GPU** (8.27, stime): ≈ 75 draw call nell'hero
+      desktop contro il tetto di 60 (la `transmission` del vetro ridisegna gli
+      opachi), e le render target a DPR 1,75 oltre i 64 MB. Leve pronte ma non
+      applicate perché cambiano la resa: `transmissionResolutionScale` 0,5,
+      birra solo sulla protagonista, carosello in `InstancedMesh`.
+- [ ] **Logotipo a 546 px** (8.19): basta fino a ~310 px CSS a DPR 1,75; a
+      1440 px è largo 345 px e si vede un filo morbido sui retina. Col
+      vettoriale (domanda sopra) il problema sparisce.
+
+## Budget e checklist 9 — QA finale (task 8.28)
+
+Il 2026-10-08 su questa macchina è arrivato un browser: Chromium headless di
+Playwright, con la GPU integrata AMD Radeon via ANGLE D3D11 (~35–41 fps a
+1440×900; swiftshader ne fa ~3). `npm run qa` percorre hero → 0 → 6 → 0 →
+hero con la tastiera a 1440×900, 390×844 e 768×1024 e salva le schermate in
+`qa/screens/`; `qa/accessibilita.spec.ts` prova moto ridotto e fallback senza
+WebGL. **Le schermate sono state guardate una per una.** Resta vero che
+nessuno ha visto il movimento su un dispositivo reale: una schermata ferma
+non dice niente di fluidità, inerzia e tempi.
+
+`[x]` = visto o misurato; il resto dice perché no.
+
+### 9.1 Budget
+
+| Voce | Limite | Stato |
+| --- | --- | --- |
+| GLB ottimizzato | < 1,2 MB | **320 KB**, misurato (8.4) |
+| JS del primo frame (gzip) | < 350 KB | **349,4 KB**, misurato (`214be96`): il primo frame ora è il hero del sito, l'esperienza si scarica dopo. Margine 0,6 KB |
+| Primo frame composto (4G) | < 3 s | non misurato: niente rete strozzata qui |
+| 60 fps desktop (M1, Chrome) | | non misurato sul dispositivo. Indicativo: 35–41 fps in headless su GPU integrata AMD, a schermo pieno 1440×900 |
+| ≥ 45 fps mobile | | non misurato: niente telefono |
+| Draw call nell'hero | < 60 | **≈ 75, stimato per conteggio, sopra il tetto** (8.27): vedi domande aperte |
+| Memoria GPU texture | < 64 MB | texture ≈ 15 MB, stimate; con le render target a DPR 1,75 si è oltre (8.27) |
+
+### 9.2 Checklist
+
+- [ ] **Un gesto = uno step.** Tastiera vista: a ogni freccia l'hash arriva
+      allo step successivo, 0 → 6 → 0, ai tre formati. Rotella, trackpad con
+      inerzia e touch: provati solo come tracce in `verify:core`, mai con un
+      dito o un trackpad veri.
+- [ ] **Durate, morbidezza, riavvolgimento identico.** Le durate sono quelle
+      della tabella 5.2 in `verify:core`, non a occhio. Il riavvolgimento sì,
+      misurato: andata e ritorno dello stesso step differiscono in media di
+      5–9 livelli su 255 contro i 16–18 fra due step vicini, e lo scarto è la
+      grana animata e la vita a riposo (il hero, senza grana, dà 0,1).
+      Guardate affiancate, le composizioni coincidono. La morbidezza di
+      partenza e arrivo non si vede in una schermata.
+- [ ] **Inversione a metà corsa e salti con le icone.** Non provati in
+      browser; solo la logica, in `verify:core`.
+- [ ] **Hero.** [x] sette bottiglie a 1440×900 con le estreme tagliate dai
+      bordi (dopo la correzione del raggio, sopra), inclinate in modo vario,
+      protagonista sotto il faro e sul piedistallo. Fluttuazione, drag e frecce:
+      non visti (servono movimento e mouse).
+- [x] **Primo piano.** La cima cade a (0,47; 0,14) come da ancora, il bordo del
+      tappo è il punto più luminoso, collo e tappo pieni, corpo in penombra,
+      fronte dell'etichetta leggibile in basso. La zigrinatura della corona si
+      vede: ondulata, senza sfaccettature.
+- [x] **Retro.** Ogni step accende la sua fascia e il resto dell'etichetta resta
+      in penombra (ritaglio a piena risoluzione dello step 2, e
+      `?debug=bands` con i quattro rettangoli sopra la texture: combaciano). La
+      fascia accesa sta sempre a destra del testo, a ~0,42–0,46 dell'altezza
+      su desktop e ~0,30–0,33 su mobile; la bottiglia sale e si raddrizza da 2
+      a 5.
+- [ ] **Lama di luce.** Non conclusivo: nella schermata a metà del passaggio
+      1 → 2 l'etichetta è più accesa che a riposo, ma in un'immagine ferma la
+      lama non si separa dalla luce dell'etichetta che ruota. Va guardata in
+      movimento.
+- [ ] **Finale.** [x] nebbia rossa viva, "ZERO / CRISI" dietro la bottiglia,
+      note e due bottoni sotto, a tutti e tre i formati. L'entrata lettera per
+      lettera non si vede in una schermata. "DOVE TROVARLA" porta a
+      `#contatti`, che non esiste (domanda aperta).
+- [ ] **Testi.** [x] mai due blocchi visibili insieme: a metà della
+      transizione 1 → 2 c'è solo il tag del testo nuovo che entra. [x] Il tag
+      barrato è disegnato. L'uscita a righe e l'entrata con sfocato sono
+      movimento: non viste.
+- [x] **HUD completo.** Header, barra di progresso che cresce step per step,
+      icona attiva evidenziata, angolari, lettere di sfondo; nel finale l'HUD
+      si fa da parte.
+- [ ] **Niente z-fighting, flash, salti, pop-in.** Nessuno z-fighting in
+      nessuna schermata. Flash, salti di layout e pop-in si vedono solo in
+      movimento: non verificati. Unico salto noto: la colonna di
+      `scrollbar-gutter` su Windows (domanda aperta).
+- [x] **Mobile 390×844 e tablet 768×1024.** Composizioni della 7.3 (testo in
+      basso sulla sfumatura, bottiglia sopra, icone in riga), testi mai
+      coperti, cinque bottiglie nell'hero del telefono. Corretti l'header che
+      usciva dallo schermo e il raggio dell'anello. Safe area di un iPhone
+      vero: non vista.
+- [ ] **Reduced motion, tastiera, screen reader, fallback.** [x] Moto ridotto:
+      gli step arrivano lo stesso, composizione giusta (Playwright con
+      `reducedMotion: reduce`). [x] Tastiera: il percorso intero. [x] Fallback
+      senza WebGL: l'esperienza mostra logotipo, step in colonna con le
+      immagini delle fasce e i bottoni, e scorre nativa; ma il hero e Chi
+      siamo lanciano errori (domanda aperta). Screen reader (VoiceOver, NVDA):
+      non provato.
+- [x] **Niente di Ciao Energy.** Nessun file né testo che lo nomini fuori da
+      `docs/` (dove è citato come riferimento nella spec).
+- [x] **README aggiornato e schermate QA in `qa/screens/`.**

@@ -3,7 +3,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { BAND_ORDER, BANDS, MODEL_URL } from "../config/bottle.ts";
-import { CAROUSEL } from "../config/beers.ts";
+import { CAROUSEL, ringRadius } from "../config/beers.ts";
 import { REST_LIFE } from "../config/keyframes.ts";
 import { sharedCarousel, slotPose, type SlotPose } from "../core/Carousel.ts";
 import { sharedProgress } from "../core/Progress.ts";
@@ -90,7 +90,7 @@ export function Bottle() {
     const anello = 1 - s.carousel.escape;
     const pose =
       anello > 0
-        ? slotPose(0, carousel.active, carousel.rot, carousel.count, POSA)
+        ? slotPose(0, carousel.active, carousel.rot, carousel.count, POSA, ringRadius(vp))
         : undefined;
     if (pose) {
       g.position.set(

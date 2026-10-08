@@ -711,6 +711,41 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
   }
 }
 
+// --- carosello: il raggio per formato (task 8.28). Spec 7.2 e 7.3: a
+// desktop sette bottiglie, le estreme tagliate dai bordi; su telefono
+// cinque. Si contano i centri degli slot proiettati: tutti in vista tranne
+// i due estremi, che cadono sul bordo (entro 0,05) e ne escono a metà
+{
+  const { slotPose } = await import("../src/core/Carousel.ts");
+  const { CAROUSEL, ringRadius } = await import("../src/config/beers.ts");
+  const { configureCamera } = await import("../src/config/solvePivot.ts");
+  const THREE = await import("three");
+  for (const [w, h, interi] of [
+    [1440, 900, 7],
+    [1024, 768, 5],
+    [768, 1024, 7],
+    [390, 844, 3],
+  ] as const) {
+    const vp = computeViewport(w, h, 1);
+    const N = vp.mobile ? CAROUSEL.countMobile : CAROUSEL.count;
+    const s = new StateMapper(vp).apply(0);
+    const cam = configureCamera(
+      new THREE.PerspectiveCamera(),
+      { position: s.camera.position.toArray(), look: s.camera.look.toArray() },
+      vp.aspect,
+    );
+    const xs = [...Array(N).keys()].map((slot) => {
+      const p = slotPose(slot, 0, 0, N, undefined, ringRadius(vp));
+      return new THREE.Vector3(p.x, p.y, p.z).add(s.pivot).project(cam).x / 2 + 0.5;
+    });
+    const nome = `${w}×${h}, raggio ${ringRadius(vp)}`;
+    const dentro = xs.filter((x) => x > 0.03 && x < 0.97).length;
+    const sulBordo = xs.filter((x) => Math.abs(Math.abs(x - 0.5) - 0.5) <= 0.05).length;
+    assert.equal(dentro, interi, `${nome}: ${dentro} bottiglie intere invece di ${interi} (${xs.map((x) => x.toFixed(2))})`);
+    assert.equal(sulBordo, 2, `${nome}: ${sulBordo} bottiglie tagliate dai bordi invece di 2 (${xs.map((x) => x.toFixed(2))})`);
+  }
+}
+
 // --- carosello: anello, inclinazioni con seme, aggancio (task 8.13)
 {
   const { CarouselState, slotAngle, slotPose } = await import(
@@ -860,7 +895,7 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
     "../src/core/Intro.ts"
   );
   const { slotPose } = await import("../src/core/Carousel.ts");
-  const { CAROUSEL } = await import("../src/config/beers.ts");
+  const { CAROUSEL, ringRadius } = await import("../src/config/beers.ts");
   const { INTRO } = await import("../src/config/intro.ts");
   const { configureCamera } = await import("../src/config/solvePivot.ts");
   const THREE = await import("three");
@@ -887,7 +922,7 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
     const cima = BOTTLE.maxY - BOTTLE.centerY;
     for (let slot = 0; slot < N; slot++) {
       assert.equal(slotRise(0, slot, N), 0, `${nome}: slot ${slot} acceso a intro 0`);
-      const p = slotPose(slot, 0, 0, N);
+      const p = slotPose(slot, 0, 0, N, undefined, ringRadius(vp));
       const punto = new THREE.Vector3(0, cima, 0)
         .applyEuler(new THREE.Euler(p.rotX, p.rotY, p.rotZ))
         .add(new THREE.Vector3(p.x, p.y + slotDrop(0, slot, N), p.z))

@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Playwright: tracce e video dei tentativi falliti (le schermate stanno in qa/screens)
+qa/.risultati
+qa/.dist

@@ -40,11 +40,21 @@ export const CAROUSEL = {
   /** su mobile il frame è stretto: nove sarebbero una fila di francobolli */
   countMobile: 5,
   /**
-   * Raggio dell'anello. A 1440×900 con questo valore si vedono sette
-   * bottiglie, le estreme tagliate dai bordi come nel riferimento; è il primo
-   * numero da ritoccare guardando (task 8.13).
+   * Raggio dell'anello, uno per formato: quanto si allarga l'anello sullo
+   * schermo dipende dalla larghezza del frame, non solo dal raggio. Scelti
+   * guardando gli screenshot del 8.28 e misurati in `verify:core`:
+   * - desktop 10: a 1440×900 sette bottiglie, le estreme (±80°) tagliate a
+   *   metà dai bordi come nel riferimento. Con 6, il valore del 8.13, le
+   *   estreme stavano a 0,84 della larghezza e l'anello era un mucchio al
+   *   centro;
+   * - tablet verticale 6: nove bottiglie su un frame stretto, le ±80° sul
+   *   bordo;
+   * - telefono 3: cinque bottiglie, le ±72° tagliate dai bordi (spec 7.3,
+   *   "5 bottiglie visibili"). Con 6 se ne vedevano una e mezza.
    */
-  radius: 6,
+  radius: 10,
+  radiusPortrait: 6,
+  radiusMobile: 3,
   /** luminosità delle laterali: presenti ma chiaramente di sfondo */
   sideDim: 0.28,
   /** inclinazioni: fasce da cui pescare, con un seme fisso per slot */
@@ -65,3 +75,9 @@ export const CAROUSEL = {
   escapeX: 8,
   escapeZ: 4,
 } as const;
+
+/** Il raggio dell'anello per questo viewport (vedi `CAROUSEL.radius`). */
+export function ringRadius(vp: { mobile: boolean; portrait: boolean }): number {
+  if (vp.mobile) return CAROUSEL.radiusMobile;
+  return vp.portrait ? CAROUSEL.radiusPortrait : CAROUSEL.radius;
+}

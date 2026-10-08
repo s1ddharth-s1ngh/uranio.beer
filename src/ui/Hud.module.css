@@ -468,6 +468,22 @@
   .right {
     gap: 10px;
   }
+
+  .header {
+    gap: 8px;
+  }
+}
+
+/* Sui telefoni la pillola non ci sta: misurato in Chromium a 390 px,
+   audio 122 + logo 88 + menu 72 + pillola 92 fanno 449 px con padding e gap
+   contro 390, e "CONTATTI" usciva dallo schermo (screenshot del 8.28).
+   Senza pillola sono 298 px: entra anche a 360. "Contatti" resta nel menu.
+   Solo quella dell'header: i bottoni del finale la ereditano con
+   `composes` e devono restare */
+@media (max-width: 459px) {
+  .header .contact {
+    display: none;
+  }
 }
 
 /* chi ha chiesto meno movimento non vuole nemmeno le barrette che ballano */

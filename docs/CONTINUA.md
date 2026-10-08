@@ -1,10 +1,10 @@
 # Continua da qui
 
-Documento di passaggio di consegne, riscritto al task 8.18 e aggiornato il
-2026-10-08. Il lavoro che resta, **dal 8.19 al 8.28, è diviso in un brief per
-task in `docs/tasks/`**: l'indice (`docs/tasks/README.md`) dice in che ordine
-eseguirli e quali si possono fare in parallelo. Questo file è il contesto
-comune a tutti i brief: leggilo tutto prima di eseguirne uno. La spec completa
+Documento di passaggio di consegne, riscritto al task 8.18 e portato allo
+stato finale dal 8.28 il 2026-10-08. **Tutti i task, dal 8.1 al 8.28, sono
+fatti**; i brief dal 8.19 in poi stanno in `docs/tasks/`, ognuno con la sua
+sezione **Esito**, e il resoconto finale è in fondo a questo file. Per
+riprendere in mano il progetto leggilo tutto. La spec completa
 è `docs/URANIO_SCROLL_SPEC.md`, le decisioni e le correzioni alla spec stanno
 in `docs/AUDIT.md`: leggi entrambi prima di scrivere codice.
 
@@ -60,7 +60,7 @@ hero col logo Uranio 3D, resta la prima sezione e non si cambia**. La spec
 
 ## Dove sei
 
-Fase A, B e C finite, fase D fino al 8.18 compreso. I commit su `main`:
+Tutte le fasi finite, dal 8.1 al 8.28. I commit su `main`:
 
 | commit | task | cosa |
 | --- | --- | --- |
@@ -83,6 +83,21 @@ Fase A, B e C finite, fase D fino al 8.18 compreso. I commit su `main`:
 | `deda33d` | 8.16 | header HUD, angolari, trattini, lettere |
 | `e5ad843` | 8.17 | barra di progresso e icone degli step |
 | `41d7894` | 8.18 | testi degli step (commit dell'hook, messaggio automatico) |
+| `909be62` | 8.20 | finale: scritta gigante e call to action |
+| `b4e2d63` | 8.21 | dallo scroll a step allo scroll nativo dopo il finale |
+| `c60401f` | 8.25 | audio, solo documentazione (`docs/AUDIO.md`) |
+| `418fe0f` | 8.26 | birra ambra dentro la bottiglia |
+| `cca3341` | 8.23 | keyframe e layout mobile e tablet |
+| `fd705c8` | 8.24 | tastiera, screen reader, moto ridotto, fallback senza WebGL |
+| `09cbee4` | 8.27 | DPR adattivo, budget, caricamento pigro |
+| `b8673b9` | home | il hero del sito torna prima sezione, passaggio animato |
+| `214be96` | fix | budget del primo frame rimisurato sul hero |
+| — | 8.28 | percorso Playwright, schermate, correzioni, checklist |
+
+Il 8.19 (interfaccia dell'hero) e il 8.22 (preloader e ingresso) sono stati
+eseguiti nella stessa cartella in parallelo e, quando il 8.28 ha committato,
+erano ancora nell'albero di lavoro: le schermate di `qa/screens/` li
+comprendono. Il loro commit è dei loro autori.
 
 ### Il task 8.18
 
@@ -277,42 +292,95 @@ e 390×844.
    commit rotto è passato (poi corretto da `856e508`).
 9. **Heredoc bash e apostrofi italiani non vanno d'accordo**: per scrivere
    file con molto testo usa lo strumento di scrittura, non `cat <<EOF`.
-10. **Niente browser su questa macchina, e niente `ffmpeg`.** La verifica si
-    fa in Node: `verify:core` (motore, keyframe, carosello, shader) e
-    `verify:glb` (modello, preparazione). Per il task 8.28 installa
-    `@playwright/test` quando ci arrivi: se i browser non si scaricano,
-    scrivi comunque lo script, lascialo nel repo e dichiara nel commit che
-    non è stato eseguito. Non bloccarti.
+10. **Il browser c'è, ma è headless.** `npm run qa` usa il Chromium di
+    Playwright (`npx playwright install chromium` la prima volta). Da solo
+    disegna WebGL con swiftshader, in software: ~3 fps a 1440×900, e con
+    frame oltre i 500 ms il `lagSmoothing` di GSAP rallenta il tempo, una
+    transizione dura 9 s e gli `waitFor` scadono. Con `--use-angle=d3d11`
+    (già in `qa/playwright.config.ts` su Windows) usa la GPU integrata AMD:
+    ~35–41 fps. Il percorso gira sul **build** in `qa/.dist` e non sul dev
+    server: con sessioni parallele l'HMR ricarica la pagina a metà. Niente
+    `ffmpeg`, quindi niente video: le cose in movimento restano da guardare
+    su un dispositivo.
+13. **Un `<canvas>` con `inset: 0` non si stira**: è un elemento sostituito e
+    resta grande quanto il suo buffer. Servono `width`/`height: 100%`. È
+    così che lo sfondo a DPR × 0,5 copriva un quarto dello schermo, e in Node
+    non si vedeva.
+14. **`composes` porta la classe con sé**: i bottoni del finale compongono
+    `.contact` dell'HUD, quindi una regola su `.contact` vale anche per loro.
+    Per toccare solo l'header: `.header .contact`.
+15. **`locator.screenshot()` di un elemento più alto della finestra esce
+    nero** in headless: per le schermate usa `page.screenshot()`.
 11. **I sorgenti vanno in `scripts/`, non nello scratchpad**: da fuori dal
     progetto gli import bare (`three`, `@gltf-transform/core`) non risolvono.
 12. **`node_modules` può mancare** (il 2026-10-08 non c'era, e `npx tsc`
     risponde "This is not the tsc command you are looking for"): `npm ci`,
     una volta per cartella e mai da due sessioni insieme.
 
-## Cosa resta: dal 8.19 al 8.28
+## Cosa resta
 
-Un brief per task in `docs/tasks/`, con l'indice e le ondate in
-`docs/tasks/README.md`. Le note che stavano qui sono finite nei brief,
-corrette dove serviva: per esempio lo slider dell'hero non può seguire
-`sharedCarousel().index`, che con una birra sola vale sempre 0.
+I task dal 8.1 al 8.28 sono fatti. Quello che manca non è codice da scrivere
+a occhi chiusi: sono numeri da guardare in movimento su dispositivi veri e
+decisioni del proprietario o del birrificio. L'elenco completo, con la
+checklist 9 spuntata voce per voce, è in fondo a `docs/AUDIT.md`.
 
 ## Cosa resta non verificato a occhio
 
-Su questa macchina non c'è un browser: **nessuno ha ancora visto niente**.
-Tienine conto e dillo nei commit. In particolare, i primi numeri da ritoccare
-guardando:
+Dal 8.28 su questa macchina si **vede**: `npm run qa` fa le schermate con
+Chromium headless sulla GPU integrata. Le manopole che questo file elencava
+come "primi numeri da ritoccare guardando", guardate il 2026-10-08:
 
-- `CAROUSEL.radius` (6): "si vedono sette bottiglie, le estreme tagliate dai
-  bordi" è un giudizio visivo;
-- `PROPS.faro.y` (3,9): il taglio del faro sul bordo alto del frame;
-- `SPOT.gain` (10): l'intensità dello spot è una stima — con `decay: 0` i
-  keyframe dicono "quanto forte" e il gain traduce in watt three;
-- la soglia del bloom (0,85), alta di proposito: deve brillare solo il bordo
-  del tappo, la lama di luce e il disco del faro;
-- le fasce con `?debug=bands`, che disegna i quattro rettangoli sopra la
-  texture vera e fa ciclare la fascia accesa in 3D;
-- la zigrinatura del tappo dopo la semplificazione del task 8.4 (manopola
-  `CAP_TARGET_VERTS` in `scripts/optimize-glb.mjs`).
+- `CAROUSEL.radius`: **cambiato**, da 6 a un raggio per formato
+  (`ringRadius`: 10 desktop, 6 tablet verticale, 3 telefono). Con 6 a
+  1440×900 l'anello era un mucchio al centro.
+- `PROPS.faro.y` (3,9): il disco del faro è tagliato dal bordo alto come
+  deve. Lasciato.
+- `SPOT.gain` (10): nel primo piano il tappo è il punto più luminoso e il
+  corpo è in penombra; nell'hero la protagonista è illuminata dal faro.
+  Lasciato.
+- Soglia del bloom (0,85): brillano solo bordo del tappo, disco del faro e
+  riflessi del vetro; niente si "brucia". Lasciata.
+- Fasce con `?debug=bands`: i quattro rettangoli combaciano con i paragrafi
+  della texture e in 3D si accende la fascia giusta.
+- Zigrinatura del tappo: si vede, ondulata e senza sfaccettature.
+- `HERO_UI.nameAnchor` (0,5): il logotipo sta sul piedistallo, sopra il
+  bordo rosso, leggibile. Lasciato.
+- Birra dentro (`LIQUID`): in nessuna schermata si intuisce. Se la si vuole
+  vedere, il primo numero da toccare è la `transmission` del vetro (0,2).
 
-Dove non puoi verificare, misura ciò che si può misurare in Node e scrivi
-chiaramente nel commit cosa resta da guardare.
+Restano **non verificabili qui**, perché sono movimento o dispositivi: la
+fluidità e gli fps su un M1 e su un telefono, l'inerzia del trackpad, il
+touch, la lama di luce (in un'immagine ferma non si separa dal resto), le
+entrate e uscite dei testi, la scritta del finale lettera per lettera, lo
+sfarfallio del faro all'ingresso, la safe area di un iPhone, VoiceOver.
+
+## Resoconto finale (2026-10-08)
+
+**Fatto.** L'esperienza a step della bottiglia è la seconda sezione della
+home, fra il hero del sito e "Chi siamo": sette step (hero a carosello, primo
+piano col tappo acceso, quattro fasce del retro, finale "ZERO CRISI"),
+guidati da rotella, trackpad, touch e tastiera, con testi animati, HUD,
+icone, preloader legato al caricamento vero, layout mobile e tablet, moto
+ridotto, fallback senza WebGL, DPR adattivo e birra dentro la bottiglia. Il
+percorso intero è provato con Playwright a tre formati, e le schermate
+stanno in `qa/screens/`. Guardandole, il 8.28 ha corretto quattro difetti
+che in Node non si vedevano: lo sfondo che copriva un quarto dello schermo,
+i titoli lunghi tagliati dalla maschera, l'header che usciva dallo schermo
+del telefono e il raggio dell'anello.
+
+**Non verificabile qui.** Tutto ciò che è movimento o dispositivo (sezione
+sopra). I budget di fluidità, draw call e memoria GPU sono stime: le draw call
+(≈ 75 contro 60) e la memoria delle render target sono probabilmente sopra il
+tetto, e le leve sono pronte ma cambiano la resa.
+
+**Domande aperte per il birrificio** (elenco completo in `docs/AUDIT.md`):
+
+- logo Uranio in SVG, logotipo "CRISI ECONOMICA" ed etichetta in vettoriale;
+- conferma dei testi degli step;
+- altre birre per il carosello;
+- file audio, o via libera a suoni con licenza libera;
+- la destinazione di "DOVE TROVARLA" e di "Contatti": `#contatti` non esiste.
+
+**Per il proprietario del repo:** cancellare i GLB morti, gli errori senza
+WebGL del hero e di Chi siamo, la colonna di `scrollbar-gutter` su Windows, e
+se rientrare nei budget di draw call e memoria GPU a costo di un po' di resa.

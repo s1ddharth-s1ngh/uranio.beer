@@ -5,7 +5,8 @@
   left: 10vw;
   top: 45%;
   transform: translateY(-50%);
-  width: min(520px, 42vw);
+  --larghezza: min(520px, 42vw);
+  width: var(--larghezza);
   display: flex;
   flex-direction: column;
   gap: 18px;
@@ -34,6 +35,17 @@
   right: 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.45);
   border-right: 1px solid rgba(255, 255, 255, 0.45);
+}
+
+/* Il titolo segue la larghezza del blocco, non solo quella della finestra:
+   il blocco si ferma a 520 px già da 1238 px, il corpo `t-display` cresce
+   fino a 1565. "LEGGEREZZA", la parola più lunga dei testi, è larga 8,51
+   volte il corpo (misurata in Chromium): a 1440×900 veniva 564 px contro
+   506 di spazio e la maschera delle righe la tagliava (screenshot del 8.28).
+   8,8 lascia il margine per lo sbalzo del corsivo. Il blocco non si può
+   allargare: 33 px più a destra comincia la fascia accesa */
+.block :global(.t-display) {
+  font-size: min(clamp(40px, 4.6vw, 72px), (var(--larghezza) - 14px) / 8.8);
 }
 
 /* --- il tag: quadratino rosso con la × + etichetta bianca */
@@ -97,6 +109,9 @@
     bottom: 0;
     transform: none;
     width: auto;
+    /* qui il titolo resta al minimo di 40 px: a 390 "LEGGEREZZA" fa 340 px
+       contro 358 di spazio */
+    --larghezza: 100vw;
     padding: 48px calc(16px + var(--safe-r)) calc(86px + var(--safe-b))
       calc(16px + var(--safe-l));
     gap: 12px;

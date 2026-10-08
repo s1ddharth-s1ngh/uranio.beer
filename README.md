@@ -40,84 +40,61 @@ dalla build (`ordine-*.pdf`), ma il posto giusto è fuori dal progetto.
 ## Comandi
 
 ```
+npm ci               # la prima volta, o se node_modules manca
 npm run dev          # dev server, esposto anche in rete locale
 npm run build        # build di produzione
 npm run build:test   # build del sito di prova (CNAME test + noindex)
 npm run lint
+npm run verify:core  # la logica pura in Node: motore a step, keyframe, carosello
+npm run verify:glb   # il modello e la sua preparazione (bbox, scala, materiali)
+npm run optimize:glb # assets-src/*.glb -> public/models/crisi_economica.glb
+npm run qa           # percorso Playwright 0 -> 6 -> 0, schermate in qa/screens
 ```
 
----
+`verify:core` e `verify:glb` girano senza browser e vanno lanciati prima di
+ogni commit insieme a `tsc -b`, `eslint src` e `build` (guardando l'esito con
+`echo $?`). `optimize:glb` serve solo se cambia il GLB sorgente. `qa` fa il
+build in `qa/.dist` (non tocca `dist/`), lo serve con `vite preview` sulla
+porta 4318 e percorre con la tastiera hero → step 0 → 6 → 0 → hero a
+1440×900, 390×844 e 768×1024; la prima volta serve `npx playwright install
+chromium`. Su Windows usa la GPU vera (ANGLE D3D11); altrove swiftshader,
+in software: a ~3 fps GSAP rallenta il tempo e le transizioni durano molto
+di più, ma le schermate restano vere.
 
-# React + TypeScript + Vite
+## L'esperienza 3D
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+La home (`/`) ha tre sezioni: in cima il hero del sito (il logo Uranio 3D),
+poi l'esperienza a step della bottiglia (`#esperienza`,
+`src/pages/Experience.tsx`), poi "Chi siamo". Un gesto verso il basso nel
+hero fa il passaggio animato all'esperienza; dallo step 0 un gesto verso
+l'alto torna al hero; dal finale (step 6) la pagina riprende a scorrere da
+sola. Chi possiede lo scroll lo decide `src/lib/pageScroll.ts`. La spec è `docs/URANIO_SCROLL_SPEC.md`, le
+correzioni e le domande aperte sono in `docs/AUDIT.md`, lo stato del lavoro
+in `docs/CONTINUA.md`.
 
-Currently, two official plugins are available:
+**Ogni numero sta in `src/config/`**: keyframe e ancore della bottiglia in
+`keyframes.ts`, luci in `lights.ts`, materiali in `materials.ts`, durate e
+colori in `theme.ts` (un colore nuovo va anche in `tokens.css`, o il build
+fallisce).
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+### `?debug`
 
-## React Compiler
+- `?debug` apre il pannello lil-gui con stats-gl: ogni modulo iscrive lì le
+  sue manopole. Il pulsante **"copia keyframe (JSON)"** copia lo stato di
+  tutte le manopole: si regola a occhio, si copia e si incolla in
+  `src/config/`. Le composizioni si regolano spostando le **ancore** (quale
+  punto della bottiglia in quale punto dello schermo), non i pivot.
+- `?debug=type` — provino tipografico.
+- `?debug=bands` — la texture dell'etichetta con le quattro fasce disegnate
+  sopra, e la fascia accesa in 3D che gira sulle quattro.
+- `?debug=env` — due sfere di prova al posto della bottiglia per giudicare
+  l'ambiente e le luci.
+- `#step-N` nell'URL fa partire l'esperienza dallo step N (0–6).
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Testi e birre
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+- **Testi** degli step, del hero e del finale: `src/content/steps.it.ts`.
+  Nessuna stringa visibile vive nei componenti.
+- **Birre** del carosello: `src/config/beers.ts`. Oggi ce n'è una sola; per
+  aggiungerne una basta una riga nell'elenco `BEERS` (nome, stile,
+  gradazione, GLB, colore della rim light).

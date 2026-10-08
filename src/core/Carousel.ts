@@ -57,7 +57,7 @@ export function slotPose(
   // nel loop si passa un oggetto riusato: la chiamano la protagonista e ogni
   // slot del carosello a ogni frame (task 8.27, zero allocazioni)
   out: SlotPose = { angle: 0, x: 0, y: 0, z: 0, rotX: 0, rotY: 0, rotZ: 0 },
-  radius = CAROUSEL.radius,
+  radius: number = CAROUSEL.radius,
 ): SlotPose {
   const angle = slotAngle(slot, active, rot, count);
   const { tilt } = CAROUSEL;

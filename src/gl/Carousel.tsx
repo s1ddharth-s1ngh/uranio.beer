@@ -2,7 +2,7 @@ import { useEffect, useMemo } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import { MODEL_URL } from "../config/bottle.ts";
-import { CAROUSEL } from "../config/beers.ts";
+import { CAROUSEL, ringRadius } from "../config/beers.ts";
 import {
   sharedCarousel,
   slotPose,
@@ -49,6 +49,7 @@ function disponi(
   s: SceneState,
   t: number,
   carousel: CarouselState,
+  radius: number,
 ) {
   const { escape, sideDim } = s.carousel;
   const { life } = CAROUSEL;
@@ -61,7 +62,7 @@ function disponi(
     if (!b.pivot.visible) continue;
 
     const slot = k + 1;
-    const pose = slotPose(slot, carousel.active, carousel.rot, carousel.count, POSA);
+    const pose = slotPose(slot, carousel.active, carousel.rot, carousel.count, POSA, radius);
     // le laterali scappano verso l'esterno, ognuna dalla parte in cui già sta:
     // chi è a sinistra esce a sinistra (spec 7.4)
     const verso = Math.sign(pose.x) || 1;
@@ -125,7 +126,7 @@ export function Carousel() {
 
   const mapper = sharedMapper(sharedViewport().state);
   useFrame(({ clock }) =>
-    disponi(bottiglie, mapper.state, clock.elapsedTime, carousel),
+    disponi(bottiglie, mapper.state, clock.elapsedTime, carousel, ringRadius(vp)),
   );
 
   return (
