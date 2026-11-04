@@ -13,7 +13,6 @@ import { useInView } from "framer-motion";
 import Loader from "../components/Loader";
 import TopBar from "../components/TopBar";
 import InteractiveText from "../components/InteractiveText";
-import InvertCursor from "../components/InvertCursor";
 import ScrollPill from "../components/ui/ScrollPill";
 import HeroLock from "../components/ui/HeroLock";
 import { usePrefersReducedMotion } from "../hooks/usePrefersReducedMotion";
@@ -28,7 +27,6 @@ import styles from "./Home.module.css";
 const HeroScene = lazy(() => import("../components/scene/HeroScene"));
 // la seconda sezione, lo scroll 3D a step: three, drei e gsap, in un chunk suo
 const Experience = lazy(() => import("./Experience"));
-const AboutSection = lazy(() => import("../components/about/AboutSection"));
 
 // ✏️ Testi placeholder — sostituiscili qui con i contenuti reali
 const HERO_TITLE = "ATOMIC BEER";
@@ -152,8 +150,6 @@ export default function Home() {
     >
       <Loader onRevealStart={() => setRevealed(true)} />
       <TopBar revealed={revealed && !hudVisible} />
-      {/* soglia unica pill/cursore: INVERT_TRIGGER in InvertCursor.tsx */}
-      <InvertCursor sectionId="about" />
 
       <main>
         {/* HERO: alta 100vh, ma ne consuma solo (1 - HERO_OVERLAP) di scroll:
@@ -199,8 +195,8 @@ export default function Home() {
         {/* ESPERIENZA: lo scroll 3D a step, la seconda sezione. Sale di
             HERO_OVERLAP sotto l'hero durante il passaggio e si aggancia in
             cima; la dissolvenza in entrata evita che da fermi faccia capolino.
-            Alta una schermata anche mentre il chunk arriva, così "Chi siamo"
-            non sale per poi saltare giù */}
+            Alta una schermata anche mentre il chunk arriva, così le domande
+            non salgono per poi saltare giù */}
         <div ref={nextRef}>
           <section ref={expRef} id="esperienza" className={styles.experience}>
             <Suspense fallback={null}>
@@ -209,15 +205,12 @@ export default function Home() {
           </section>
         </div>
 
-        {/* DOMANDE FREQUENTI: dopo il finale, a scroll nativo. Nel bundle
-            principale: è HTML e CSS, niente da caricare a parte */}
+        {/* DOMANDE FREQUENTI: dopo il finale, a scroll nativo, ed è la fine
+            della pagina. Nel bundle principale: è HTML e CSS, niente da
+            caricare a parte. La vecchia sezione "Chi siamo" (la bottiglia che
+            apriva il tappo) è stata tolta il 2026-11-04: il tappo ora si apre
+            nell'esperienza */}
         <FaqSection />
-
-        {/* CHI SIAMO: scrollytelling con canvas pinnato, dopo il finale
-            dell'esperienza, a scroll nativo */}
-        <Suspense fallback={null}>
-          <AboutSection />
-        </Suspense>
       </main>
 
       {isTouch && (

@@ -50,13 +50,19 @@ export const FINALE = {
   ctaTop: { desktop: 0.85, mobile: 0.72 },
 } as const;
 
-/** L'interfaccia dello step 0: nome e invito a scorrere (task 8.19). */
+/** L'interfaccia di anello e fronte: nomi e invito a scorrere (task 8.19). */
 export const HERO_UI = {
-  /** uscita al passaggio 0 → 1 (spec 7.6): opacità e un filo verso il basso */
+  /**
+   * Quanto del logotipo scende sotto il bordo alto del piedistallo: 0 tutto
+   * sopra, 1 tutto sotto. A metà il nome "siede" sul piedistallo come nel
+   * riferimento, davanti al suo bordo.
+   */
+  nameAnchor: 0.45,
+  /** uscita (spec 7.6): opacità e un filo verso il basso */
   exit: { duration: 0.35, y: 20 },
   /**
-   * Al ritorno 1 → 0 si rientra quando la bottiglia ha quasi finito il mezzo
-   * giro all'indietro. Frazione della durata di `durationFor(1, 0)`.
+   * Si rientra quando la bottiglia è quasi arrivata al suo posto. Frazione
+   * della durata di `durationFor(1, 0)`.
    */
   returnDelayFraction: 0.55,
 } as const;

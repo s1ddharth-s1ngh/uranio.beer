@@ -31,6 +31,16 @@ export function bottleSpin(intro: number): number {
   return (1 - bottleRise(intro)) * INTRO.bottle.spin;
 }
 
+/**
+ * Avanzamento dell'arrivo di una delle altre dell'anello: come la
+ * protagonista, in ritardo di `|scarto| × stagger` (`core/Carousel.ts`).
+ */
+export function slotRise(intro: number, offset: number): number {
+  const { start, rise } = INTRO.bottle;
+  const t = secondi(intro) - start - Math.abs(offset) * INTRO.stagger;
+  return easeOut(Math.min(1, Math.max(0, t / rise)));
+}
+
 /** la soglia oltre la quale entra l'interfaccia dell'hero */
 export const UI_AT = INTRO.ui / INTRO.duration;
 

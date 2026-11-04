@@ -61,6 +61,21 @@ export const SPOT = {
 } as const;
 
 /**
+ * La luce sulla faccia (riferimento ciaoenergy.com, la lattina dello step
+ * "fronte"): da destra, in alto e davanti. È lei a far brillare il logotipo
+ * quando la bottiglia gira la faccia verso destra. Non è una luce in scena
+ * ma un termine nello shader dell'etichetta (`patchBottle.ts`): una luce vera
+ * costava ~2 ms a frame su una GPU integrata, pagati da ogni materiale.
+ * Il keyframe (`face`) dice quanto forte, `gain` porta la scala.
+ */
+export const FACE = {
+  /** da dove arriva, in spazio vista (la camera guarda sempre dritta) */
+  direction: [0.55, 0.5, 0.67],
+  gain: 1.2,
+  color: "#FFF1E6",
+} as const;
+
+/**
  * Rim light: due direzionali da dietro, a sinistra e a destra. Tengono
  * leggibile la silhouette anche quando il corpo della bottiglia è spento —
  * negli step del retro sono loro a disegnare il profilo del vetro.

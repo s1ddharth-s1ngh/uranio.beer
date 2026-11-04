@@ -33,7 +33,7 @@ html {
    solo col pulsante, durante il passaggio verso l'esperienza e
    nell'esperienza a step. `overscroll-behavior` toglie anche il rimbalzo
    elastico, che altrimenti farebbe sembrare lo schermo "rotto". Mai nella
-   pagina sotto il finale, quindi lo sticky della sezione About non ne risente. */
+   pagina sotto il finale, dove le domande scorrono come una pagina normale. */
 html.scroll-locked,
 html.scroll-locked body {
   overflow: hidden;

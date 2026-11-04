@@ -37,10 +37,84 @@ npm run verify:glb    # il modello e la sua preparazione
 Quando arrivi in fondo al 8.28, fermati e scrivi un resoconto finale di cosa
 è stato fatto e cosa resta non verificabile.
 
-## Cambio di direzione del 2026-11-04: la coreografia di ciaoenergy.com
+## Secondo giro del 2026-11-04: anello, tappo, cursore
+
+Il proprietario ha guardato il primo giro (qui sotto) e l'ha trovato "per
+nulla simile" a ciaoenergy.com. Ha chiesto, sulle sue schermate: tutte le
+bottiglie in apertura con quella al centro, la faccia che segue il mouse, uno
+scroll a scatti morbido verso la bottiglia grande con la luce sulla faccia,
+il giro sul retro con le scritte evidenziate, il tappo che si apre sul retro
+e si richiude quando arrivano tutte, poi le domande. E di togliere "Chi
+siamo" (la bottiglia che apriva il tappo dopo le domande). I sette step ora:
+
+| step | cosa |
+| --- | --- |
+| 0 | **anello**: tutte le bottiglie (7 su desktop, 5 su telefono), la protagonista al centro fra faro e piedistallo, il logotipo sul piedistallo (`HeroUi`, `gl/HeroProps.tsx`, `core/heroLayout.ts`) |
+| 1 | **fronte**: lei sola, grande, inclinata, la faccia girata a destra e illuminata (`face`), il nome a sinistra (`HeroUi`) |
+| 2–5 | il retro, una fascia accesa per step; all'1 → 2 **il tappo salta** e resta sospeso in alto a destra |
+| 6 | **gamma e finale insieme**: le altre tornano in fila, il tappo si richiude, "ZERO CRISI" dietro e le call to action |
+
+Poi, a scroll nativo, le **domande frequenti**, ed è la fine della pagina:
+`components/about/` non c'è più.
+
+Dove stanno le cose nuove:
+
+- **anello e fila** sono gli stessi cloni in due pose, mescolate da
+  `layout` (`core/Carousel.ts`: `ringPose`, `rowPose`, `slotPose`; misure
+  in `RING` e `GAMMA` di `config/beers.ts`). L'anello diventa fila solo
+  mentre le altre sono fuori scena (lo controlla `verify:core`);
+- **cursore**: `core/Pointer.ts` + `config/pointer.ts`. Lo avanza `Stage.tsx`
+  una volta per frame; la rotazione si moltiplica a sinistra della posa (in
+  mondo), così gira verso il mouse qualunque lato guardi la camera.
+  Ampiezza per step: `look` nei keyframe. Col moto ridotto è spento;
+- **tappo**: la forma del volo è `core/Cap.ts` (funzione di `cap`, che
+  arriva da `p` con la finestra `tappo`), i numeri in `config/cap.ts`, la
+  geometria in `gl/Bottle.tsx` (`posaTappo`). Il tappo ha uniform suoi
+  (`capUniforms`) perché le maschere leggono la posizione del modello e lo
+  crederebbero ancora sul collo. Lo illumina lo spot della cima, che lo
+  segue (`gl/Lights.tsx`);
+- **luce sulla faccia**: non è una luce in scena ma un Lambert nello shader
+  dell'etichetta (`uFace`, `FACE` in `config/lights.ts`);
+- **fasce**: ogni fascia ha il suo arco (`angleHalf`, misurato sui pixel
+  della texture), un centro più caldo e un alone colorato attorno.
+
+**Tre cose scoperte, da sapere prima di toccare la scena:**
+
+1. **In `npm run dev` la scena era ferma sul primo frame.** Il composer di
+   `PostFX.tsx` stava in un `useMemo` con la pulizia in un effetto: lo
+   `StrictMode` di React lo liberava e lo riusava. In produzione non
+   succedeva, per questo il QA (che gira sulla build) passava. Ora il
+   composer nasce e muore nello stesso effetto.
+2. **Col post-processing le maschere lavorano in lineare**, non in spazio
+   display come diceva la spec: la scena va in una render target e three
+   salta tone mapping e conversione. `focusFloor` 0,06 era ~0,27 a schermo
+   (la fascia "non si accendeva"); ora è 0,015.
+3. **Il "60 fps" del giro precedente era il rAF di Chromium headless**, che
+   va a 16,7 ms anche con la GPU indietro di secondi. Il costo GPU vero si
+   misura svuotando la coda con un `readPixels` dopo una finestra di frame.
+   Sulla GPU integrata di questa macchina (AMD Radeon, 1440×900, DPR 1),
+   build di produzione, mediana di tre finestre:
+
+   | | prima (31833fd) | ora |
+   | --- | --- | --- |
+   | apertura | 27,5 ms (bottiglia sola) | 35,3 ms (anello di 7) |
+   | fronte | — | 30,2 ms |
+   | retro | 33,7 ms | 33,6 ms |
+   | gamma / finale | 50,5 ms | 44,1 ms |
+
+   Le copie dell'anello e della fila sono senza `clearcoat` e la luce sulla
+   faccia è nello shader per stare in questi numeri. La scena resta sopra i
+   16 ms su questa GPU: il prossimo taglio è la `transmission` della
+   protagonista su desktop, o il bloom a mezza risoluzione.
+
+Il blocco di 1,5–2,5 s "passando dalla gamma al finale" annotato sotto non
+ha più un passaggio in cui succedere: gamma e finale sono lo stesso step.
+
+## Primo giro del 2026-11-04: la coreografia di ciaoenergy.com
 
 Il proprietario ha chiesto di rifare l'esperienza sul modello di
-<https://www.ciaoenergy.com/> (ispirazione, non copia). I sette step ora sono:
+<https://www.ciaoenergy.com/> (ispirazione, non copia). I sette step erano
+(superati dal secondo giro, qui sopra):
 
 | step | cosa |
 | --- | --- |

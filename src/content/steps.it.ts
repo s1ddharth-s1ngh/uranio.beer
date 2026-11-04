@@ -2,8 +2,8 @@
 // comparire una stringa visibile all'utente.
 //
 // La spec chiede un `steps.it.json`; qui è un `.ts` perché il repo lo fa già
-// così (`components/about/aboutContent.ts`) e perché un modulo tipizzato fa
-// fallire `tsc` se un campo manca, cosa che un JSON senza schema non fa.
+// così (`content/faq.it.ts`) e perché un modulo tipizzato fa fallire `tsc` se
+// un campo manca, cosa che un JSON senza schema non fa.
 //
 // ⚠️ Bozza: i fatti vengono tutti dall'etichetta, ma i testi sono da far
 // validare dal birrificio (spec 10.2).
@@ -23,7 +23,7 @@ export interface Step {
   body?: string;
   /** nome dell'icona Lucide nella colonna di destra (spec 8.17) */
   icon?: "wheat" | "zap" | "droplet" | "recycle";
-  /** solo hero */
+  /** anello e fronte: stile e gradazione */
   subtitle?: string;
   scrollHint?: string;
   /**
@@ -45,12 +45,19 @@ export const HUD_LETTERS = { top: "CRISI", bottom: "ECONOMICA" } as const;
 
 export const STEPS: Step[] = [
   {
-    id: "hero",
+    // l'anello: tutte le bottiglie, il nome sul piedistallo
+    id: "anello",
+    title: "CRISI ECONOMICA",
+    subtitle: "ORDINARY BITTER · 4,2%",
+    scrollHint: "SCORRI PER SCOPRIRE",
+    image: { file: "crisi-economica-logotipo.webp", alt: "Il logotipo Crisi Economica dell'etichetta" },
+  },
+  {
+    // il fronte: lei sola, grande, col nome a sinistra
+    id: "fronte",
     title: "CRISI ECONOMICA",
     subtitle: "ORDINARY BITTER · 4,2%",
     body: "Una Ordinary Bitter all'inglese, leggera e da bere a pinte. Per i giorni in cui tutto va storto.",
-    scrollHint: "SCORRI PER SCOPRIRE",
-    image: { file: "crisi-economica-logotipo.webp", alt: "Il logotipo Crisi Economica dell'etichetta" },
   },
   {
     id: "f1",
@@ -85,13 +92,11 @@ export const STEPS: Step[] = [
     body: "Bottiglia in vetro GL72, tappo in metallo C/FE91, etichetta in plastica PP5. Verifica le regole del tuo comune.",
   },
   {
-    // tutte le bottiglie in fila: niente testo, parla la scena. Il titolo
-    // serve a screen reader e versione statica
-    id: "gamma",
-    title: "TUTTE LE CRISI",
-  },
-  {
+    // la gamma e il finale insieme: tutte in fila, il tappo chiuso, la
+    // scritta gigante dietro. Il titolo serve a screen reader e versione
+    // statica
     id: "finale",
+    title: "TUTTE LE CRISI",
     bigWord: ["ZERO", "CRISI"],
     note: "Conservare al freddo e al buio. Contiene deposito naturale.",
     // ⚠️ href segnaposto: destinazioni da confermare (spec 10.2)

@@ -1,7 +1,8 @@
-/* L'interfaccia dello step 0: nome a sinistra, bottiglia inclinata a destra
-   (riferimento ciaoenergy.com). Stessa colonna del blocco dei testi degli
-   step (`StepText.module.css`), così passando allo step 1 il testo cambia
-   senza spostarsi. */
+/* L'interfaccia di anello e fronte (riferimento ciaoenergy.com). Allo step 0
+   il logotipo siede sul piedistallo, la cui altezza arriva da `heroLayout()`
+   come variabile (`--pedestal-y`): è la scena proiettata, non una
+   percentuale scritta qui. Allo step 1 il nome sta a sinistra, nella stessa
+   colonna del blocco dei testi del retro (`StepText.module.css`). */
 
 /* ----------------------------------------------------- uscita e rientro */
 
@@ -18,16 +19,16 @@
     transform var(--hero-fade) ease;
 }
 
-/* Visibile: le transizioni di questa regola valgono per il rientro, che
-   aspetta che la bottiglia sia tornata col fronte in camera. */
+/* Visibile: le transizioni di questa regola valgono per l'entrata, che
+   aspetta che la bottiglia sia quasi arrivata. */
 .in {
   opacity: 1;
   transform: none;
   transition-delay: var(--hero-return-delay);
 }
 
-/* Il cancello dell'ingresso (task 8.22): chiuso finché la bottiglia non è
-   arrivata, poi si apre una volta sola, senza il ritardo del rientro. */
+/* Il cancello dell'ingresso (task 8.22): chiuso finché le bottiglie non sono
+   arrivate, poi si apre una volta sola, senza il ritardo del rientro. */
 .gate {
   position: absolute;
   inset: 0;
@@ -43,13 +44,50 @@
   transform: none;
 }
 
-/* lo strato è trasparente ai gesti; i bottoni si riaccendono solo da
-   visibili, un controllo invisibile non deve rubare un click */
+/* lo strato è trasparente ai gesti; il bottone si riaccende solo da
+   visibile, un controllo invisibile non deve rubare un click */
 .open .in .hint {
   pointer-events: auto;
 }
 
-/* ------------------------------------------------------------------ nome */
+.logo {
+  margin: 0;
+  line-height: 0;
+}
+
+/* ------------------------------------------- anello: nome sul piedistallo */
+
+.pedestal {
+  --logo-w: clamp(220px, 22vw, 360px);
+  position: absolute;
+  left: 50%;
+  top: var(--pedestal-y);
+  /* il logotipo si appoggia al bordo del piedistallo: `--name-anchor` 0 lo
+     mette tutto sopra, 1 tutto sotto. Margine e non transform, così il
+     sottotitolo lo segue nel flusso */
+  margin-top: calc((var(--name-anchor) - 1) * var(--logo-w) * 261 / 546);
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.pedestal img {
+  width: var(--logo-w);
+  height: auto;
+  /* stacca il logotipo dal metallo del piedistallo, come la scritta del
+     riferimento */
+  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.65));
+}
+
+.pedestal p {
+  margin: 0;
+  opacity: 0.85;
+}
+
+/* ------------------------------------------------- fronte: nome a sinistra */
 
 .name {
   position: absolute;
@@ -70,12 +108,7 @@
   color: #000;
 }
 
-.logo {
-  margin: 0;
-  line-height: 0;
-}
-
-.logo img {
+.name img {
   width: clamp(240px, 26vw, 400px);
   height: auto;
 }
@@ -131,9 +164,13 @@
   }
 }
 
-/* telefono e tablet verticale: la bottiglia sta in alto, il nome sotto
-   (stessa regola di `keyframesFor`) */
+/* telefono e tablet verticale: la bottiglia sta in alto, il nome del fronte
+   sotto (stessa regola di `keyframesFor`) */
 @media (max-width: 767px), (max-aspect-ratio: 1/1) {
+  .pedestal {
+    --logo-w: min(56vw, 300px);
+  }
+
   .name {
     left: 50%;
     top: auto;
@@ -144,7 +181,7 @@
     text-align: center;
   }
 
-  .logo img {
+  .name img {
     width: min(64vw, 320px);
   }
 }

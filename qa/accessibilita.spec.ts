@@ -28,9 +28,8 @@ test("senza WebGL: fallback a 1440×900 e 390×844", async () => {
   for (const [w, h] of [[1440, 900], [390, 844]]) {
     const page = await browser.newPage({ viewport: { width: w, height: h } });
     // Gli errori di pagina non si controllano: "Error creating WebGL context"
-    // lo lanciano i canvas del hero (`#hero`) e di "Chi siamo" (`#about`),
-    // che un fallback non l'hanno. Fuori dal perimetro dell'esperienza,
-    // annotato in docs/AUDIT.md
+    // lo lancia il canvas del hero (`#hero`), che un fallback non l'ha. Fuori
+    // dal perimetro dell'esperienza, annotato in docs/AUDIT.md
     await page.goto(`http://localhost:4318/#step-1`);
     await page.getByRole("status", { name: "Caricamento" }).waitFor({ state: "detached", timeout: 60_000 });
     await page.waitForTimeout(1000);

@@ -71,12 +71,21 @@ export interface SceneState {
   rotation: THREE.Euler;
   /** intensità dello spot sul tappo */
   spot: number;
+  /** intensità della luce sulla faccia */
+  face: number;
+  /** 0 tappo chiuso, 1 staccato e sospeso (`gl/Bottle.tsx`) */
+  cap: number;
+  /** quanto la bottiglia segue il cursore, 0–1 */
+  look: number;
+  /** 0 faro e piedistallo in scena, 1 usciti dal frame */
+  props: number;
   uniforms: {
     reveal: number;
     revealY: number;
     focus: number;
     focusY: number;
     focusHalf: number;
+    focusAngleHalf: number;
     /** posizione della lama di luce, `SHADER.sweepIdle` quando è spenta */
     sweep: number;
     sweepAmt: number;
@@ -85,8 +94,10 @@ export interface SceneState {
   carousel: {
     /** luminosità delle altre bottiglie della gamma */
     sideDim: number;
-    /** 0 in fila, 1 fuori dal frame ai lati */
+    /** 0 in scena, 1 fuori dal frame ai lati */
     escape: number;
+    /** 0 sull'anello dell'hero, 1 in fila */
+    layout: number;
   };
 }
 
@@ -102,17 +113,22 @@ export class StateMapper {
     pivot: new THREE.Vector3(),
     rotation: new THREE.Euler(),
     spot: 0,
+    face: 0,
+    cap: 0,
+    look: 0,
+    props: 0,
     uniforms: {
       reveal: 0,
       revealY: SHADER.revealY,
       focus: 0,
       focusY: 0,
       focusHalf: 0,
+      focusAngleHalf: SHADER.focusAngleHalf,
       sweep: SHADER.sweepIdle,
       sweepAmt: 0,
     },
     background: { hero: 1, step: 0, finale: 0 },
-    carousel: { sideDim: 0, escape: 1 },
+    carousel: { sideDim: 0, escape: 1, layout: 0 },
   };
 
   private kf: readonly Keyframe[] = KEYFRAMES;
@@ -197,6 +213,15 @@ export class StateMapper {
     s.uniforms.focus = mix(a.focus, b.focus, wFocus);
     s.uniforms.focusY = mix(a.focusY, b.focusY, wFocus);
     s.uniforms.focusHalf = mix(a.focusHalf, b.focusHalf, wFocus);
+    s.uniforms.focusAngleHalf = mix(a.focusAngleHalf, b.focusAngleHalf, wFocus);
+
+    // la luce sulla faccia e il tappo: ognuno con la sua finestra, così il
+    // tappo salta quando la bottiglia comincia a girare e non a metà giro
+    s.face = mix(a.face, b.face, w("luce"));
+    s.cap = mix(a.cap, b.cap, w("tappo"));
+    // quanto segue il cursore va con la camera: è l'inquadratura a decidere
+    // quanto movimento regge (sul retro, poco: la fascia va letta)
+    s.look = mix(a.look, b.look, wCam);
 
     // La lama di luce vive solo dentro la transizione: `sin(π·tt)` vale 0 ai
     // due estremi, quindi nelle pause si spegne da sé. Al contrario scorre
@@ -220,6 +245,10 @@ export class StateMapper {
     const wLati = w("lati");
     s.carousel.sideDim = mix(a.sideDim, b.sideDim, wLati);
     s.carousel.escape = mix(a.escape, b.escape, wLati);
+    s.carousel.layout = mix(a.layout, b.layout, wLati);
+    // faro e piedistallo escono e rientrano con le laterali: sono la stessa
+    // scena, l'hero
+    s.props = mix(a.props, b.props, wLati);
 
     return s;
   }

@@ -15,8 +15,8 @@ const FORMATI = [
 const ULTIMO = 6;
 // i testi entrano al 45% della transizione e durano 0,7 s più lo stagger
 const ATTESA_TESTI = 1200;
-// lama di luce del segmento 0 → 1 (il mezzo giro): finestra [0,15; 0,75] su
-// 1,5 s, picco a metà finestra. Il tempo è a occhio, l'easing di `p` lo
+// a metà del segmento 0 → 1: le altre bottiglie scappano dall'anello e la
+// protagonista si avvicina (1,4 s). Il tempo è a occhio, l'easing di `p` lo
 // sposta un poco
 const META_0_1 = 700;
 // passaggio hero → esperienza: metà corsa, e l'ingresso (la bottiglia che

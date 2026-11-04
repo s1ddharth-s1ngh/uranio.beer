@@ -1,4 +1,5 @@
-// Le birre del carosello e la forma dell'anello (spec 6.6).
+// Le birre del carosello, la forma dell'anello dell'hero e quella della fila
+// della gamma (spec 6.6).
 //
 // Oggi di birre ce n'è una, Crisi Economica: tutti gli slot del carosello
 // mostrano lei. L'elenco esiste comunque, perché il giorno in cui arrivano le
@@ -30,10 +31,47 @@ export const BEERS: readonly Beer[] = [
 ];
 
 /**
- * La fila della gamma, allo step 5. Lo slot 0 è la protagonista, al centro: è
+ * L'anello dell'hero, allo step 0 (riferimento ciaoenergy.com: le lattine in
+ * cerchio attorno a quella al centro, le laterali più scure). Sono gli stessi
+ * cloni della gamma (`gl/Carousel.tsx`), in un'altra posa. L'anello è
+ * **tangente** alla camera: `z = (cos a − 1)·R` tiene la protagonista a z = 0
+ * e manda indietro le altre, così quella al centro è sempre la più vicina.
+ *
+ * Raggio e passo per formato, scelti sulle proporzioni del riferimento: a
+ * 1440×900 le due vicine stanno a ~¼ e ¾ della larghezza, le seconde sui
+ * bordi, le terze tagliate a metà; su telefono le vicine a ~⅕ e ⅘.
+ */
+export const RING = {
+  desktop: { radius: 9, step: 0.42 },
+  portrait: { radius: 5, step: 0.46 },
+  mobile: { radius: 3.4, step: 0.5 },
+  /** l'anello è inclinato: sale verso destra di tanto per unità di x */
+  rise: 0.1,
+  /** varietà per slot, attorno alla posa della protagonista */
+  jitter: { x: 0.14, y: 0.15, z: 0.12, yaw: 0.55 },
+  /** chi sta a sinistra pende a destra e viceversa, come un ventaglio */
+  fan: 0.1,
+  /** quanto si spengono girando verso il fondo dell'anello (∝ 1 − cos a) */
+  depthDim: 0.5,
+  /**
+   * Oltre questo scarto dal centro l'anello gira dietro la protagonista: le
+   * bottiglie lì finirebbero in fondo, ammucchiate dietro le altre. Nella
+   * fila ci sono tutte, nell'anello no (sette, come nel riferimento).
+   */
+  maxOffset: 3,
+} as const;
+
+/** Il raggio e il passo dell'anello per questo viewport. */
+export function ringFor(vp: { mobile: boolean; portrait: boolean }) {
+  if (vp.mobile) return RING.mobile;
+  return vp.portrait ? RING.portrait : RING.desktop;
+}
+
+/**
+ * La fila della gamma, all'ultimo step. Lo slot 0 è la protagonista, al centro: è
  * la **stessa** bottiglia che vive tutta l'esperienza, non una copia. Le
- * altre (`gl/Carousel.tsx`) sono cloni che compaiono solo qui. Misure in unità
- * di scena relative al pivot della protagonista; la camera del keyframe 5 sta
+ * altre (`gl/Carousel.tsx`) sono cloni che compaiono qui e nell'anello. Misure in unità
+ * di scena relative al pivot della protagonista; la camera dell'ultimo keyframe sta
  * a 16, dove 1440×900 inquadra ~12,8 unità di larghezza.
  */
 export const GAMMA = {

@@ -13,6 +13,7 @@ import {
   type StepLeaveDetail,
 } from "../core/Progress.ts";
 import { sharedMapper, type StateMapper } from "../core/StateMapper.ts";
+import { sharedPointer } from "../core/Pointer.ts";
 import { onTick } from "../core/Ticker.ts";
 import { DEBUG_MODE } from "../debug/registry";
 import { usePrefersReducedMotion } from "../hooks/usePrefersReducedMotion";
@@ -20,6 +21,7 @@ import { sharedViewport, useViewport } from "../hooks/useViewport";
 import { setAssetProgress, setSceneReady } from "../lib/assetProgress";
 import { Bottle } from "./Bottle";
 import { Carousel } from "./Carousel";
+import { HeroProps } from "./HeroProps";
 import { LightRig } from "./Environment";
 import { Lights } from "./Lights";
 
@@ -142,6 +144,12 @@ function Driver() {
     const mapper = sharedMapper(vp.state);
     const ridotto = reduced ? reducedMotion(progress, canvas) : undefined;
     const adattivo = new AdaptiveDpr();
+    // il cursore si avanza qui, una volta per frame e prima di disegnare: lo
+    // leggono in tre (bottiglia, anello, luci). Col moto ridotto resta a zero
+    const pointer = sharedPointer();
+    pointer.reset();
+    if (reduced) pointer.x = pointer.y = 0;
+    const stopPointer = reduced ? undefined : pointer.attach(window);
     let dpr = vp.state.dpr;
     // le ancore sono in coordinate schermo: a ogni resize i pivot si rifanno.
     // Il DPR torna al tetto da sé: lo riapplica la prop `dpr` del Canvas
@@ -153,6 +161,7 @@ function Driver() {
     const stopTick = onTick((time, delta) => {
       const nuovo = adattivo.feed(delta, dpr);
       if (nuovo !== null) setDpr((dpr = nuovo));
+      if (!reduced) pointer.update(delta);
       const s = ridotto ? ridotto.apply(mapper) : mapper.apply(progress.p);
       camera.position.copy(s.camera.position);
       camera.lookAt(s.camera.look);
@@ -161,6 +170,7 @@ function Driver() {
     return () => {
       stopVp();
       stopTick();
+      stopPointer?.();
       ridotto?.dispose();
     };
   }, [camera, advance, setDpr, canvas, reduced]);
@@ -261,6 +271,7 @@ export function Stage({
       <Suspense fallback={null}>
         <Bottle />
         <Carousel />
+        <HeroProps />
         <SceneReady />
         <DeferredPostFX />
       </Suspense>

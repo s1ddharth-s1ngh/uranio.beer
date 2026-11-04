@@ -9,10 +9,11 @@
 //    una con scala non uniforme (≈ 0,56 / 0,067 / 0,56) — la stessa altezza
 //    significa tre cose diverse e la fascia accesa si spezza. Quindi si fa il
 //    bake della matrice mondo nella geometria e si azzera la trasformazione.
-// 2. **Non si tocca la scena di partenza.** Lo stesso GLB lo carica anche la
-//    sezione "Chi siamo" (regola 10.1.10) e `useGLTF` tiene una cache: se si
-//    bakasse la geometria originale, la sezione About si troverebbe la
-//    bottiglia deformata. Qui si clona tutto quello che si modifica.
+// 2. **Non si tocca la scena di partenza.** `useGLTF` tiene una cache e la
+//    stessa scena la prepara due volte (la protagonista e la base della
+//    gamma, `gl/Carousel.tsx`): se si bakasse la geometria originale, la
+//    seconda preparazione bakerebbe una geometria già bakata. Qui si clona
+//    tutto quello che si modifica.
 
 import * as THREE from "three";
 import { BOTTLE, LABEL, NODES, type NodeName } from "../config/bottle.ts";
@@ -47,6 +48,13 @@ export interface PreparedBottle {
   liquid: THREE.Mesh | null;
   /** le maschere degli shader (spec 6.5): ci scrive dentro `StateMapper` */
   uniforms: BottleUniforms;
+  /**
+   * Le maschere del tappo. Sue, perché quando si stacca e resta sospeso
+   * (`gl/Bottle.tsx`) non deve spegnersi con la fascia accesa: le maschere
+   * leggono la posizione **del modello**, e per loro il tappo sarebbe ancora
+   * sul collo, fuori dalla fascia. Nei cloni è lo stesso oggetto di `uniforms`.
+   */
+  capUniforms: BottleUniforms;
   dispose(): void;
 }
 
@@ -271,8 +279,9 @@ export function prepareBottle(
   // devono continuare a illuminarsi come li illumina three, le maschere
   // decidono solo quanta di quella luce resta.
   const uniforms = createBottleUniforms();
+  const capUniforms = createBottleUniforms();
   patchBottleMaterial(materiali.vetro, uniforms);
-  patchBottleMaterial(materiali.tappo, uniforms);
+  patchBottleMaterial(materiali.tappo, capUniforms);
   patchBottleMaterial(materiali.etichetta, uniforms, true);
 
   const inner = new THREE.Group();
@@ -329,6 +338,7 @@ export function prepareBottle(
     meshes,
     liquid,
     uniforms,
+    capUniforms,
     dispose() {
       for (const g of Object.values(geometrie)) g.dispose();
       for (const m of Object.values(materiali)) m.dispose();
@@ -388,6 +398,7 @@ export function cloneBottle(src: PreparedBottle): PreparedBottle {
     meshes,
     liquid,
     uniforms,
+    capUniforms: uniforms,
     dispose() {
       // le geometrie no, e la birra nemmeno: sono dell'originale, che le
       // libera lui

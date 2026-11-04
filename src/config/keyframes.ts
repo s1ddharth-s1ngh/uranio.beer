@@ -5,9 +5,9 @@
 // nome. Chi interpola è `core/StateMapper.ts`. I valori si regolano dal vivo
 // con `?debug` e si ricopiano qui col pulsante "copia keyframe" (regola
 // 10.1.6): le ancore e le finestre sono la cosa che più probabilmente va
-// ritoccata guardando gli screenshot del task 8.28.
+// ritoccata guardando gli screenshot.
 
-import { BANDS, BOTTLE, SHADER } from "./bottle.ts";
+import { BANDS, BOTTLE, LABEL_CENTER_LOCAL, SHADER } from "./bottle.ts";
 import type { Anchor, CameraSpec } from "./solvePivot.ts";
 
 export type Vec3 = readonly [number, number, number];
@@ -19,6 +19,8 @@ export interface Keyframe {
   anchor: Anchor;
   /** intensità dello spot sul tappo */
   spot: number;
+  /** intensità della luce sulla faccia, da destra in alto (`gl/Lights.tsx`) */
+  face: number;
   /** maschera "solo la cima accesa" */
   reveal: number;
   revealY: number;
@@ -26,129 +28,154 @@ export interface Keyframe {
   focus: number;
   focusY: number;
   focusHalf: number;
-  /** pesi dello sfondo: hero, step, finale */
+  /** mezzo arco della fascia accesa, in radianti */
+  focusAngleHalf: number;
+  /** pesi dello sfondo: studio, alone degli step, nebbia */
   background: Vec3;
-  /** luminosità delle altre bottiglie della gamma */
+  /** luminosità delle altre bottiglie */
   sideDim: number;
-  /** 0 = le altre bottiglie in fila, 1 = fuori dal frame ai lati */
+  /** 0 = le altre bottiglie in scena, 1 = fuori dal frame ai lati */
   escape: number;
+  /** 0 = le altre sull'anello dell'hero, 1 = in fila (la gamma) */
+  layout: number;
+  /** 0 = faro e piedistallo in scena, 1 = usciti (il faro in alto, il piedistallo in basso) */
+  props: number;
+  /** 0 = tappo chiuso sul collo, 1 = staccato e sospeso accanto alla bottiglia */
+  cap: number;
+  /** quanto la bottiglia guarda verso il cursore, 0–1 (`core/Pointer.ts`) */
+  look: number;
 }
 
 /** una fascia dell'etichetta in coordinate locali del pivot */
 const fasciaLocale = (y: number) => y - BOTTLE.centerY;
 
+/** i canali delle fasce, uguali per tutti gli step che non ne accendono una */
+const SPENTA = {
+  reveal: 0,
+  revealY: SHADER.revealY,
+  focus: 0,
+  focusY: BANDS.f1.y,
+  focusHalf: BANDS.f1.half,
+  focusAngleHalf: BANDS.f1.angleHalf,
+} as const;
+
+/** una fascia del retro accesa */
+const accesa = (b: (typeof BANDS)[keyof typeof BANDS]) => ({
+  reveal: 0,
+  revealY: SHADER.revealY,
+  focus: 1,
+  focusY: b.y,
+  focusHalf: b.half,
+  focusAngleHalf: b.angleHalf,
+});
+
+/** il retro: niente anello, niente faro, tappo sospeso, sfondo degli step */
+const RETRO = {
+  camera: { position: [0, 0, 7], look: [0, 0, 0] },
+  spot: 0.25,
+  face: 0,
+  background: [0, 1, 0],
+  sideDim: 0,
+  escape: 1,
+  layout: 1,
+  props: 1,
+  cap: 1,
+  look: 0.45,
+} as const;
+
 /**
- * Keyframe desktop, composti su 1440×900 (spec 7.2, rivista il 2026-11-04 sul
- * riferimento ciaoenergy.com): la bottiglia arriva sola e inclinata, gira sul
- * retro fascia per fascia, poi la raggiungono tutte le altre in fila, poi il
- * finale. Niente carosello ad anello né faro: erano lo step più pesante.
+ * Keyframe desktop, composti su 1440×900, sul riferimento ciaoenergy.com
+ * (rivisti il 2026-11-04 sulle schermate del proprietario):
+ *
+ * 0. tutte le bottiglie su un anello, la protagonista al centro fra faro e
+ *    piedistallo, il nome sul piedistallo;
+ * 1. lei sola, grande e inclinata, la faccia girata in alto a destra e la
+ *    luce addosso, il nome a sinistra;
+ * 2–5. gira sul retro (e il tappo salta via), una fascia accesa per step;
+ * 6. il giro finisce, le altre tornano in fila, il tappo si richiude:
+ *    "ZERO CRISI" e le call to action.
  */
 export const KEYFRAMES: readonly Keyframe[] = [
-  // 0 · Hero: sola, grande, inclinata con la cima a sinistra, il fronte in
-  // camera; il titolo sta a sinistra (HeroUi)
+  // 0 · Anello: camera lontana, la protagonista col fondo verso di noi e la
+  // cima un filo a sinistra, come la lattina al centro del riferimento
   {
-    camera: { position: [0, 0, 10.5], look: [0, 0, 0] },
-    rotation: [0.16, 0, 0.44],
-    // abbastanza in basso perché il tappo non tocchi il logo dell'header
-    anchor: { localY: 0, screen: [0.58, 0.54] },
-    spot: 1.2,
-    reveal: 0,
-    revealY: SHADER.revealY,
-    focus: 0,
-    focusY: BANDS.f1.y,
-    focusHalf: BANDS.f1.half,
+    camera: { position: [0, 0.4, 16], look: [0, 0.2, 0] },
+    rotation: [-0.2, 0, 0.16],
+    anchor: { localY: 0, screen: [0.5, 0.45] },
+    spot: 1,
+    face: 0.45,
+    ...SPENTA,
+    background: [1, 0, 0],
+    sideDim: 0.34,
+    escape: 0,
+    layout: 0,
+    props: 0,
+    cap: 0,
+    look: 1,
+  },
+  // 1 · Fronte: grande, inclinata con la cima a sinistra e verso di noi (si
+  // vede il tappo dall'alto), la faccia girata a destra; il fondo esce dal
+  // bordo basso come la lattina del riferimento
+  {
+    camera: { position: [0, 0, 8.6], look: [0, 0, 0] },
+    rotation: [0.16, 0.5, 0.4],
+    anchor: { localY: LABEL_CENTER_LOCAL, screen: [0.66, 0.8] },
+    spot: 1.6,
+    face: 1,
+    ...SPENTA,
     background: [0, 1, 0],
     sideDim: 0,
     escape: 1,
+    layout: 0,
+    props: 1,
+    cap: 0,
+    look: 1,
   },
-  // 1–4 · il retro, una fascia per step: la bottiglia sale e si raddrizza
+  // 2–5 · il retro, una fascia per step: la bottiglia sale e si raddrizza
   {
-    camera: { position: [0, 0, 7], look: [0, 0, 0] },
+    ...RETRO,
     rotation: [0.12, Math.PI, 0.26],
-    anchor: { localY: fasciaLocale(BANDS.f1.y), screen: [0.6, 0.42] },
-    spot: 0.2,
-    reveal: 0,
-    revealY: SHADER.revealY,
-    focus: 1,
-    focusY: BANDS.f1.y,
-    focusHalf: BANDS.f1.half,
-    background: [0, 1, 0],
-    sideDim: 0,
-    escape: 1,
+    anchor: { localY: fasciaLocale(BANDS.f1.y), screen: [0.6, 0.44] },
+    ...accesa(BANDS.f1),
   },
   {
-    camera: { position: [0, 0, 7], look: [0, 0, 0] },
+    ...RETRO,
     rotation: [0.12, Math.PI, 0.19],
-    anchor: { localY: fasciaLocale(BANDS.f2.y), screen: [0.6, 0.42] },
-    spot: 0.2,
-    reveal: 0,
-    revealY: SHADER.revealY,
-    focus: 1,
-    focusY: BANDS.f2.y,
-    focusHalf: BANDS.f2.half,
-    background: [0, 1, 0],
-    sideDim: 0,
-    escape: 1,
+    anchor: { localY: fasciaLocale(BANDS.f2.y), screen: [0.6, 0.44] },
+    ...accesa(BANDS.f2),
   },
   {
-    camera: { position: [0, 0, 7], look: [0, 0, 0] },
+    ...RETRO,
     rotation: [0.1, Math.PI, 0.14],
-    anchor: { localY: fasciaLocale(BANDS.f3.y), screen: [0.6, 0.45] },
-    spot: 0.2,
-    reveal: 0,
-    revealY: SHADER.revealY,
-    focus: 1,
-    focusY: BANDS.f3.y,
-    focusHalf: BANDS.f3.half,
-    background: [0, 1, 0],
-    sideDim: 0,
-    escape: 1,
+    anchor: { localY: fasciaLocale(BANDS.f3.y), screen: [0.6, 0.46] },
+    ...accesa(BANDS.f3),
   },
   {
-    camera: { position: [0, 0, 7], look: [0, 0, 0] },
+    ...RETRO,
     rotation: [0.08, Math.PI, 0.1],
-    anchor: { localY: fasciaLocale(BANDS.f4.y), screen: [0.6, 0.45] },
-    spot: 0.2,
-    reveal: 0,
-    revealY: SHADER.revealY,
-    focus: 1,
-    focusY: BANDS.f4.y,
-    focusHalf: BANDS.f4.half,
-    background: [0, 1, 0],
-    sideDim: 0,
-    escape: 1,
+    anchor: { localY: fasciaLocale(BANDS.f4.y), screen: [0.6, 0.46] },
+    ...accesa(BANDS.f4),
   },
-  // 5 · La gamma: finito il giro (2π, di nuovo il fronte) arrivano le altre
-  // dai lati e si mettono in fila curva, la protagonista al centro. Sfondo da
-  // studio, pavimento chiaro: è la schermata più luminosa
+  // 6 · La gamma e il finale: finito il giro (2π, di nuovo il fronte) le
+  // altre arrivano dai lati in fila curva e il tappo torna sul collo. Sfondo
+  // da studio, "ZERO CRISI" dietro, le call to action sotto
   {
     camera: { position: [0, 0, 16], look: [0, 0, 0] },
     rotation: [0, Math.PI * 2, 0.08],
-    anchor: { localY: 0, screen: [0.5, 0.46] },
-    spot: 0.6,
-    reveal: 0,
-    revealY: SHADER.revealY,
-    focus: 0,
+    anchor: { localY: 0, screen: [0.5, 0.42] },
+    spot: 0.8,
+    face: 0.35,
+    ...SPENTA,
     focusY: BANDS.f4.y,
     focusHalf: BANDS.f4.half,
+    focusAngleHalf: BANDS.f4.angleHalf,
     background: [1, 0, 0],
     sideDim: 0.9,
     escape: 0,
-  },
-  // 6 · Finale: le altre riescono, lei resta intera nel frame, nebbia
-  {
-    camera: { position: [0, 0, 15], look: [0, 0, 0] },
-    rotation: [0.06, Math.PI * 2, -0.06],
-    anchor: { localY: 0, screen: [0.5, 0.52] },
-    spot: 1,
-    reveal: 0,
-    revealY: SHADER.revealY,
-    focus: 0,
-    focusY: BANDS.f4.y,
-    focusHalf: BANDS.f4.half,
-    background: [0, 0, 1],
-    sideDim: 0,
-    escape: 1,
+    layout: 1,
+    props: 1,
+    cap: 0,
+    look: 0.6,
   },
 ];
 
@@ -158,15 +185,22 @@ export const KEYFRAMES: readonly Keyframe[] = [
  * alte. Cambiano **solo** quelle due cose: tutto il resto è lo stesso stato,
  * e tenerlo scritto una volta sola è il motivo per cui le ancore esistono.
  */
-const MOBILE_CAM_Z = [17, 9.5, 9.5, 9.5, 9.5, 26, 19] as const;
+// - anello più lontano: su un frame stretto le vicine devono stare ai lati
+//   della protagonista, non sopra;
+// - fronte abbastanza lontano da tenere in quadro il tappo, che allo step
+//   dopo salta: dal tappo al centro dell'etichetta sono ~2,9 unità in
+//   verticale, il 37% di un frame a 15,5;
+// - retro un filo più lontano del desktop e al centro, perché a destra resti
+//   spazio per il tappo sospeso
+const MOBILE_CAM_Z = [21, 15.5, 10.5, 10.5, 10.5, 10.5, 24] as const;
 const MOBILE_SCREEN: readonly Vec3[] = [
+  [0.5, 0.31, 0],
+  [0.56, 0.48, 0],
   [0.5, 0.32, 0],
-  [0.56, 0.3, 0],
-  [0.56, 0.3, 0],
-  [0.56, 0.3, 0],
-  [0.56, 0.3, 0],
-  [0.5, 0.46, 0],
-  [0.5, 0.42, 0],
+  [0.5, 0.32, 0],
+  [0.5, 0.32, 0],
+  [0.5, 0.32, 0],
+  [0.5, 0.4, 0],
 ];
 
 export const KEYFRAMES_MOBILE: readonly Keyframe[] = KEYFRAMES.map((k, i) => ({
@@ -213,8 +247,10 @@ export type Group =
   | "camera"
   | "rotazione"
   | "reveal"
+  | "luce"
   | "focus"
-  | "sweep";
+  | "sweep"
+  | "tappo";
 
 export type Window = readonly [number, number];
 export const FULL_WINDOW: Window = [0, 1];
@@ -227,23 +263,42 @@ export interface Segment {
 
 /** Una voce per segmento: `p` da k a k+1 (spec 7.4). */
 export const SEGMENTS: readonly Segment[] = [
-  // 0 → 1 · hero → F1: la rotazione di 180° è il movimento principale, la
-  // luce si stringe sulla prima fascia quando il retro è già in camera
+  // 0 → 1 · anello → fronte: le altre scappano e faro e piedistallo escono
+  // subito, poi la camera si avvicina mentre lei si gira verso la luce
+  {
+    windows: {
+      lati: [0, 0.5],
+      camera: [0.1, 1],
+      rotazione: [0.1, 1],
+      sfondo: [0.15, 0.75],
+      luce: [0.3, 1],
+      sweep: [0.25, 0.85],
+    },
+    sweepAmt: 0.5,
+  },
+  // 1 → 2 · fronte → F1: il mezzo giro. Il tappo salta appena la bottiglia
+  // comincia a girare, e vola accanto a lei mentre il retro arriva in camera;
+  // la luce si stringe sulla prima fascia per ultima
   {
     windows: {
       rotazione: [0, 0.85],
       camera: [0.1, 1],
+      luce: [0, 0.5],
+      // all'inizio del segmento, dove la curva di `p` è ancora lenta: nel
+      // tratto centrale un volo intero dura un paio di frame e non si vede
+      tappo: [0, 0.62],
       focus: [0.45, 1],
       sweep: [0.15, 0.75],
     },
     sweepAmt: 1,
   },
-  // 1 ↔ 2 ↔ 3 ↔ 4 · la fascia accesa scivola sul paragrafo nuovo
+  // 2 ↔ 3 ↔ 4 ↔ 5 · la fascia accesa scivola sul paragrafo nuovo
   { windows: { focus: [0.1, 0.9], sweep: [0.2, 0.8] }, sweepAmt: 0.4 },
   { windows: { focus: [0.1, 0.9], sweep: [0.2, 0.8] }, sweepAmt: 0.4 },
   { windows: { focus: [0.1, 0.9], sweep: [0.2, 0.8] }, sweepAmt: 0.4 },
-  // 4 → 5 · F4 → gamma: lei finisce il giro e si allontana, le altre entrano
-  // dai lati quando la camera ha già fatto spazio
+  // 5 → 6 · F4 → gamma: lei finisce il giro e si allontana, le altre entrano
+  // dai lati quando la camera ha già fatto spazio, e il tappo si richiude
+  // quando sono quasi arrivate
   {
     windows: {
       focus: [0, 0.35],
@@ -251,20 +306,11 @@ export const SEGMENTS: readonly Segment[] = [
       camera: [0.05, 0.85],
       lati: [0.3, 1],
       sfondo: [0.2, 0.8],
+      luce: [0.4, 1],
+      tappo: [0.3, 0.92],
       sweep: [0.1, 0.6],
     },
     sweepAmt: 0.6,
-  },
-  // 5 → 6 · gamma → finale: le altre scappano per prime, poi arriva la nebbia
-  {
-    windows: {
-      lati: [0, 0.55],
-      camera: [0.2, 1],
-      // ferma nell'ultimo tratto: al ritorno la scritta esce prima che riparta
-      rotazione: [0.2, 0.85],
-      sfondo: [0.25, 0.85],
-    },
-    sweepAmt: 0,
   },
 ];
 

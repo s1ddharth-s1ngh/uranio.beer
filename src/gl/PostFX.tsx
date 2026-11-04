@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { HalfFloatType } from "three";
 import {
@@ -35,8 +35,14 @@ export default function PostFX() {
   const camera = useThree((s) => s.camera);
   const size = useThree((s) => s.size);
   const vp = useViewport();
+  const composer = useRef<EffectComposer | null>(null);
 
-  const composer = useMemo(() => {
+  // Il composer nasce e muore nello stesso effetto, non in un `useMemo` con
+  // la pulizia a parte: con `StrictMode` React smonta e rimonta gli effetti
+  // una volta in sviluppo, e il composer memorizzato veniva liberato e poi
+  // riusato con le sue render target già cancellate. Il canvas restava
+  // fermo sul primo frame per tutto `npm run dev` (visto il 2026-11-04).
+  useEffect(() => {
     const c = new EffectComposer(gl, {
       multisampling: POSTFX.multisampling,
       // mezza precisione in virgola mobile: serve al bloom, che deve leggere
@@ -70,22 +76,31 @@ export default function PostFX() {
     effetti.push(vignette, grana);
 
     c.addPass(new EffectPass(camera, ...effetti));
-    return c;
+    composer.current = c;
+    return () => {
+      composer.current = null;
+      c.dispose();
+    };
   }, [gl, scene, camera, vp.mobile]);
 
-  useEffect(() => () => composer.dispose(), [composer]);
-
   // anche col DPR: le render target del composer si misurano sul drawing
-  // buffer, e il DPR adattivo (task 8.27) lo cambia senza cambiare `size`
+  // buffer, e il DPR adattivo (task 8.27) lo cambia senza cambiare `size`.
+  // Dichiarato dopo quello che crea il composer: gli effetti girano in
+  // ordine, quindi qui il composer c'è già
   const dpr = useThree((s) => s.viewport.dpr);
   useEffect(() => {
-    composer.setSize(size.width, size.height);
-  }, [composer, size, dpr]);
+    composer.current?.setSize(size.width, size.height);
+  }, [gl, scene, camera, vp.mobile, size, dpr]);
 
   // `priority = 1`: con una priorità diversa da zero R3F smette di disegnare
   // da sé e lascia il rendering a noi. Gli aggiornamenti della scena
-  // (bottiglia, carosello, luci) stanno a priorità 0 e girano prima.
-  useFrame((_, delta) => composer.render(delta), 1);
+  // (bottiglia, carosello, luci) stanno a priorità 0 e girano prima. Senza
+  // composer (un attimo, fra uno smontaggio e il rimontaggio) si disegna
+  // direttamente, invece di lasciare il canvas vuoto
+  useFrame((_, delta) => {
+    if (composer.current) composer.current.render(delta);
+    else gl.render(scene, camera);
+  }, 1);
 
   return null;
 }

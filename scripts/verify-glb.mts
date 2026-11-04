@@ -10,10 +10,6 @@ import assert from "node:assert/strict";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
-import {
-  buildBottleAssembly,
-  splitBottleGlb,
-} from "../src/components/about/bottleAssembly.ts";
 import { cloneBottle, prepareBottle } from "../src/gl/prepareBottle.ts";
 import { LIQUID } from "../src/config/materials.ts";
 import { BANDS, BOTTLE, CAP, LABEL, NODES } from "../src/config/bottle.ts";
@@ -153,30 +149,7 @@ assert(
   `la silhouette del tappo ondula ${(capOtt.ondulazione * 100).toFixed(2)}% contro ${(capOrig.ondulazione * 100).toFixed(2)}%: sta poligonando`,
 );
 
-// --- 4. i consumatori reggono: la sezione "Chi siamo" monta da qui
-const { bottle, cap } = splitBottleGlb(ottimizzato);
-const asm = buildBottleAssembly(bottle, cap);
-console.log("assieme  ", JSON.stringify(asm.world));
-const probe = new THREE.Group();
-probe.add(asm.holder);
-const ancorato = new THREE.Group();
-ancorato.add(asm.capModel);
-ancorato.applyMatrix4(asm.capAnchorLocal);
-probe.add(ancorato);
-probe.updateMatrixWorld(true);
-const tot = new THREE.Box3().setFromObject(probe, true);
-assert(Math.abs(tot.max.y - tot.min.y - 2) < 1e-3, "l'assieme non è più alto 2");
-assert(
-  Math.abs((tot.max.y + tot.min.y) / 2) < 1e-3,
-  "l'assieme non è più centrato",
-);
-assert(asm.world.capSinkDepth > 0, "il tappo non entra più nel collo");
-assert(
-  asm.world.capRadius > asm.world.mouthRadius,
-  "il tappo non copre più la bocca",
-);
-
-// --- 4b. la preparazione per l'esperienza (task 8.9): spazio oggetto unico,
+// --- 4. la preparazione per l'esperienza (task 8.9): spazio oggetto unico,
 // pivot al centro, etichetta fuori dal vetro, e la scena di partenza intatta
 {
   const primaEtichetta = new THREE.Box3().setFromBufferAttribute(

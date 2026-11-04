@@ -35,7 +35,7 @@ const CAP_TARGET_VERTS = 10_000
 // mesh. Molto stretto: il tappo si guarda da vicino.
 const CAP_ERROR = 0.0005
 
-// Nomi stabili con cui il codice ritrova i pezzi (vedi bottleAssembly.ts).
+// Nomi stabili con cui il codice ritrova i pezzi (vedi `NODES` in src/config/bottle.ts).
 const NOMI = { 'Object_0': 'vetro', 'Object_0.002': 'tappo', 'Etichetta avvolta - fronte e ingredienti retro': 'etichetta' }
 
 const kb = (n) => (n / 1024).toFixed(0) + ' KB'

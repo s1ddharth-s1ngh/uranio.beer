@@ -14,8 +14,8 @@
   color: var(--fg);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
-  /* solo orizzontale: non crea uno scroll container, quindi lo sticky
-     della sezione about continua a funzionare */
+  /* solo orizzontale: non crea uno scroll container, quindi lo scroll
+     della pagina resta quello del documento (lib/pageScroll.ts) */
   overflow-x: clip;
   color-scheme: dark;
 }
