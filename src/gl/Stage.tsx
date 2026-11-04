@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useProgress } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
@@ -17,7 +17,7 @@ import { onTick } from "../core/Ticker.ts";
 import { DEBUG_MODE } from "../debug/registry";
 import { usePrefersReducedMotion } from "../hooks/usePrefersReducedMotion";
 import { sharedViewport, useViewport } from "../hooks/useViewport";
-import { setAssetProgress } from "../lib/assetProgress";
+import { setAssetProgress, setSceneReady } from "../lib/assetProgress";
 import { Bottle } from "./Bottle";
 import { Carousel } from "./Carousel";
 import { LightRig } from "./Environment";
@@ -169,6 +169,66 @@ function Driver() {
   return null;
 }
 
+/** frame da disegnare dopo la compilazione prima di dire "pronta" */
+const READY_FRAMES = 1;
+
+/**
+ * Carica sulla GPU le texture di tutti i materiali in scena. La compilazione
+ * non lo fa, e un draw nemmeno finché l'oggetto è fuori dal frustum: con
+ * `intro` a 0 le bottiglie stanno sotto il frame, e l'etichetta salirebbe
+ * caricando la sua texture sul primo frame in cui entra in vista.
+ */
+function uploadTextures(gl: THREE.WebGLRenderer, scene: THREE.Scene) {
+  scene.traverse((o) => {
+    const m = (o as THREE.Mesh).material;
+    if (!m) return;
+    for (const mat of Array.isArray(m) ? m : [m]) {
+      for (const v of Object.values(mat)) {
+        if (v instanceof THREE.Texture) gl.initTexture(v);
+      }
+    }
+  });
+}
+
+/**
+ * Dice al Loader che la scena è pronta (task 8.22). Monta dentro la stessa
+ * Suspense della bottiglia, quindi solo a GLB arrivato e modelli costruiti.
+ *
+ * La PMREM dell'ambiente c'è già: `LightRig` la genera in un effetto e monta
+ * fuori da questa Suspense, quindi prima. `compileAsync` compila i programmi
+ * con l'ambiente dentro, in parallelo dove il driver lo permette
+ * (`KHR_parallel_shader_compile`), invece di bloccare il primo frame; poi si
+ * caricano le texture e si aspetta un frame disegnato. Tutto sotto il Loader,
+ * con `intro` a 0: scena spenta ma montata.
+ */
+function SceneReady() {
+  const gl = useThree((s) => s.gl);
+  const scene = useThree((s) => s.scene);
+  const camera = useThree((s) => s.camera);
+  const frames = useRef(-1);
+
+  useEffect(() => {
+    let vivo = true;
+    gl.compileAsync(scene, camera)
+      .catch(() => undefined)
+      .then(() => {
+        if (!vivo) return;
+        uploadTextures(gl, scene);
+        frames.current = 0;
+      });
+    return () => {
+      vivo = false;
+    };
+  }, [gl, scene, camera]);
+
+  useFrame(() => {
+    if (frames.current < 0 || frames.current > READY_FRAMES) return;
+    if (++frames.current > READY_FRAMES) setSceneReady();
+  });
+
+  return null;
+}
+
 /**
  * Lo strato WebGL della scena (spec 4.2 strato 3): trasparente, sopra il
  * canvas dello sfondo. Ci vivranno bottiglie, faro, piedistallo e
@@ -204,6 +264,7 @@ export function Stage({
       <Suspense fallback={null}>
         <Bottle />
         <Carousel />
+        <SceneReady />
         <DeferredPostFX />
       </Suspense>
       {DEBUG_MODE === "env" && (

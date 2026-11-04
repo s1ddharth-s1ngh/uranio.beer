@@ -100,6 +100,8 @@ export class CarouselState {
   velocity = 0;
 
   private tween: gsap.core.Tween | undefined;
+  /** il notch verso cui va lo scatto in corso, valido solo finché c'è `tween` */
+  private notch = 0;
   private lastT = 0;
 
   count: number;
@@ -123,9 +125,26 @@ export class CarouselState {
     return (Math.PI * 2) / this.count;
   }
 
-  /** l'indice della birra al centro: lo legge lo slider dell'hero (task 8.19) */
+  /**
+   * L'indice della birra al centro. Con una birra sola vale sempre 0: per
+   * questo lo slider dell'hero legge `ring`, non questo.
+   */
   get index(): number {
     return (((this.active % BEERS.length) + BEERS.length) % BEERS.length);
+  }
+
+  /**
+   * Dove sta l'anello, in frazione di giro 0–1: è la posizione del pallino
+   * dello slider (task 8.19).
+   *
+   * `active − rot / step` è continua anche attraverso la rinormalizzazione
+   * (durante uno scatto in avanti sale da 0 a 1, dopo resta 1): `active`
+   * cresce di uno nello stesso istante in cui `rot` torna a zero. A giro
+   * completo salta da 1 a 0: è un anello mostrato su una retta.
+   */
+  get ring(): number {
+    const pos = this.active - this.rot / this.step;
+    return (((pos % this.count) + this.count) % this.count) / this.count;
   }
 
   grab(now: number) {
@@ -171,12 +190,19 @@ export class CarouselState {
     this.snapTo(vicino + scatto);
   }
 
-  /** Le frecce ai lati della protagonista: ±1 slot. */
+  /**
+   * Le frecce ai lati della protagonista: ±1 slot.
+   *
+   * Il passo si somma al notch dello scatto **in corso**, non a quello di
+   * riposo: a metà scatto `active` non è ancora stato rinormalizzato, e
+   * ripuntare a `−sign(dir)` farebbe valere due click rapidi come uno solo.
+   */
   nudge(dir: number) {
+    const da = this.tween ? this.notch : Math.round(this.rot / this.step);
     this.tween?.kill();
     this.dragging = false;
     this.velocity = 0;
-    this.snapTo(-Math.sign(dir));
+    this.snapTo(da - Math.sign(dir));
   }
 
   dispose() {
@@ -185,6 +211,7 @@ export class CarouselState {
   }
 
   private snapTo(notch: number) {
+    this.notch = notch;
     const to = notch * this.step;
     this.tween = gsap.to(this, {
       rot: to,

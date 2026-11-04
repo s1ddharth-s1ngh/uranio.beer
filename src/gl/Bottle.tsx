@@ -6,6 +6,7 @@ import { BAND_ORDER, BANDS, MODEL_URL } from "../config/bottle.ts";
 import { CAROUSEL, ringRadius } from "../config/beers.ts";
 import { REST_LIFE } from "../config/keyframes.ts";
 import { sharedCarousel, slotPose, type SlotPose } from "../core/Carousel.ts";
+import { sharedIntro, slotDrop, slotRise } from "../core/Intro.ts";
 import { sharedProgress } from "../core/Progress.ts";
 import { sharedMapper } from "../core/StateMapper.ts";
 import { DEBUG_MODE, registerDebug } from "../debug/registry";
@@ -74,6 +75,7 @@ export function Bottle() {
   const mapper = sharedMapper(sharedViewport().state);
   const carousel = sharedCarousel(vp.mobile ? CAROUSEL.countMobile : CAROUSEL.count);
   const progress = sharedProgress();
+  const intro = sharedIntro();
   const reduced = usePrefersReducedMotion();
   // il peso della vita a riposo: parte pieno, la pagina si apre ferma
   const quiete = useRef(1);
@@ -122,7 +124,10 @@ export function Bottle() {
             onda(t, REST_LIFE.finaleSpin.period));
     }
 
-    applyMasks(prepared.uniforms, s.uniforms);
+    // l'ingresso (task 8.22): la protagonista sale per prima e si accende
+    // mentre sale; a `intro` 1 i due termini valgono 0 e 1, lo stato è intatto
+    g.position.y += slotDrop(intro.value, 0, carousel.count);
+    applyMasks(prepared.uniforms, s.uniforms, slotRise(intro.value, 0, carousel.count));
 
     if (DEBUG_MODE === "bands") {
       // `?debug=bands`: la fascia accesa gira sulle quattro, ferma su ognuna,

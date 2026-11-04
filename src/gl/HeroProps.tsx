@@ -3,6 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { PROPS } from "../config/props.ts";
 import { COLORS } from "../config/theme.ts";
+import { faroLevel, sharedIntro, slotDrop } from "../core/Intro.ts";
 import { sharedMapper, type SceneState } from "../core/StateMapper.ts";
 import { sharedViewport } from "../hooks/useViewport";
 
@@ -31,14 +32,22 @@ function makeGlowTexture(): THREE.Texture {
   return tex;
 }
 
+/** il colore pieno del disco: lo sfarfallio dell'ingresso lo scala */
+const DISCO = new THREE.Color(PROPS.faro.discColor);
+
 function posiziona(
   faro: THREE.Group | null,
   base: THREE.Group | null,
+  disco: THREE.MeshBasicMaterial | null,
   s: SceneState,
+  intro: number,
 ) {
   // `props` va da 0 (in scena) a 1 (usciti dal frame) nella finestra [0; 0,5]
   // del primo segmento: il faro esce in alto, il piedistallo in basso
   const fuori = s.props;
+  // l'ingresso (task 8.22): il disco si accende sfarfallando, il piedistallo
+  // sale insieme alla protagonista, così lei ci resta appoggiata
+  disco?.color.copy(DISCO).multiplyScalar(faroLevel(intro));
   if (faro) {
     faro.visible = fuori < 1;
     faro.position.set(
@@ -51,7 +60,7 @@ function posiziona(
     base.visible = fuori < 1;
     base.position.set(
       s.pivot.x,
-      s.pivot.y + PROPS.base.y - PROPS.exitDown * fuori,
+      s.pivot.y + PROPS.base.y - PROPS.exitDown * fuori + slotDrop(intro, 0, 1),
       s.pivot.z,
     );
   }
@@ -69,12 +78,16 @@ function posiziona(
 export function HeroProps() {
   const faro = useRef<THREE.Group>(null);
   const base = useRef<THREE.Group>(null);
+  const disco = useRef<THREE.MeshBasicMaterial>(null);
   const glow = useMemo(() => makeGlowTexture(), []);
 
   useEffect(() => () => glow.dispose(), [glow]);
 
   const mapper = sharedMapper(sharedViewport().state);
-  useFrame(() => posiziona(faro.current, base.current, mapper.state));
+  const intro = sharedIntro();
+  useFrame(() =>
+    posiziona(faro.current, base.current, disco.current, mapper.state, intro.value),
+  );
 
   const { faro: f, base: b } = PROPS;
   return (
@@ -100,6 +113,7 @@ export function HeroProps() {
         <mesh rotation-x={Math.PI / 2} position-y={-f.shellHeight / 2 - 0.01}>
           <circleGeometry args={[f.discRadius, 64]} />
           <meshBasicMaterial
+            ref={disco}
             color={f.discColor}
             toneMapped={false}
             side={THREE.DoubleSide}

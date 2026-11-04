@@ -9,6 +9,7 @@ import {
   type CarouselState,
   type SlotPose,
 } from "../core/Carousel.ts";
+import { sharedIntro, slotDrop, slotRise } from "../core/Intro.ts";
 import { sharedMapper, type SceneState } from "../core/StateMapper.ts";
 import { SHADER } from "../config/bottle.ts";
 import { applyMasks, type BottleMasks } from "./materials/patchBottle.ts";
@@ -49,6 +50,7 @@ function disponi(
   s: SceneState,
   t: number,
   carousel: CarouselState,
+  intro: number,
   radius: number,
 ) {
   const { escape, sideDim } = s.carousel;
@@ -66,9 +68,14 @@ function disponi(
     // le laterali scappano verso l'esterno, ognuna dalla parte in cui già sta:
     // chi è a sinistra esce a sinistra (spec 7.4)
     const verso = Math.sign(pose.x) || 1;
+    // l'ingresso (task 8.22): salgono dal basso sfalsate, accendendosi
+    const sale = slotRise(intro, slot, carousel.count);
     b.pivot.position.set(
       s.pivot.x + pose.x + verso * CAROUSEL.escapeX * escape,
-      s.pivot.y + pose.y + Math.sin(t * life.ySpeed + slot * 1.7) * life.yAmp,
+      s.pivot.y +
+        pose.y +
+        Math.sin(t * life.ySpeed + slot * 1.7) * life.yAmp +
+        slotDrop(intro, slot, carousel.count),
       s.pivot.z + pose.z - CAROUSEL.escapeZ * escape,
     );
     b.pivot.rotation.set(
@@ -76,7 +83,7 @@ function disponi(
       pose.rotY,
       pose.rotZ + Math.sin(t * life.zSpeed + slot) * life.zAmp,
     );
-    applyMasks(b.uniforms, SPENTE, sideDim);
+    applyMasks(b.uniforms, SPENTE, sideDim * sale);
   }
 }
 
@@ -125,8 +132,9 @@ export function Carousel() {
   useEffect(() => carousel.setCount(count), [carousel, count]);
 
   const mapper = sharedMapper(sharedViewport().state);
+  const intro = sharedIntro();
   useFrame(({ clock }) =>
-    disponi(bottiglie, mapper.state, clock.elapsedTime, carousel, ringRadius(vp)),
+    disponi(bottiglie, mapper.state, clock.elapsedTime, carousel, intro.value, ringRadius(vp)),
   );
 
   return (

@@ -1,0 +1,204 @@
+/* L'interfaccia dell'hero (spec 8.19). Le posizioni verticali arrivano da
+   `heroLayout()` come variabili (`--center-y`, `--pedestal-y`): sono la scena
+   proiettata, non percentuali scritte qui. */
+
+/* ----------------------------------------------------- uscita e rientro */
+
+/* Da nascosta: le transizioni di questa regola valgono per l'uscita, che
+   parte subito (spec 7.6). */
+.ui {
+  position: absolute;
+  inset: 0;
+  color: var(--u-white);
+  opacity: 0;
+  transform: translateY(var(--hero-shift));
+  transition:
+    opacity var(--hero-fade) ease,
+    transform var(--hero-fade) ease;
+}
+
+/* Visibile: le transizioni di questa regola valgono per il rientro, che
+   aspetta che le laterali siano tornate al loro posto. */
+.in {
+  opacity: 1;
+  transform: none;
+  transition-delay: var(--hero-return-delay);
+}
+
+/* Il cancello dell'ingresso (task 8.22): chiuso finché bottiglie e faro non
+   sono arrivati, poi si apre una volta sola, senza il ritardo del rientro. */
+.gate {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transform: translateY(var(--hero-shift));
+  transition:
+    opacity var(--hero-fade) ease,
+    transform var(--hero-fade) ease;
+}
+
+.open {
+  opacity: 1;
+  transform: none;
+}
+
+/* lo strato è trasparente ai gesti; i bottoni si riaccendono solo da
+   visibili, un controllo invisibile non deve rubare un click */
+.open .in .arrow,
+.open .in .hint {
+  pointer-events: auto;
+}
+
+/* ------------------------------------------------------------------ nome */
+
+.name {
+  --logo-w: clamp(240px, 24vw, 380px);
+  position: absolute;
+  left: 50%;
+  top: var(--pedestal-y);
+  /* il logotipo si appoggia al bordo del piedistallo: `--name-anchor` 0 lo
+     mette tutto sopra, 1 tutto sotto. Margine e non transform, così il
+     sottotitolo lo segue nel flusso */
+  margin-top: calc((var(--name-anchor) - 1) * var(--logo-w) * 261 / 546);
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.logo {
+  margin: 0;
+  line-height: 0;
+}
+
+.logo img {
+  width: var(--logo-w);
+  height: auto;
+}
+
+.name p {
+  margin: 0;
+  opacity: 0.85;
+}
+
+/* ---------------------------------------------------------------- frecce */
+
+.arrow {
+  position: absolute;
+  top: var(--center-y);
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.arrow:hover,
+.arrow:focus-visible {
+  opacity: 1;
+}
+
+.prev {
+  transform: translate(calc(-50% - var(--arrow-offset)), -50%);
+}
+
+.next {
+  transform: translate(calc(-50% + var(--arrow-offset)), -50%);
+}
+
+.next svg {
+  transform: scaleX(-1);
+}
+
+/* ---------------------------------------------------------------- slider */
+
+.slider {
+  position: absolute;
+  left: 50%;
+  bottom: calc(96px + var(--safe-b));
+  width: 600px;
+  height: 2px;
+  transform: translateX(-50%);
+  background: linear-gradient(
+    90deg,
+    var(--u-red-deep),
+    var(--u-red),
+    var(--u-amber),
+    var(--u-white)
+  );
+}
+
+/* il pallino: bianco con un anello staccato, `--ring` lo scrive il tick */
+.knob {
+  position: absolute;
+  top: 50%;
+  left: var(--ring, 0%);
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--u-white);
+  box-shadow:
+    0 0 0 3px #050505,
+    0 0 0 4px rgba(255, 255, 255, 0.6);
+  transform: translate(-50%, -50%);
+}
+
+/* ------------------------------------------------- scorri per scoprire */
+
+.hint {
+  position: absolute;
+  left: 50%;
+  bottom: calc(28px + var(--safe-b));
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.hintLine {
+  display: block;
+  width: 1px;
+  height: 22px;
+  background: currentColor;
+  transform-origin: top;
+  animation: pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+    opacity: 0.35;
+  }
+  50% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hintLine {
+    animation: none;
+  }
+}
+
+@media (max-width: 767px), (max-aspect-ratio: 1/1) {
+  .slider {
+    width: 80vw;
+  }
+}

@@ -13,10 +13,27 @@ export interface AssetProgress {
 
 let state: AssetProgress = { progress: 0, active: false, reported: false };
 
+/**
+ * La scena è montata, l'ambiente generato e gli shader compilati: il primo
+ * frame visibile sarà già composto (task 8.22). Il GLB scaricato non basta —
+ * dopo il download restano la Suspense da risolvere, la PMREM e la
+ * compilazione dei programmi, e senza aspettarle si vedrebbero cadere sul
+ * primo frame scoperto.
+ */
+let sceneReady = false;
+
 export function setAssetProgress(
   next: Omit<AssetProgress, "reported">,
 ): void {
   state = { ...next, reported: true };
+}
+
+export function setSceneReady(): void {
+  sceneReady = true;
+}
+
+export function isSceneReady(): boolean {
+  return sceneReady;
 }
 
 export function getAssetProgress(): AssetProgress {

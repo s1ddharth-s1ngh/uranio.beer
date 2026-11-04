@@ -1,3 +1,7 @@
+/* Il preloader (spec 8.22): nero, logo Uranio, linea sottile di avanzamento
+   e percentuale. A 100% la linea è piena e il logo sfuma; poi l'overlay
+   sparisce in dissolvenza e sotto parte l'ingresso della scena. */
+
 .overlay {
   position: fixed;
   inset: 0;
@@ -5,15 +9,14 @@
   display: grid;
   place-items: center;
   background-color: #050505;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  transition: transform 0.6s cubic-bezier(0.76, 0, 0.24, 1);
+  transition: opacity 0.6s ease;
 }
 
-/* mentre esce non deve più intercettare i click: in reduced-motion il pannello
-   resta geometricamente a schermo intero (sotto sparisce solo l'opacità) per
-   750 ms, e senza questo i click cadrebbero su un overlay invisibile */
+/* mentre esce non deve più intercettare i click: il pannello resta a schermo
+   intero per tutta la dissolvenza, e senza questo i click cadrebbero su un
+   overlay invisibile */
 .leaving {
-  transform: translateY(-100%);
+  opacity: 0;
   pointer-events: none;
 }
 
@@ -21,31 +24,54 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.9rem;
+  gap: 22px;
 }
 
-.label {
-  font-size: 0.625rem;
-  letter-spacing: 0.12em;
-  text-indent: 0.12em; /* compensa lo spazio dell'ultima lettera: resta centrato */
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.45);
+.logo {
+  width: 96px;
+  height: auto;
+  /* lo stesso segnaposto dell'header, schiarito allo stesso modo (TODO
+     dell'SVG in Hud.tsx) */
+  filter: brightness(0) invert(1);
+  opacity: 0.92;
+  transition: opacity 0.4s ease;
+}
+
+.full .logo {
+  opacity: 0;
+}
+
+/* la linea: un binario a bassa opacità e un riempimento bianco che cresce da
+   sinistra, `scaleX` scritto dal contatore */
+.track {
+  position: relative;
+  display: block;
+  width: 160px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.2);
+  overflow: hidden;
+}
+
+.fill {
+  position: absolute;
+  inset: 0;
+  background: var(--u-white);
+  transform-origin: left;
 }
 
 .value {
-  font-size: clamp(2.75rem, 9vw, 5rem);
-  font-weight: 200;
-  line-height: 1;
-  color: #f2f2f2;
+  font-family: var(--u-font-body);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.55);
   font-variant-numeric: tabular-nums;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .overlay {
-    transition: opacity 0.3s ease;
+    transition-duration: 0.3s;
   }
-  .leaving {
-    transform: none;
-    opacity: 0;
+  .logo {
+    transition: none;
   }
 }
