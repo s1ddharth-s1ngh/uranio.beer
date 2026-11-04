@@ -28,44 +28,31 @@ export interface Keyframe {
   focusHalf: number;
   /** pesi dello sfondo: hero, step, finale */
   background: Vec3;
-  /** luminosità delle bottiglie laterali del carosello */
+  /** luminosità delle altre bottiglie della gamma */
   sideDim: number;
-  /** 0 = laterali in posizione, 1 = scappate fuori dal frame */
+  /** 0 = le altre bottiglie in fila, 1 = fuori dal frame ai lati */
   escape: number;
-  /** 0 = faro e piedistallo in scena, 1 = usciti dal frame */
-  props: number;
 }
 
-/** la cima della bottiglia in coordinate locali del pivot */
-const CIMA = BOTTLE.maxY - BOTTLE.centerY;
 /** una fascia dell'etichetta in coordinate locali del pivot */
 const fasciaLocale = (y: number) => y - BOTTLE.centerY;
 
-/** Keyframe desktop, composti su 1440×900 (spec 7.2). */
+/**
+ * Keyframe desktop, composti su 1440×900 (spec 7.2, rivista il 2026-11-04 sul
+ * riferimento ciaoenergy.com): la bottiglia arriva sola e inclinata, gira sul
+ * retro fascia per fascia, poi la raggiungono tutte le altre in fila, poi il
+ * finale. Niente carosello ad anello né faro: erano lo step più pesante.
+ */
 export const KEYFRAMES: readonly Keyframe[] = [
-  // 0 · Hero: carosello, camera lontana e frontale
+  // 0 · Hero: sola, grande, inclinata con la cima a sinistra, il fronte in
+  // camera; il titolo sta a sinistra (HeroUi)
   {
-    camera: { position: [0, 0.4, 17], look: [0, 0.2, 0] },
-    rotation: [0.22, 0, 0.3],
-    anchor: { localY: 0, screen: [0.5, 0.47] },
-    spot: 0.8,
+    camera: { position: [0, 0, 10.5], look: [0, 0, 0] },
+    rotation: [0.16, 0, 0.44],
+    // abbastanza in basso perché il tappo non tocchi il logo dell'header
+    anchor: { localY: 0, screen: [0.58, 0.54] },
+    spot: 1.2,
     reveal: 0,
-    revealY: SHADER.revealY,
-    focus: 0,
-    focusY: BANDS.f1.y,
-    focusHalf: BANDS.f1.half,
-    background: [1, 0, 0],
-    sideDim: 0.28,
-    escape: 0,
-    props: 0,
-  },
-  // 1 · Primo piano: la cima in alto, solo collo e tappo accesi
-  {
-    camera: { position: [0, 0, 8], look: [0, 0, 0] },
-    rotation: [0.25, 0, 0.42],
-    anchor: { localY: CIMA, screen: [0.47, 0.14] },
-    spot: 3,
-    reveal: 1,
     revealY: SHADER.revealY,
     focus: 0,
     focusY: BANDS.f1.y,
@@ -73,9 +60,8 @@ export const KEYFRAMES: readonly Keyframe[] = [
     background: [0, 1, 0],
     sideDim: 0,
     escape: 1,
-    props: 1,
   },
-  // 2–5 · il retro, una fascia per step: la bottiglia sale e si raddrizza
+  // 1–4 · il retro, una fascia per step: la bottiglia sale e si raddrizza
   {
     camera: { position: [0, 0, 7], look: [0, 0, 0] },
     rotation: [0.12, Math.PI, 0.26],
@@ -89,7 +75,6 @@ export const KEYFRAMES: readonly Keyframe[] = [
     background: [0, 1, 0],
     sideDim: 0,
     escape: 1,
-    props: 1,
   },
   {
     camera: { position: [0, 0, 7], look: [0, 0, 0] },
@@ -104,7 +89,6 @@ export const KEYFRAMES: readonly Keyframe[] = [
     background: [0, 1, 0],
     sideDim: 0,
     escape: 1,
-    props: 1,
   },
   {
     camera: { position: [0, 0, 7], look: [0, 0, 0] },
@@ -119,7 +103,6 @@ export const KEYFRAMES: readonly Keyframe[] = [
     background: [0, 1, 0],
     sideDim: 0,
     escape: 1,
-    props: 1,
   },
   {
     camera: { position: [0, 0, 7], look: [0, 0, 0] },
@@ -134,9 +117,25 @@ export const KEYFRAMES: readonly Keyframe[] = [
     background: [0, 1, 0],
     sideDim: 0,
     escape: 1,
-    props: 1,
   },
-  // 6 · Finale: giro completo (2π), intera nel frame, nebbia
+  // 5 · La gamma: finito il giro (2π, di nuovo il fronte) arrivano le altre
+  // dai lati e si mettono in fila curva, la protagonista al centro. Sfondo da
+  // studio, pavimento chiaro: è la schermata più luminosa
+  {
+    camera: { position: [0, 0, 16], look: [0, 0, 0] },
+    rotation: [0, Math.PI * 2, 0.08],
+    anchor: { localY: 0, screen: [0.5, 0.46] },
+    spot: 0.6,
+    reveal: 0,
+    revealY: SHADER.revealY,
+    focus: 0,
+    focusY: BANDS.f4.y,
+    focusHalf: BANDS.f4.half,
+    background: [1, 0, 0],
+    sideDim: 0.9,
+    escape: 0,
+  },
+  // 6 · Finale: le altre riescono, lei resta intera nel frame, nebbia
   {
     camera: { position: [0, 0, 15], look: [0, 0, 0] },
     rotation: [0.06, Math.PI * 2, -0.06],
@@ -150,7 +149,6 @@ export const KEYFRAMES: readonly Keyframe[] = [
     background: [0, 0, 1],
     sideDim: 0,
     escape: 1,
-    props: 1,
   },
 ];
 
@@ -160,14 +158,14 @@ export const KEYFRAMES: readonly Keyframe[] = [
  * alte. Cambiano **solo** quelle due cose: tutto il resto è lo stesso stato,
  * e tenerlo scritto una volta sola è il motivo per cui le ancore esistono.
  */
-const MOBILE_CAM_Z = [22, 11, 9.5, 9.5, 9.5, 9.5, 19] as const;
+const MOBILE_CAM_Z = [17, 9.5, 9.5, 9.5, 9.5, 26, 19] as const;
 const MOBILE_SCREEN: readonly Vec3[] = [
-  [0.5, 0.4, 0],
-  [0.52, 0.1, 0],
+  [0.5, 0.32, 0],
   [0.56, 0.3, 0],
   [0.56, 0.3, 0],
   [0.56, 0.3, 0],
   [0.56, 0.3, 0],
+  [0.5, 0.46, 0],
   [0.5, 0.42, 0],
 ];
 
@@ -211,7 +209,6 @@ export const KEYFRAMES_TABLET: readonly Keyframe[] = KEYFRAMES_MOBILE.map((k) =>
  */
 export type Group =
   | "lati"
-  | "props"
   | "sfondo"
   | "camera"
   | "rotazione"
@@ -230,44 +227,44 @@ export interface Segment {
 
 /** Una voce per segmento: `p` da k a k+1 (spec 7.4). */
 export const SEGMENTS: readonly Segment[] = [
-  // 0 → 1 · hero → primo piano
-  {
-    windows: {
-      lati: [0, 0.5],
-      props: [0, 0.5],
-      sfondo: [0.15, 0.6],
-      camera: [0.2, 1],
-      rotazione: [0.2, 1],
-      reveal: [0.4, 1],
-      sweep: [0.3, 0.9],
-    },
-    sweepAmt: 1,
-  },
-  // 1 → 2 · primo piano → F1: la rotazione di 180° è il movimento principale
+  // 0 → 1 · hero → F1: la rotazione di 180° è il movimento principale, la
+  // luce si stringe sulla prima fascia quando il retro è già in camera
   {
     windows: {
       rotazione: [0, 0.85],
       camera: [0.1, 1],
-      reveal: [0, 0.45],
       focus: [0.45, 1],
       sweep: [0.15, 0.75],
     },
     sweepAmt: 1,
   },
-  // 2 ↔ 3 ↔ 4 ↔ 5 · la fascia accesa scivola sul paragrafo nuovo
+  // 1 ↔ 2 ↔ 3 ↔ 4 · la fascia accesa scivola sul paragrafo nuovo
   { windows: { focus: [0.1, 0.9], sweep: [0.2, 0.8] }, sweepAmt: 0.4 },
   { windows: { focus: [0.1, 0.9], sweep: [0.2, 0.8] }, sweepAmt: 0.4 },
   { windows: { focus: [0.1, 0.9], sweep: [0.2, 0.8] }, sweepAmt: 0.4 },
-  // 5 → 6 · F4 → finale
+  // 4 → 5 · F4 → gamma: lei finisce il giro e si allontana, le altre entrano
+  // dai lati quando la camera ha già fatto spazio
   {
     windows: {
       focus: [0, 0.35],
-      rotazione: [0.1, 0.9],
-      camera: [0.1, 1],
+      rotazione: [0.05, 0.8],
+      camera: [0.05, 0.85],
+      lati: [0.3, 1],
       sfondo: [0.2, 0.8],
-      sweep: [0.2, 0.8],
+      sweep: [0.1, 0.6],
     },
-    sweepAmt: 1,
+    sweepAmt: 0.6,
+  },
+  // 5 → 6 · gamma → finale: le altre scappano per prime, poi arriva la nebbia
+  {
+    windows: {
+      lati: [0, 0.55],
+      camera: [0.2, 1],
+      // ferma nell'ultimo tratto: al ritorno la scritta esce prima che riparta
+      rotazione: [0.2, 0.85],
+      sfondo: [0.25, 0.85],
+    },
+    sweepAmt: 0,
   },
 ];
 
@@ -286,8 +283,6 @@ export const REST_LIFE = {
   /** sempre: fluttuazione in altezza e un filo di dondolio */
   y: { amp: 0.03, period: 5 },
   z: { amp: 0.01, period: 7 },
-  /** nell'hero, rotazione lentissima sul proprio asse (ampiezza in `CAROUSEL.life.spin`) */
-  heroSpin: { period: 14 },
   /** nel finale, oscillazione lenta che mostra fronte e fianchi */
   finaleSpin: { amp: 0.12, period: 8 },
 } as const;

@@ -48,13 +48,9 @@ export const STEPS: Step[] = [
     id: "hero",
     title: "CRISI ECONOMICA",
     subtitle: "ORDINARY BITTER · 4,2%",
+    body: "Una Ordinary Bitter all'inglese, leggera e da bere a pinte. Per i giorni in cui tutto va storto.",
     scrollHint: "SCORRI PER SCOPRIRE",
     image: { file: "crisi-economica-logotipo.webp", alt: "Il logotipo Crisi Economica dell'etichetta" },
-  },
-  {
-    id: "closeup",
-    title: "CRISI ECONOMICA",
-    body: "Una Ordinary Bitter all'inglese, leggera e da bere a pinte. Per i giorni in cui tutto va storto.",
   },
   {
     id: "f1",
@@ -87,6 +83,12 @@ export const STEPS: Step[] = [
     image: { file: "crisi-economica-fascia-4.webp", alt: "Il retro dell'etichetta: raccolta differenziata e scadenza" },
     title: "VETRO, METALLO, PLASTICA",
     body: "Bottiglia in vetro GL72, tappo in metallo C/FE91, etichetta in plastica PP5. Verifica le regole del tuo comune.",
+  },
+  {
+    // tutte le bottiglie in fila: niente testo, parla la scena. Il titolo
+    // serve a screen reader e versione statica
+    id: "gamma",
+    title: "TUTTE LE CRISI",
   },
   {
     id: "finale",

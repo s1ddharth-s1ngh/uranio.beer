@@ -3,10 +3,8 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { BAND_ORDER, BANDS, MODEL_URL } from "../config/bottle.ts";
-import { CAROUSEL, ringRadius } from "../config/beers.ts";
 import { REST_LIFE } from "../config/keyframes.ts";
-import { sharedCarousel, slotPose, type SlotPose } from "../core/Carousel.ts";
-import { sharedIntro, slotDrop, slotRise } from "../core/Intro.ts";
+import { bottleDrop, bottleRise, bottleSpin, sharedIntro } from "../core/Intro.ts";
 import { sharedProgress } from "../core/Progress.ts";
 import { sharedMapper } from "../core/StateMapper.ts";
 import { DEBUG_MODE, registerDebug } from "../debug/registry";
@@ -22,9 +20,6 @@ import { prepareBottle } from "./prepareBottle.ts";
 
 /** quanto resta accesa ogni fascia nel ciclo di `?debug=bands`, in secondi */
 const BANDS_CYCLE_S = 1.6;
-
-// la posa dello slot, riscritta a ogni frame invece di allocarne una nuova
-const POSA: SlotPose = { angle: 0, x: 0, y: 0, z: 0, rotX: 0, rotY: 0, rotZ: 0 };
 
 /** un'onda di periodo `periodo` secondi */
 const onda = (t: number, periodo: number) => Math.sin((t * Math.PI * 2) / periodo);
@@ -73,7 +68,6 @@ export function Bottle() {
   }, [prepared]);
 
   const mapper = sharedMapper(sharedViewport().state);
-  const carousel = sharedCarousel(vp.mobile ? CAROUSEL.countMobile : CAROUSEL.count);
   const progress = sharedProgress();
   const intro = sharedIntro();
   const reduced = usePrefersReducedMotion();
@@ -84,25 +78,7 @@ export function Bottle() {
     if (!g) return;
     const s = mapper.state;
 
-    // Nell'hero la protagonista è lo slot 0 dell'anello: se il carosello è
-    // girato, orbita con gli altri invece di restare incollata al centro
-    // mentre tutto le scorre attorno. `1 − escape` la stacca dall'anello
-    // appena si va verso il primo piano, e con `rot = 0` (cioè sempre, tranne
-    // durante un trascinamento) l'offset è nullo.
-    const anello = 1 - s.carousel.escape;
-    const pose =
-      anello > 0
-        ? slotPose(0, carousel.active, carousel.rot, carousel.count, POSA, ringRadius(vp))
-        : undefined;
-    if (pose) {
-      g.position.set(
-        s.pivot.x + pose.x * anello,
-        s.pivot.y + pose.y * anello,
-        s.pivot.z + pose.z * anello,
-      );
-    } else {
-      g.position.copy(s.pivot);
-    }
+    g.position.copy(s.pivot);
     g.rotation.copy(s.rotation);
 
     // Vita a riposo (spec 7.4), sommata sopra lo stato di `p`. Il peso insegue
@@ -118,16 +94,16 @@ export function Bottle() {
       g.rotation.z += q * REST_LIFE.z.amp * onda(t, REST_LIFE.z.period);
       g.rotation.y +=
         q *
-        (anello * CAROUSEL.life.spin * onda(t, REST_LIFE.heroSpin.period) +
-          s.background.finale *
-            REST_LIFE.finaleSpin.amp *
-            onda(t, REST_LIFE.finaleSpin.period));
+        s.background.finale *
+        REST_LIFE.finaleSpin.amp *
+        onda(t, REST_LIFE.finaleSpin.period);
     }
 
-    // l'ingresso (task 8.22): la protagonista sale per prima e si accende
-    // mentre sale; a `intro` 1 i due termini valgono 0 e 1, lo stato è intatto
-    g.position.y += slotDrop(intro.value, 0, carousel.count);
-    applyMasks(prepared.uniforms, s.uniforms, slotRise(intro.value, 0, carousel.count));
+    // l'ingresso: arriva dal basso finendo un mezzo giro e si accende mentre
+    // sale; a `intro` 1 i tre termini valgono 0, 0 e 1, lo stato è intatto
+    g.position.y += bottleDrop(intro.value);
+    g.rotation.y -= bottleSpin(intro.value);
+    applyMasks(prepared.uniforms, s.uniforms, bottleRise(intro.value));
 
     if (DEBUG_MODE === "bands") {
       // `?debug=bands`: la fascia accesa gira sulle quattro, ferma su ognuna,

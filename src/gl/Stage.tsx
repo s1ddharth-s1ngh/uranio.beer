@@ -21,7 +21,6 @@ import { setAssetProgress, setSceneReady } from "../lib/assetProgress";
 import { Bottle } from "./Bottle";
 import { Carousel } from "./Carousel";
 import { LightRig } from "./Environment";
-import { HeroProps } from "./HeroProps";
 import { Lights } from "./Lights";
 
 // Il progresso reale dei GLB per il Loader del sito, che sta nel bundle
@@ -231,8 +230,7 @@ function SceneReady() {
 
 /**
  * Lo strato WebGL della scena (spec 4.2 strato 3): trasparente, sopra il
- * canvas dello sfondo. Ci vivranno bottiglie, faro, piedistallo e
- * post-processing.
+ * canvas dello sfondo: la bottiglia, la gamma e il post-processing.
  */
 export function Stage({
   className,
@@ -258,7 +256,6 @@ export function Stage({
       <Driver />
       <LightRig />
       <Lights />
-      <HeroProps />
       {/* la bottiglia sospende finché il GLB non è arrivato: il fondo è già
           nero, quindi il fallback è il nulla e non un lampo */}
       <Suspense fallback={null}>

@@ -1,4 +1,3 @@
-import { LAST_STEP } from "../config/theme.ts";
 import { STEPS } from "../content/steps.it";
 import { sharedProgress } from "../core/Progress.ts";
 import styles from "./Hud.module.css";
@@ -20,9 +19,8 @@ const STAGGER_MS = 80;
  */
 export function StepIcons({ step }: { step: number }) {
   const progress = sharedProgress();
-  // dallo step 1 (nessuna attiva, come nel riferimento) fino all'ultima
-  // fascia; nel finale escono
-  const visibile = step >= 1 && step < LAST_STEP;
+  // solo sulle quattro fasce: nell'hero, nella gamma e nel finale escono
+  const visibile = Boolean(STEPS[step]?.icon);
 
   return (
     <div

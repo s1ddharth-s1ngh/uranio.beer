@@ -4,7 +4,6 @@ import { BackgroundLayer } from "../gl/BackgroundLayer";
 import { Stage } from "../gl/Stage";
 import { sharedIntro } from "../core/Intro.ts";
 import { sharedProgress } from "../core/Progress.ts";
-import { useCarouselDrag } from "../hooks/useCarouselDrag";
 import { useExperienceLock } from "../hooks/useExperienceLock";
 import { prefersReducedMotion } from "../hooks/usePrefersReducedMotion";
 import { useStepEngine } from "../hooks/useStepEngine";
@@ -22,9 +21,6 @@ import styles from "./Experience.module.css";
 const TypeSpecimen = lazy(() => import("../debug/TypeSpecimen"));
 const DebugPanel = lazy(() => import("../debug/DebugPanel"));
 const BandsProbe = lazy(() => import("../debug/BandsProbe"));
-
-// Costante di modulo e non oggetto inline: è una dipendenza di `useEffect`.
-const DRAG_CLASSES = { grab: styles.grab, grabbing: styles.grabbing };
 
 /**
  * Lo scroll 3D a step (spec `docs/URANIO_SCROLL_SPEC.md`), seconda sezione
@@ -49,14 +45,10 @@ function Scene({
   // il motore di scroll si aggancia al contenitore, non a window: fuori
   // dall'esperienza la rotella deve tornare alla pagina
   const { step } = useStepEngine(root, page);
-  // il carosello si trascina solo nell'hero: convive con il motore a step
-  // sullo stesso elemento, vince l'asse del primo movimento
-  useCarouselDrag(root, DRAG_CLASSES);
 
-  // l'ingresso (faro, bottiglie che salgono) parte nell'ultimo tratto del
+  // l'ingresso (la bottiglia che arriva) parte nell'ultimo tratto del
   // passaggio dal hero: fino ad allora `intro` resta a 0, la scena è composta
-  // ma spenta e sotto il frame. Con `#step-N` nell'URL non c'è un carosello
-  // da far salire e si salta
+  // ma spenta e sotto il frame. Con `#step-N` nell'URL si salta
   useEffect(() => {
     if (reveal === "wait") return;
     const intro = sharedIntro();

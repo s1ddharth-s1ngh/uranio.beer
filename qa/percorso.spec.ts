@@ -15,11 +15,12 @@ const FORMATI = [
 const ULTIMO = 6;
 // i testi entrano al 45% della transizione e durano 0,7 s più lo stagger
 const ATTESA_TESTI = 1200;
-// lama di luce del segmento 1 → 2: finestra [0,15; 0,75] su 1,4 s, picco a
-// metà finestra. Il tempo è a occhio, l'easing di `p` lo sposta un poco
-const META_1_2 = 650;
-// passaggio hero → esperienza: metà corsa, e l'ingresso (faro, bottiglie,
-// interfaccia) dopo l'arrivo
+// lama di luce del segmento 0 → 1 (il mezzo giro): finestra [0,15; 0,75] su
+// 1,5 s, picco a metà finestra. Il tempo è a occhio, l'easing di `p` lo
+// sposta un poco
+const META_0_1 = 700;
+// passaggio hero → esperienza: metà corsa, e l'ingresso (la bottiglia che
+// arriva, poi il titolo) dopo l'arrivo
 const META_PASSAGGIO = 700;
 const ATTESA_INGRESSO = 2500;
 
@@ -62,14 +63,14 @@ for (const f of FORMATI) {
 
     for (let n = 1; n <= ULTIMO; n++) {
       await page.keyboard.press("ArrowDown");
-      if (n === 2) {
-        await page.waitForTimeout(META_1_2);
-        await page.screenshot({ path: `${cartella}/${f.nome}-lama-1-2.jpg`, ...JPEG });
+      if (n === 1) {
+        await page.waitForTimeout(META_0_1);
+        await page.screenshot({ path: `${cartella}/${f.nome}-lama-0-1.jpg`, ...JPEG });
       }
       await arrivato(page, n);
       await page.screenshot({ path: `${cartella}/${f.nome}-${n}-andata.jpg`, ...JPEG });
       // la lama a riposo deve essere spenta: stessa inquadratura, a fermo
-      if (n === 2) await page.screenshot({ path: `${cartella}/${f.nome}-lama-riposo.jpg`, ...JPEG });
+      if (n === 1) await page.screenshot({ path: `${cartella}/${f.nome}-lama-riposo.jpg`, ...JPEG });
     }
 
     for (let n = ULTIMO - 1; n >= 0; n--) {

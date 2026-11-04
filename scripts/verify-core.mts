@@ -429,20 +429,22 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
 
   // la lama di luce vive solo dentro la transizione e tocca il massimo a metà
   {
-    const meta = sm.apply(0.6).uniforms;
+    const meta = sm.apply(0.45).uniforms;
     assert(meta.sweepAmt > 0.9, `la lama non si accende: ${meta.sweepAmt}`);
     assert(meta.sweep > SHADER.sweepFrom && meta.sweep < SHADER.sweepTo);
     // nei segmenti fra le fasce è volutamente più timida
     assert(sm.apply(2.5).uniforms.sweepAmt <= SEGMENTS[2].sweepAmt + 1e-9);
   }
 
-  // le finestre sfalsano davvero: a metà del primo segmento le laterali sono
-  // già fuori e la maschera della cima non è ancora partita
+  // le finestre sfalsano davvero: la gamma entra solo quando la bottiglia ha
+  // già fatto spazio, ed esce prima che arrivi la nebbia del finale
   {
-    const s = sm.apply(0.5);
-    assert.equal(s.carousel.escape, 1, "le laterali non sono ancora uscite");
-    assert.equal(s.props, 1, "faro e piedistallo non sono ancora usciti");
-    assert(s.uniforms.reveal > 0 && s.uniforms.reveal < 0.3, `reveal a metà: ${s.uniforms.reveal}`);
+    assert.equal(sm.apply(4.25).carousel.escape, 1, "la gamma entra prima che la camera faccia spazio");
+    assert.equal(sm.apply(5).carousel.escape, 0, "la gamma non è in fila allo step 5");
+    assert.equal(sm.apply(5.6).carousel.escape, 1, "la gamma è ancora in scena sotto la nebbia");
+    assert(sm.apply(5.6).background.finale < 1, "la nebbia è già piena quando la gamma esce");
+    // la gamma c'è solo allo step 5: altrove nessun clone da disegnare
+    for (const i of [0, 1, 2, 3, 4, 6]) assert.equal(sm.apply(i).carousel.escape, 1, `gamma in scena allo step ${i}`);
   }
 
   // il rimbalzo ai bordi deve **vedersi**: `p` sotto zero extrapola
@@ -455,18 +457,18 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
     );
   }
 
-  // le fasce dell'etichetta coincidono con le ancore degli step 2–5
+  // le fasce dell'etichetta coincidono con le ancore degli step 1–4
   for (const [i, b] of [BANDS.f1, BANDS.f2, BANDS.f3, BANDS.f4].entries()) {
-    const s = sm.apply(i + 2);
+    const s = sm.apply(i + 1);
     assert.equal(+s.uniforms.focusY.toFixed(6), +b.y.toFixed(6));
     assert.equal(
-      +KEYFRAMES[i + 2].anchor.localY.toFixed(6),
+      +KEYFRAMES[i + 1].anchor.localY.toFixed(6),
       +(b.y - BOTTLE.centerY).toFixed(6),
-      `l'ancora dello step ${i + 2} non è la sua fascia`,
+      `l'ancora dello step ${i + 1} non è la sua fascia`,
     );
   }
   // e salgono di step in step, raddrizzandosi (spec 7.2)
-  for (let i = 2; i < 5; i++) {
+  for (let i = 1; i < 4; i++) {
     assert(
       sm.apply(i + 1).pivot.y > sm.apply(i).pivot.y,
       `la bottiglia non sale dallo step ${i} al ${i + 1}`,
@@ -499,7 +501,7 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
     const m = new StateMapper(vp);
     const cam = new THREE.PerspectiveCamera(CAMERA.fov, vp.aspect, 0.1, 100);
     const bordoTesto = (0.1 * vp.width + Math.min(520, 0.42 * vp.width)) / vp.width;
-    for (let i = 2; i <= 5; i++) {
+    for (let i = 1; i <= 4; i++) {
       const s = m.apply(i);
       cam.position.copy(s.camera.position);
       cam.lookAt(s.camera.look);
@@ -530,7 +532,7 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
       } else {
         assert(minX > bordoTesto, `${nome}: la fascia arriva a x ${minX.toFixed(3)}, dentro il testo (${bordoTesto.toFixed(3)})`);
       }
-      if (i === 2 || i === 5) {
+      if (i === 1 || i === 4) {
         console.log(
           `fascia ${nome}:`,
           layoutMobile ? `fondo ${maxY.toFixed(3)} < ${TESTO_MOBILE_TOP}` : `bordo sinistro ${minX.toFixed(3)} > ${bordoTesto.toFixed(3)}`,
@@ -540,16 +542,50 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
   }
 }
 
-// --- dove cadono protagonista e piedistallo nell'hero (task 8.19)
+// --- step 0: la bottiglia inclinata sta tutta in quadro e l'etichetta non
+// finisce sotto il nome. Desktop: il nome è a `left: 10vw`, largo
+// `min(460px, 36vw)` (HeroUi.module.css), e l'etichetta (il fronte, quello
+// che si legge) ne resta a destra; la cima può passarci sopra, come nel
+// riferimento. Layout verticale: il nome sta in basso, da 96 px dal fondo in
+// su, e la bottiglia tutta sopra il 62% dell'altezza
 {
-  const { heroLayout } = await import("../src/core/heroLayout.ts");
-  for (const vp of [computeViewport(1440, 900, 2), computeViewport(2560, 1080, 1), computeViewport(390, 844, 3)]) {
-    const l = heroLayout(vp);
-    const ancora = keyframesFor(vp)[0].anchor.screen[1];
+  const THREE = await import("three");
+  const { CAMERA } = await import("../src/config/solvePivot.ts");
+  const { LABEL } = await import("../src/config/bottle.ts");
+  for (const vp of [computeViewport(1440, 900, 2), computeViewport(2560, 1080, 1), computeViewport(390, 844, 3), computeViewport(768, 1024, 2)]) {
+    const s = new StateMapper(vp).apply(0);
+    const cam = new THREE.PerspectiveCamera(CAMERA.fov, vp.aspect, 0.1, 100);
+    cam.position.copy(s.camera.position);
+    cam.lookAt(s.camera.look);
+    cam.updateMatrixWorld(true);
+    const box = (y0: number, y1: number, r: number) => {
+      const b = { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity };
+      for (let y = y0; y <= y1 + 1e-9; y += (y1 - y0) / 8) {
+        for (let a = 0; a < Math.PI * 2; a += Math.PI / 12) {
+          const ndc = new THREE.Vector3(Math.sin(a) * r, y - BOTTLE.centerY, Math.cos(a) * r)
+            .applyEuler(s.rotation)
+            .add(s.pivot)
+            .project(cam);
+          b.x0 = Math.min(b.x0, (ndc.x + 1) / 2);
+          b.x1 = Math.max(b.x1, (ndc.x + 1) / 2);
+          b.y0 = Math.min(b.y0, (1 - ndc.y) / 2);
+          b.y1 = Math.max(b.y1, (1 - ndc.y) / 2);
+        }
+      }
+      return b;
+    };
+    const tutta = box(BOTTLE.minY, BOTTLE.maxY, BOTTLE.bodyRadius);
+    const etichetta = box(LABEL.minY, LABEL.maxY, LABEL.radius);
     const nome = `${vp.width}×${vp.height}`;
-    console.log(`hero ${nome}:`, { centerY: +l.centerY.toFixed(3), pedestalTopY: +l.pedestalTopY.toFixed(3) });
-    assert(Math.abs(l.centerY - ancora) < 1e-3, `${nome}: il pivot cade a ${l.centerY} invece che all'ancora ${ancora}`);
-    assert(l.pedestalTopY > l.centerY && l.pedestalTopY < 1, `${nome}: piedistallo fuori posto (${l.pedestalTopY})`);
+    console.log(`step 0 ${nome}: bottiglia`, Object.values(tutta).map((n) => +n.toFixed(3)), "etichetta x0", +etichetta.x0.toFixed(3));
+    assert(tutta.y0 > 0.03 && tutta.y1 < 0.99, `${nome}: la bottiglia esce dal quadro in altezza`);
+    if (vp.mobile || vp.portrait) {
+      assert(tutta.y1 < 0.62, `${nome}: la bottiglia scende a ${tutta.y1.toFixed(3)}, sopra il nome`);
+    } else {
+      const bordoNome = (0.1 * vp.width + Math.min(460, 0.36 * vp.width)) / vp.width;
+      assert(etichetta.x0 > bordoNome, `${nome}: l'etichetta arriva a ${etichetta.x0.toFixed(3)}, sotto il nome (${bordoNome.toFixed(3)})`);
+      assert(tutta.x1 < 0.97, `${nome}: la bottiglia esce a destra`);
+    }
   }
 }
 
@@ -711,285 +747,106 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
   }
 }
 
-// --- carosello: il raggio per formato (task 8.28). Spec 7.2 e 7.3: a
-// desktop sette bottiglie, le estreme tagliate dai bordi; su telefono
-// cinque. Si contano i centri degli slot proiettati: tutti in vista tranne
-// i due estremi, che cadono sul bordo (entro 0,05) e ne escono a metà
+// --- la gamma, allo step 5: la fila di bottiglie (riferimento
+// ciaoenergy.com). Si proiettano i centri: la protagonista al centro, la fila
+// sale verso destra, tutte in vista tranne le due estreme che escono a metà
+// dai bordi, anche su telefono dove sono cinque
 {
-  const { slotPose } = await import("../src/core/Carousel.ts");
-  const { CAROUSEL, ringRadius } = await import("../src/config/beers.ts");
+  const { slotOffset, slotPose } = await import("../src/core/Carousel.ts");
+  const { GAMMA } = await import("../src/config/beers.ts");
   const { configureCamera } = await import("../src/config/solvePivot.ts");
   const THREE = await import("three");
-  for (const [w, h, interi] of [
-    [1440, 900, 7],
-    [1024, 768, 5],
-    [768, 1024, 7],
-    [390, 844, 3],
+
+  // gli scarti sono una permutazione centrata: 0, +1, −1, +2, −2…
+  const scarti = Array.from({ length: GAMMA.count }, (_, s) => slotOffset(s));
+  assert.deepEqual([...scarti].sort((a, b) => a - b), [-4, -3, -2, -1, 0, 1, 2, 3, 4], `scarti della fila: ${scarti}`);
+
+  const posa = { x: 0, y: 0, z: 0, rotX: 0, rotY: 0, rotZ: 0 };
+  for (const [vp, N] of [
+    [computeViewport(1440, 900, 2), GAMMA.count],
+    [computeViewport(2560, 1080, 1), GAMMA.count],
+    [computeViewport(390, 844, 3), GAMMA.countMobile],
   ] as const) {
-    const vp = computeViewport(w, h, 1);
-    const N = vp.mobile ? CAROUSEL.countMobile : CAROUSEL.count;
-    const s = new StateMapper(vp).apply(0);
+    const s = new StateMapper(vp).apply(5);
     const cam = configureCamera(
       new THREE.PerspectiveCamera(),
       { position: s.camera.position.toArray(), look: s.camera.look.toArray() },
       vp.aspect,
     );
-    const xs = [...Array(N).keys()].map((slot) => {
-      const p = slotPose(slot, 0, 0, N, undefined, ringRadius(vp));
-      return new THREE.Vector3(p.x, p.y, p.z).add(s.pivot).project(cam).x / 2 + 0.5;
-    });
-    const nome = `${w}×${h}, raggio ${ringRadius(vp)}`;
-    const dentro = xs.filter((x) => x > 0.03 && x < 0.97).length;
-    const sulBordo = xs.filter((x) => Math.abs(Math.abs(x - 0.5) - 0.5) <= 0.05).length;
-    assert.equal(dentro, interi, `${nome}: ${dentro} bottiglie intere invece di ${interi} (${xs.map((x) => x.toFixed(2))})`);
-    assert.equal(sulBordo, 2, `${nome}: ${sulBordo} bottiglie tagliate dai bordi invece di 2 (${xs.map((x) => x.toFixed(2))})`);
+    const nome = `${vp.width}×${vp.height}`;
+    const punti = Array.from({ length: N }, (_, slot) => {
+      slotPose(slot, posa);
+      const ndc = new THREE.Vector3(posa.x, posa.y, posa.z).add(s.pivot).project(cam);
+      return { i: slotOffset(slot), x: (ndc.x + 1) / 2, y: (1 - ndc.y) / 2 };
+    }).sort((a, b) => a.i - b.i);
+    console.log(`gamma ${nome}:`, punti.map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join("  "));
+    for (let k = 1; k < punti.length; k++) {
+      assert(punti[k].x > punti[k - 1].x, `${nome}: la fila non va da sinistra a destra`);
+    }
+    // sale verso destra: l'estrema destra sta più in alto della sinistra
+    assert(punti.at(-1)!.y < punti[0].y, `${nome}: la fila non sale verso destra`);
+    for (const p of punti.slice(1, -1)) {
+      assert(p.x > 0.02 && p.x < 0.98 && p.y > 0.05 && p.y < 0.95, `${nome}: lo slot ${p.i} è fuori quadro (${p.x.toFixed(2)}, ${p.y.toFixed(2)})`);
+    }
   }
 }
 
-// --- carosello: anello, inclinazioni con seme, aggancio (task 8.13)
+// --- l'ingresso: la bottiglia arriva al suo posto dello step 0, funzione di
+// `intro` (task 8.22, rivisto)
 {
-  const { CarouselState, slotAngle, slotPose } = await import(
-    "../src/core/Carousel.ts"
-  );
-  const { CAROUSEL } = await import("../src/config/beers.ts");
-  const N = CAROUSEL.count;
-
-  // lo slot davanti è al centro e a z = 0: l'anello è tangente alla camera,
-  // non centrato sull'origine
-  const davanti = slotPose(0, 0, 0, N);
-  assert(Math.abs(davanti.x) < 1e-12 && Math.abs(davanti.z) < 1e-12, "lo slot 0 non è davanti");
-  // e la sua posa è quella del keyframe dell'hero, non una pescata dal seme
-  assert.equal(+davanti.rotX.toFixed(6), KEYFRAMES[0].rotation[0]);
-  assert.equal(+davanti.rotZ.toFixed(6), KEYFRAMES[0].rotation[2]);
-  assert.equal(davanti.rotY, 0, "la protagonista deve mostrare il fronte");
-
-  // le laterali arretrano tutte (z negativo) e si distribuiscono a sinistra e
-  // a destra
-  let aSinistra = 0;
-  let aDestra = 0;
-  for (let slot = 1; slot < N; slot++) {
-    const p = slotPose(slot, 0, 0, N);
-    assert(p.z < 0, `lo slot ${slot} non è arretrato`);
-    if (p.x < 0) aSinistra++;
-    else aDestra++;
-    // inclinazioni dentro le fasce dichiarate
-    assert(
-      p.rotX >= CAROUSEL.tilt.xMin - 1e-9 && p.rotX <= CAROUSEL.tilt.xMax + 1e-9,
-      `inclinazione x fuori fascia allo slot ${slot}: ${p.rotX}`,
-    );
-    assert(Math.abs(p.rotZ) <= CAROUSEL.tilt.zMax + 1e-9, `inclinazione z fuori fascia allo slot ${slot}`);
-    assert(Math.abs(p.y) <= CAROUSEL.tilt.yOffsetMax + 1e-9, `scarto y fuori fascia allo slot ${slot}`);
-  }
-  assert(aSinistra > 0 && aDestra > 0, "le laterali stanno tutte dalla stessa parte");
-
-  // il seme è fisso: due chiamate identiche danno lo stesso risultato, e due
-  // slot diversi no (altrimenti sarebbero tutte inclinate uguale)
-  assert.deepEqual(slotPose(3, 0, 0, N), slotPose(3, 0, 0, N), "il seme non è deterministico");
-  assert.notDeepEqual(
-    { x: slotPose(3, 0, 0, N).rotZ, y: slotPose(3, 0, 0, N).rotX },
-    { x: slotPose(4, 0, 0, N).rotZ, y: slotPose(4, 0, 0, N).rotX },
-    "due slot hanno la stessa inclinazione",
-  );
-
-  // girare l'anello di un passo equivale a cambiare slot attivo di uno
-  const passo = (Math.PI * 2) / N;
-  assert(
-    Math.abs(slotAngle(1, 0, -passo, N) - slotAngle(1, 1, 0, N)) < 1e-12,
-    "rot e active non sono equivalenti: la rinormalizzazione dell'aggancio sposterebbe la scena",
-  );
-
-  // --- stato: trascinamento, inerzia, aggancio
-  {
-    gsap.ticker.lagSmoothing(0);
-    const avanza = (dt: number) =>
-      gsap.globalTimeline.time(gsap.globalTimeline.time() + dt);
-    const c = new CarouselState(N);
-
-    // un trascinamento corto e lento: si torna allo slot di prima
-    c.grab(0);
-    for (let i = 1; i <= 5; i++) c.drag(2, i * 16);
-    assert(c.rot > 0 && c.dragging, "il trascinamento non muove l'anello");
-    c.release();
-    avanza(CAROUSEL.snapDuration + 0.01);
-    assert.equal(c.active, 0, "un trascinamento corto ha cambiato slot");
-    assert.equal(c.rot, 0);
-
-    // un colpetto corto ma veloce porta avanti di uno (inerzia, spec 6.6)
-    c.grab(500);
-    c.drag(12, 516);
-    assert(c.velocity > CAROUSEL.flickVelocity, `velocità troppo bassa per uno scatto: ${c.velocity}`);
-    c.release();
-    avanza(CAROUSEL.snapDuration + 0.01);
-    assert.equal(c.active, -1, "lo scatto non ha portato avanti di uno slot");
-    c.active = 0;
-
-    // un trascinamento lungo e lento: cambia slot, e la posa resta identica
-    // dopo la rinormalizzazione (è il punto di tutto l'impianto)
-    c.grab(1000);
-    const px = passo / CAROUSEL.dragPerPixel;
-    for (let i = 1; i <= 60; i++) c.drag(-px / 60, 1000 + i * 32);
-    const primaDellAggancio = [0, 1, 2].map((s) => slotPose(s, c.active, c.rot, N));
-    c.release();
-    avanza(CAROUSEL.snapDuration + 0.01);
-    assert.equal(c.active, 1, `l'aggancio non ha cambiato slot: active ${c.active}`);
-    assert.equal(c.rot, 0, "rot non è stato rinormalizzato");
-    const dopo = [0, 1, 2].map((s) => slotPose(s, c.active, c.rot, N));
-    for (let i = 0; i < dopo.length; i++) {
-      assert(
-        Math.abs(dopo[i].x - primaDellAggancio[i].x) < 0.02 &&
-          Math.abs(dopo[i].z - primaDellAggancio[i].z) < 0.02,
-        "la rinormalizzazione ha spostato la scena: si vedrebbe uno scatto al rilascio",
-      );
-    }
-
-    // le frecce: ±1 slot, senza trascinamento
-    c.nudge(1);
-    avanza(CAROUSEL.snapDuration + 0.01);
-    assert.equal(c.active, 2, "la freccia avanti non ha portato lo slot successivo davanti");
-    c.nudge(-1);
-    avanza(CAROUSEL.snapDuration + 0.01);
-    assert.equal(c.active, 1, "la freccia indietro non torna");
-
-    // due click rapidi sulla stessa freccia valgono due passi, non uno: il
-    // secondo arriva a scatto in corso, prima della rinormalizzazione
-    c.nudge(1);
-    avanza(0.1);
-    c.nudge(1);
-    avanza(CAROUSEL.snapDuration + 0.01);
-    assert.equal(c.active, 3, `due frecce rapide hanno fatto ${c.active - 1} passi invece di 2`);
-    assert.equal(c.rot, 0);
-
-    // il pallino dello slider: continuo durante lo scatto, fermo dopo
-    assert(Math.abs(c.ring - 3 / N) < 1e-12, `slider a ${c.ring} invece di ${3 / N}`);
-    c.nudge(1);
-    let ultimo = c.ring;
-    for (let i = 0; i < 20; i++) {
-      avanza(CAROUSEL.snapDuration / 20);
-      assert(c.ring >= ultimo - 1e-9 && c.ring - ultimo < 1 / N, "lo slider salta durante lo scatto");
-      ultimo = c.ring;
-    }
-    avanza(0.01);
-    assert(Math.abs(c.ring - 4 / N) < 1e-9, `slider a ${c.ring} dopo lo scatto invece di ${4 / N}`);
-    c.active = 1;
-
-    // eventi nello stesso millisecondo: la velocità non deve diventare Infinity
-    c.grab(2000);
-    c.drag(5, 2000);
-    c.drag(5, 2000);
-    assert(Number.isFinite(c.velocity), `velocità non finita: ${c.velocity}`);
-    c.release();
-    avanza(CAROUSEL.snapDuration + 0.01);
-    assert(Number.isFinite(c.rot), "rot non finito dopo un aggancio");
-
-    // un rilascio senza trascinamento non fa niente
-    const prima = c.active;
-    c.release();
-    assert.equal(c.active, prima);
-    c.dispose();
-  }
-}
-
-// --- l'ingresso dopo il preloader, funzione di `intro` (task 8.22)
-{
-  const { faroLevel, introOrder, Intro, slotDrop, slotRise, UI_AT } = await import(
-    "../src/core/Intro.ts"
-  );
-  const { slotPose } = await import("../src/core/Carousel.ts");
-  const { CAROUSEL, ringRadius } = await import("../src/config/beers.ts");
+  const { bottleDrop, bottleRise, bottleSpin, Intro, UI_AT } = await import("../src/core/Intro.ts");
   const { INTRO } = await import("../src/config/intro.ts");
   const { configureCamera } = await import("../src/config/solvePivot.ts");
   const THREE = await import("three");
 
-  for (const [vp, N] of [
-    [computeViewport(1440, 900, 2), CAROUSEL.count],
-    [computeViewport(2560, 1080, 1), CAROUSEL.count],
-    [computeViewport(390, 844, 3), CAROUSEL.countMobile],
-  ] as const) {
-    const nome = `${vp.width}×${vp.height}`;
-    // l'ordine di salita è una permutazione: ogni slot sale una volta
-    const ordini = Array.from({ length: N }, (_, s) => introOrder(s, N));
-    assert.deepEqual([...ordini].sort((a, b) => a - b), [...Array(N).keys()], `${nome}: ordine di salita non valido ${ordini}`);
-    assert.equal(introOrder(0, N), 0, "la protagonista non sale per prima");
-
-    // a `intro` 0 tutto spento e sotto il frame: la cima di ogni bottiglia,
-    // abbassata del `drop`, si proietta sotto il bordo basso
+  for (const vp of [computeViewport(1440, 900, 2), computeViewport(2560, 1080, 1), computeViewport(390, 844, 3), computeViewport(768, 1024, 2)]) {
+    // a `intro` 0 spenta e sotto il frame: la cima, abbassata del `drop`, si
+    // proietta sotto il bordo basso
     const s = new StateMapper(vp).apply(0);
     const cam = configureCamera(
       new THREE.PerspectiveCamera(),
       { position: s.camera.position.toArray(), look: s.camera.look.toArray() },
       vp.aspect,
     );
-    const cima = BOTTLE.maxY - BOTTLE.centerY;
-    for (let slot = 0; slot < N; slot++) {
-      assert.equal(slotRise(0, slot, N), 0, `${nome}: slot ${slot} acceso a intro 0`);
-      const p = slotPose(slot, 0, 0, N, undefined, ringRadius(vp));
-      const punto = new THREE.Vector3(0, cima, 0)
-        .applyEuler(new THREE.Euler(p.rotX, p.rotY, p.rotZ))
-        .add(new THREE.Vector3(p.x, p.y + slotDrop(0, slot, N), p.z))
-        .add(s.pivot);
-      const y = (1 - punto.project(cam).y) / 2;
-      assert(y > 1, `${nome}: a intro 0 la cima dello slot ${slot} è in vista (y ${y.toFixed(3)})`);
-    }
-
-    // a `intro` 1 identico allo stato senza intro: nessun salto alla fine
-    for (let slot = 0; slot < N; slot++) {
-      assert.equal(slotRise(1, slot, N), 1, `${nome}: slot ${slot} non arrivato a intro 1`);
-      assert(slotDrop(1, slot, N) === 0, `${nome}: slot ${slot} ancora abbassato a intro 1`);
-    }
-
-    // sfalsamento monotono: chi parte dopo non è mai più avanti
-    const perOrdine = [...Array(N).keys()].sort((a, b) => introOrder(a, N) - introOrder(b, N));
-    for (let u = 0; u <= 1; u += 0.01) {
-      for (let k = 1; k < N; k++) {
-        assert(
-          slotRise(u, perOrdine[k - 1], N) >= slotRise(u, perOrdine[k], N),
-          `${nome}: a intro ${u.toFixed(2)} lo slot ${perOrdine[k]} supera il precedente`,
-        );
-      }
-    }
+    const cima = new THREE.Vector3(0, BOTTLE.maxY - BOTTLE.centerY, 0)
+      .applyEuler(s.rotation)
+      .add(s.pivot)
+      .setY(s.pivot.y + (BOTTLE.maxY - BOTTLE.centerY) + bottleDrop(0));
+    const y = (1 - cima.project(cam).y) / 2;
+    assert(y > 1, `${vp.width}×${vp.height}: a intro 0 la cima è in vista (y ${y.toFixed(3)})`);
   }
-
-  // il faro: spento, due sfarfallii (due ricadute dopo un'accensione), acceso
-  assert.equal(faroLevel(0), 0, "faro acceso a intro 0");
-  assert.equal(faroLevel(1), 1, "lo sfarfallio non finisce acceso");
-  let ricadute = 0;
-  let prima = 0;
-  for (let u = 0; u <= 1; u += 0.001) {
-    const l = faroLevel(u);
-    if (l < prima) ricadute++;
-    prima = l;
+  assert.equal(bottleRise(0), 0);
+  assert.equal(bottleRise(1), 1);
+  assert.equal(bottleDrop(1) + 0, 0);
+  assert.equal(bottleSpin(1), 0);
+  for (let u = 0.05; u <= 1; u += 0.05) {
+    assert(bottleRise(u) >= bottleRise(u - 0.05), `la salita torna indietro a ${u.toFixed(2)}`);
   }
-  assert.equal(ricadute, 2, `il faro sfarfalla ${ricadute} volte invece di 2`);
+  // il titolo entra quando la bottiglia è quasi ferma, non prima
+  assert(UI_AT * INTRO.duration < INTRO.bottle.start + INTRO.bottle.rise, "il titolo entra a bottiglia ferma da un pezzo");
+  assert(bottleRise(UI_AT) > 0.85, `il titolo entra con la bottiglia ancora lontana: ${bottleRise(UI_AT)}`);
 
-  // l'interfaccia entra per ultima: dopo che tutte le bottiglie sono partite
-  const ultimaPartenza = INTRO.bottles.start + (CAROUSEL.count - 1) * INTRO.bottles.stagger;
-  assert(UI_AT * INTRO.duration > ultimaPartenza, "l'interfaccia entra prima delle bottiglie");
-
-  // il valore: `play` arriva a 1 e avvisa una volta sola, `skip` subito
-  {
-    gsap.ticker.lagSmoothing(0);
-    const avanza = (dt: number) =>
-      gsap.globalTimeline.time(gsap.globalTimeline.time() + dt);
-    const intro = new Intro();
-    let avvisi = 0;
-    intro.subscribe(() => avvisi++);
-    assert(!intro.uiReady);
-    intro.play();
-    for (let i = 0; i < 50; i++) avanza(INTRO.duration / 40);
-    assert.equal(intro.value, 1, `play si ferma a ${intro.value}`);
-    assert(intro.uiReady);
-    assert.equal(avvisi, 1, `uiReady ha avvisato ${avvisi} volte`);
-
-    const saltata = new Intro();
-    let avvisiSalto = 0;
-    saltata.subscribe(() => avvisiSalto++);
-    saltata.skip();
-    assert.equal(saltata.value, 1);
-    assert.equal(avvisiSalto, 1);
-  }
+  // `play` arriva a 1 e avvisa una volta sola, `skip` subito
+  gsap.ticker.lagSmoothing(0);
+  const avanza = (dt: number) => gsap.globalTimeline.time(gsap.globalTimeline.time() + dt);
+  const intro = new Intro();
+  let avvisi = 0;
+  intro.subscribe(() => avvisi++);
+  assert(!intro.uiReady);
+  intro.play();
+  for (let i = 0; i < 50; i++) avanza(INTRO.duration / 40);
+  assert.equal(intro.value, 1, `play si ferma a ${intro.value}`);
+  assert(intro.uiReady);
+  assert.equal(avvisi, 1, `uiReady ha avvisato ${avvisi} volte`);
+  const saltata = new Intro();
+  let avvisiSalto = 0;
+  saltata.subscribe(() => avvisiSalto++);
+  saltata.skip();
+  assert.equal(saltata.value, 1);
+  assert.equal(avvisiSalto, 1);
 }
 
-// --- uno swipe orizzontale è del carosello, non del motore a step
+// --- uno swipe orizzontale non è uno step: il gesto deve essere verticale
 {
   assert.equal(swipeDirection(-80, 300, 10), 1, "swipe verticale ignorato");
   assert.equal(swipeDirection(-50, 300, 120), 0, "un trascinamento orizzontale ha fatto uno step");

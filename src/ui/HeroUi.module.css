@@ -1,6 +1,7 @@
-/* L'interfaccia dell'hero (spec 8.19). Le posizioni verticali arrivano da
-   `heroLayout()` come variabili (`--center-y`, `--pedestal-y`): sono la scena
-   proiettata, non percentuali scritte qui. */
+/* L'interfaccia dello step 0: nome a sinistra, bottiglia inclinata a destra
+   (riferimento ciaoenergy.com). Stessa colonna del blocco dei testi degli
+   step (`StepText.module.css`), così passando allo step 1 il testo cambia
+   senza spostarsi. */
 
 /* ----------------------------------------------------- uscita e rientro */
 
@@ -18,15 +19,15 @@
 }
 
 /* Visibile: le transizioni di questa regola valgono per il rientro, che
-   aspetta che le laterali siano tornate al loro posto. */
+   aspetta che la bottiglia sia tornata col fronte in camera. */
 .in {
   opacity: 1;
   transform: none;
   transition-delay: var(--hero-return-delay);
 }
 
-/* Il cancello dell'ingresso (task 8.22): chiuso finché bottiglie e faro non
-   sono arrivati, poi si apre una volta sola, senza il ritardo del rientro. */
+/* Il cancello dell'ingresso (task 8.22): chiuso finché la bottiglia non è
+   arrivata, poi si apre una volta sola, senza il ritardo del rientro. */
 .gate {
   position: absolute;
   inset: 0;
@@ -44,7 +45,6 @@
 
 /* lo strato è trasparente ai gesti; i bottoni si riaccendono solo da
    visibili, un controllo invisibile non deve rubare un click */
-.open .in .arrow,
 .open .in .hint {
   pointer-events: auto;
 }
@@ -52,20 +52,22 @@
 /* ------------------------------------------------------------------ nome */
 
 .name {
-  --logo-w: clamp(240px, 24vw, 380px);
   position: absolute;
-  left: 50%;
-  top: var(--pedestal-y);
-  /* il logotipo si appoggia al bordo del piedistallo: `--name-anchor` 0 lo
-     mette tutto sopra, 1 tutto sotto. Margine e non transform, così il
-     sottotitolo lo segue nel flusso */
-  margin-top: calc((var(--name-anchor) - 1) * var(--logo-w) * 261 / 546);
-  transform: translateX(-50%);
+  left: 10vw;
+  top: 45%;
+  transform: translateY(-50%);
+  width: min(460px, 36vw);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  text-align: center;
+  align-items: flex-start;
+  gap: 18px;
+}
+
+.tag {
+  margin: 0;
+  padding: 4px 10px;
+  background: var(--u-white);
+  color: #000;
 }
 
 .logo {
@@ -74,82 +76,14 @@
 }
 
 .logo img {
-  width: var(--logo-w);
+  width: clamp(240px, 26vw, 400px);
   height: auto;
 }
 
-.name p {
+.body {
   margin: 0;
-  opacity: 0.85;
-}
-
-/* ---------------------------------------------------------------- frecce */
-
-.arrow {
-  position: absolute;
-  top: var(--center-y);
-  left: 50%;
-  display: grid;
-  place-items: center;
-  width: 48px;
-  height: 48px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  cursor: pointer;
-  opacity: 0.7;
-  transition: opacity 0.2s ease;
-}
-
-.arrow:hover,
-.arrow:focus-visible {
-  opacity: 1;
-}
-
-.prev {
-  transform: translate(calc(-50% - var(--arrow-offset)), -50%);
-}
-
-.next {
-  transform: translate(calc(-50% + var(--arrow-offset)), -50%);
-}
-
-.next svg {
-  transform: scaleX(-1);
-}
-
-/* ---------------------------------------------------------------- slider */
-
-.slider {
-  position: absolute;
-  left: 50%;
-  bottom: calc(96px + var(--safe-b));
-  width: 600px;
-  height: 2px;
-  transform: translateX(-50%);
-  background: linear-gradient(
-    90deg,
-    var(--u-red-deep),
-    var(--u-red),
-    var(--u-amber),
-    var(--u-white)
-  );
-}
-
-/* il pallino: bianco con un anello staccato, `--ring` lo scrive il tick */
-.knob {
-  position: absolute;
-  top: 50%;
-  left: var(--ring, 0%);
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: var(--u-white);
-  box-shadow:
-    0 0 0 3px #050505,
-    0 0 0 4px rgba(255, 255, 255, 0.6);
-  transform: translate(-50%, -50%);
+  max-width: 34ch;
+  opacity: 0.9;
 }
 
 /* ------------------------------------------------- scorri per scoprire */
@@ -197,8 +131,20 @@
   }
 }
 
+/* telefono e tablet verticale: la bottiglia sta in alto, il nome sotto
+   (stessa regola di `keyframesFor`) */
 @media (max-width: 767px), (max-aspect-ratio: 1/1) {
-  .slider {
-    width: 80vw;
+  .name {
+    left: 50%;
+    top: auto;
+    bottom: calc(96px + var(--safe-b));
+    transform: translateX(-50%);
+    width: min(88vw, 460px);
+    align-items: center;
+    text-align: center;
+  }
+
+  .logo img {
+    width: min(64vw, 320px);
   }
 }

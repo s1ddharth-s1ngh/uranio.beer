@@ -1,21 +1,18 @@
-// Il carosello dell'hero: la matematica dell'anello e lo stato del
-// trascinamento (spec 6.6).
+// La gamma: tutte le bottiglie in fila curva, allo step 5 (riferimento
+// ciaoenergy.com, la fila di lattine). Ha preso il posto dell'anello
+// trascinabile dell'hero: stessa idea di slot attorno alla protagonista, ma
+// senza stato, perché la fila non si tocca e dipende solo da `p`.
 //
-// Niente DOM e niente three: angoli, posizioni e inerzia si provano in Node
-// (`npm run verify:core`). Gli ascoltatori dei gesti stanno nel componente,
-// come per `StepController`.
+// Niente DOM e niente three: le posizioni si provano in Node
+// (`npm run verify:core`).
 
-import gsap from "gsap";
-import { BEERS, CAROUSEL } from "../config/beers.ts";
+import { GAMMA } from "../config/beers.ts";
 
-/** una posizione sull'anello, in coordinate relative alla protagonista */
+/** una posizione nella fila, in coordinate relative alla protagonista */
 export interface SlotPose {
-  /** angolo attorno all'asse verticale: 0 = davanti, al centro */
-  angle: number;
   x: number;
   y: number;
   z: number;
-  /** inclinazioni della bottiglia in quello slot */
   rotX: number;
   rotY: number;
   rotZ: number;
@@ -23,215 +20,39 @@ export interface SlotPose {
 
 /**
  * Rumore deterministico per slot: le inclinazioni devono essere varie ma
- * **sempre le stesse**. Con `Math.random()` la composizione dell'hero
- * cambierebbe a ogni ricarica, e una composizione che cambia non si può né
- * giudicare né correggere.
+ * **sempre le stesse**. Con `Math.random()` la composizione cambierebbe a ogni
+ * ricarica, e una composizione che cambia non si può né giudicare né
+ * correggere.
  */
 function seme(slot: number, canale: number): number {
   const x = Math.sin(slot * 12.9898 + canale * 78.233) * 43758.5453;
   return x - Math.floor(x);
 }
 
-/** Angolo di uno slot sull'anello. */
-export function slotAngle(
-  slot: number,
-  active: number,
-  rot: number,
-  count: number,
-): number {
-  return ((slot - active) * (Math.PI * 2)) / count + rot;
+/**
+ * Lo scarto dal centro dello slot `slot` su `count`: 0 la protagonista, poi a
+ * coppie verso l'esterno, destra e sinistra (+1, −1, +2, −2…). Con un numero
+ * pari l'ultima resta a destra.
+ */
+export function slotOffset(slot: number): number {
+  return slot === 0 ? 0 : slot % 2 === 1 ? (slot + 1) / 2 : -slot / 2;
 }
 
 /**
- * Posa completa di uno slot.
- *
- * `z = cos(a)·R − R` tiene la protagonista a z = 0 e manda indietro le altre:
- * l'anello non è centrato sull'origine ma **tangente** alla camera, così la
- * bottiglia al centro è sempre quella più vicina e più grande.
+ * Dove sta uno slot nella fila: sale verso destra in un arco che si piega in
+ * basso ai due capi, e ogni bottiglia si inclina un po' di più in avanti
+ * man mano che sale, così a sinistra si vedono i fondi e a destra i tappi.
  */
-export function slotPose(
-  slot: number,
-  active: number,
-  rot: number,
-  count: number,
-  // nel loop si passa un oggetto riusato: la chiamano la protagonista e ogni
-  // slot del carosello a ogni frame (task 8.27, zero allocazioni)
-  out: SlotPose = { angle: 0, x: 0, y: 0, z: 0, rotX: 0, rotY: 0, rotZ: 0 },
-  radius: number = CAROUSEL.radius,
-): SlotPose {
-  const angle = slotAngle(slot, active, rot, count);
-  const { tilt } = CAROUSEL;
-  // lo slot 0 è la protagonista: la sua posa è quella del keyframe dell'hero,
-  // non una pescata dal seme
-  const protagonista = slot === 0;
-  out.angle = angle;
-  out.x = Math.sin(angle) * radius;
-  out.y = protagonista ? 0 : (seme(slot, 4) - 0.5) * 2 * tilt.yOffsetMax;
-  out.z = Math.cos(angle) * radius - radius;
-  out.rotX = protagonista
-    ? 0.22
-    : tilt.xMin + seme(slot, 1) * (tilt.xMax - tilt.xMin);
-  // ogni bottiglia mostra un pezzo diverso di etichetta
-  out.rotY = protagonista ? 0 : seme(slot, 3) * Math.PI * 2;
-  out.rotZ = protagonista ? 0.3 : (seme(slot, 2) - 0.5) * 2 * tilt.zMax;
+export function slotPose(slot: number, out: SlotPose): SlotPose {
+  const i = slotOffset(slot);
+  const g = GAMMA;
+  out.x = i * g.spacing;
+  out.y = i * g.rise - i * i * g.arc;
+  out.z = -i * i * g.depth;
+  out.rotX = i * g.twist;
+  // la protagonista ha già la sua rotazione dal keyframe: la varietà è delle
+  // altre
+  out.rotY = slot === 0 ? 0 : (seme(slot, 1) - 0.5) * 2 * g.yawMax;
+  out.rotZ = slot === 0 ? 0 : g.lean + (seme(slot, 2) - 0.5) * 2 * g.leanJitter;
   return out;
-}
-
-/** Il colore della rim light di uno slot: cicla sulle birre disponibili. */
-export function slotBeer(slot: number, active: number) {
-  const i = (((slot - active) % BEERS.length) + BEERS.length) % BEERS.length;
-  return BEERS[i];
-}
-
-/**
- * Lo stato dell'anello: di quanto è girato e quale slot è davanti.
- *
- * `rot` e `active` sono ridondanti di proposito: `rot` è l'angolo continuo che
- * il dito muove, `active` lo slot agganciato. Dopo ogni aggancio i due si
- * rinormalizzano (`active` cambia di un passo e `rot` torna a zero) in modo
- * che la posa resti identica: è la stessa idea del modulo, ma senza perdere la
- * continuità durante il trascinamento.
- */
-export class CarouselState {
-  rot = 0;
-  active = 0;
-  dragging = false;
-  /** radianti al secondo, stimati durante il trascinamento */
-  velocity = 0;
-
-  private tween: gsap.core.Tween | undefined;
-  /** il notch verso cui va lo scatto in corso, valido solo finché c'è `tween` */
-  private notch = 0;
-  private lastT = 0;
-
-  count: number;
-
-  constructor(count: number = CAROUSEL.count) {
-    this.count = count;
-  }
-
-  /**
-   * Quante bottiglie sull'anello. Metodo e non campo pubblico: lo cambia il
-   * componente al passaggio desktop↔mobile, e scrivere dentro un oggetto che
-   * arriva dal render è esattamente ciò che `react-hooks/immutability`
-   * impedisce — con ragione, perché un campo scritto durante il render
-   * renderebbe il valore diverso a seconda di quando lo si legge.
-   */
-  setCount(n: number) {
-    this.count = n;
-  }
-
-  get step(): number {
-    return (Math.PI * 2) / this.count;
-  }
-
-  /**
-   * L'indice della birra al centro. Con una birra sola vale sempre 0: per
-   * questo lo slider dell'hero legge `ring`, non questo.
-   */
-  get index(): number {
-    return (((this.active % BEERS.length) + BEERS.length) % BEERS.length);
-  }
-
-  /**
-   * Dove sta l'anello, in frazione di giro 0–1: è la posizione del pallino
-   * dello slider (task 8.19).
-   *
-   * `active − rot / step` è continua anche attraverso la rinormalizzazione
-   * (durante uno scatto in avanti sale da 0 a 1, dopo resta 1): `active`
-   * cresce di uno nello stesso istante in cui `rot` torna a zero. A giro
-   * completo salta da 1 a 0: è un anello mostrato su una retta.
-   */
-  get ring(): number {
-    const pos = this.active - this.rot / this.step;
-    return (((pos % this.count) + this.count) % this.count) / this.count;
-  }
-
-  grab(now: number) {
-    this.tween?.kill();
-    this.tween = undefined;
-    this.dragging = true;
-    this.velocity = 0;
-    this.lastT = now;
-  }
-
-  /** `dx` in pixel: il verso è quello del dito */
-  drag(dx: number, now: number) {
-    if (!this.dragging) return;
-    const d = dx * CAROUSEL.dragPerPixel;
-    this.rot += d;
-    const dt = (now - this.lastT) / 1000;
-    // la velocità serve solo a decidere su quale slot agganciarsi: con dt
-    // piccolissimi la divisione esplode, quindi sotto il millisecondo si
-    // tiene l'ultima stima
-    if (dt > 0.001) {
-      this.velocity = d / dt;
-      this.lastT = now;
-    }
-  }
-
-  /**
-   * Rilascio: si aggancia allo slot più vicino (spec 6.6), più uno se il
-   * rilascio è uno scatto.
-   *
-   * Lo scatto vale **al massimo un passo in più**, non "la velocità per un
-   * tempo di coda": così un colpetto corto e veloce porta avanti di uno come
-   * uno si aspetta, ma una sbracciata non fa girare l'anello di tre bottiglie
-   * oltre il punto dove il dito l'ha lasciato.
-   */
-  release() {
-    if (!this.dragging) return;
-    this.dragging = false;
-    const vicino = Math.round(this.rot / this.step);
-    const scatto =
-      Math.abs(this.velocity) > CAROUSEL.flickVelocity
-        ? Math.sign(this.velocity)
-        : 0;
-    this.snapTo(vicino + scatto);
-  }
-
-  /**
-   * Le frecce ai lati della protagonista: ±1 slot.
-   *
-   * Il passo si somma al notch dello scatto **in corso**, non a quello di
-   * riposo: a metà scatto `active` non è ancora stato rinormalizzato, e
-   * ripuntare a `−sign(dir)` farebbe valere due click rapidi come uno solo.
-   */
-  nudge(dir: number) {
-    const da = this.tween ? this.notch : Math.round(this.rot / this.step);
-    this.tween?.kill();
-    this.dragging = false;
-    this.velocity = 0;
-    this.snapTo(da - Math.sign(dir));
-  }
-
-  dispose() {
-    this.tween?.kill();
-    this.tween = undefined;
-  }
-
-  private snapTo(notch: number) {
-    this.notch = notch;
-    const to = notch * this.step;
-    this.tween = gsap.to(this, {
-      rot: to,
-      duration: CAROUSEL.snapDuration,
-      ease: "power3.out",
-      onComplete: () => {
-        // rinormalizzazione a posa invariata: `pose` dipende da
-        // `(slot − active)·passo + rot`, quindi spostare `active` di −notch e
-        // riportare `rot` a zero non muove niente di quello che si vede
-        this.active -= notch;
-        this.rot = 0;
-        this.tween = undefined;
-      },
-    });
-  }
-}
-
-let shared: CarouselState | undefined;
-
-export function sharedCarousel(count?: number): CarouselState {
-  shared ??= new CarouselState(count);
-  return shared;
 }

@@ -1,0 +1,108 @@
+/* Le domande frequenti (riferimento ciaoenergy.com): titolo enorme in
+   corsivo, lista stretta al centro, righe sottili. Lo sfondo parte dal nero
+   del finale e schiarisce verso il basso, come lo studio della gamma. */
+
+.faq {
+  position: relative;
+  z-index: 1;
+  padding: clamp(96px, 14vh, 160px) 16px clamp(96px, 16vh, 180px);
+  background:
+    radial-gradient(120% 60% at 50% 100%, #3a3a3a 0%, transparent 70%),
+    var(--u-black);
+  color: var(--u-white);
+}
+
+/* `.faq .title` e non `.title`: `.t-display` (text.css, globale) azzera il
+   margine e fissa il corpo con la stessa specificità */
+.faq .title {
+  max-width: 1100px;
+  margin: 0 auto clamp(40px, 6vh, 72px);
+  font-size: clamp(56px, 10vw, 150px);
+  line-height: 0.86;
+  /* come nel riferimento: il bianco si spegne verso il basso */
+  background: linear-gradient(180deg, #a8a8a8 0%, var(--u-white) 60%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.list {
+  max-width: 672px;
+  margin: 0 auto;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.item {
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.q {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 22px 0;
+  cursor: pointer;
+  list-style: none;
+  font-size: clamp(16px, 1.3vw, 19px);
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.62);
+  transition: color 0.2s ease;
+}
+
+.q::-webkit-details-marker {
+  display: none;
+}
+
+.q:hover,
+.item[open] .q {
+  color: var(--u-white);
+}
+
+.q:focus-visible {
+  outline: 2px solid var(--u-white);
+  outline-offset: 4px;
+}
+
+/* il segno: un chevron di puntini, come le frecce dell'HUD; si gira da
+   aperto */
+.mark {
+  flex: none;
+  width: 14px;
+  height: 8px;
+  background:
+    radial-gradient(circle, currentColor 1px, transparent 1.5px) 0 0 / 4px 4px;
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  transition: transform 0.3s ease;
+}
+
+.item[open] .mark {
+  transform: rotate(180deg);
+}
+
+.a {
+  max-width: none;
+  padding: 0 40px 24px 0;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.item[open] .a {
+  animation: entra 0.35s ease both;
+}
+
+@keyframes entra {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .item[open] .a {
+    animation: none;
+  }
+
+  .mark {
+    transition: none;
+  }
+}

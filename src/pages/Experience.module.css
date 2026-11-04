@@ -31,17 +31,6 @@
   touch-action: none;
 }
 
-/* cursori del carosello (spec 6.6): solo nell'hero, li mette e li toglie
-   `useCarouselDrag` */
-.grab {
-  cursor: grab;
-}
-
-.grabbing,
-.grabbing * {
-  cursor: grabbing;
-}
-
 /* il fuoco da tastiera su ogni controllo dell'esperienza, in un posto solo
    (task 8.24): i moduli dei singoli strati ne cambiano al massimo l'opacità */
 .page :focus-visible {

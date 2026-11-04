@@ -3,7 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { BOTTLE, CAP } from "../config/bottle.ts";
 import { FILL, RIM, SPOT } from "../config/lights.ts";
-import { faroLevel, sharedIntro } from "../core/Intro.ts";
+import { bottleRise, sharedIntro } from "../core/Intro.ts";
 import { sharedMapper } from "../core/StateMapper.ts";
 import { registerDebug } from "../debug/registry";
 import { sharedViewport } from "../hooks/useViewport";
@@ -71,8 +71,8 @@ export function Lights() {
       _v.y + SPOT.offset[1],
       _v.z + SPOT.offset[2],
     );
-    // all'ingresso lo spot sfarfalla insieme al disco del faro (task 8.22)
-    l.intensity = s.spot * tuning.spotGain * faroLevel(intro.value);
+    // all'ingresso lo spot si accende insieme alla bottiglia che arriva
+    l.intensity = s.spot * tuning.spotGain * bottleRise(intro.value);
   });
 
   return (

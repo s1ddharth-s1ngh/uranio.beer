@@ -37,12 +37,12 @@ export type ColorName = keyof typeof COLORS;
  * L'indice è lo step di partenza, il valore la durata verso il successivo.
  */
 export const STEP_DURATION = [
-  1.6, // 0 hero → 1 primo piano
-  1.4, // 1 primo piano → 2 retro F1
-  1.2, // 2 F1 → 3 F2
-  1.2, // 3 F2 → 4 F3
-  1.2, // 4 F3 → 5 F4
-  1.6, // 5 F4 → 6 finale
+  1.5, // 0 hero → 1 retro F1: il mezzo giro
+  1.2, // 1 F1 → 2 F2
+  1.2, // 2 F2 → 3 F3
+  1.2, // 3 F3 → 4 F4
+  1.6, // 4 F4 → 5 la gamma: fine del giro, arrivano le altre
+  1.4, // 5 gamma → 6 finale
 ] as const;
 
 /** l'ultimo step: `p` vive in [0, LAST_STEP] */

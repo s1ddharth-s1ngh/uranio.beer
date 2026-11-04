@@ -83,13 +83,11 @@ export interface SceneState {
   };
   background: { hero: number; step: number; finale: number };
   carousel: {
-    /** luminosità delle laterali */
+    /** luminosità delle altre bottiglie della gamma */
     sideDim: number;
-    /** 0 in posizione, 1 scappate fuori dal frame */
+    /** 0 in fila, 1 fuori dal frame ai lati */
     escape: number;
   };
-  /** 0 faro e piedistallo in scena, 1 usciti */
-  props: number;
 }
 
 export class StateMapper {
@@ -114,8 +112,7 @@ export class StateMapper {
       sweepAmt: 0,
     },
     background: { hero: 1, step: 0, finale: 0 },
-    carousel: { sideDim: 0, escape: 0 },
-    props: 0,
+    carousel: { sideDim: 0, escape: 1 },
   };
 
   private kf: readonly Keyframe[] = KEYFRAMES;
@@ -223,7 +220,6 @@ export class StateMapper {
     const wLati = w("lati");
     s.carousel.sideDim = mix(a.sideDim, b.sideDim, wLati);
     s.carousel.escape = mix(a.escape, b.escape, wLati);
-    s.props = mix(a.props, b.props, w("props"));
 
     return s;
   }

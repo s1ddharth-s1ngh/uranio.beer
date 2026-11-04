@@ -37,6 +37,34 @@ npm run verify:glb    # il modello e la sua preparazione
 Quando arrivi in fondo al 8.28, fermati e scrivi un resoconto finale di cosa
 è stato fatto e cosa resta non verificabile.
 
+## Cambio di direzione del 2026-11-04: la coreografia di ciaoenergy.com
+
+Il proprietario ha chiesto di rifare l'esperienza sul modello di
+<https://www.ciaoenergy.com/> (ispirazione, non copia). I sette step ora sono:
+
+| step | cosa |
+| --- | --- |
+| 0 | la bottiglia sola, grande e inclinata, nome a sinistra (`HeroUi`) |
+| 1–4 | il retro, una fascia accesa per step, testo a sinistra e icone |
+| 5 | la gamma: finito il giro arrivano le altre in fila curva (`core/Carousel.ts`, `GAMMA` in `config/beers.ts`) |
+| 6 | il finale "ZERO CRISI" di sempre |
+
+Poi, a scroll nativo, le **domande frequenti** (`components/faq/`, testi in
+`content/faq.it.ts`, bozza da far validare) e "Chi siamo".
+
+Tolti: l'anello trascinabile dell'hero (`useCarouselDrag`, frecce, slider),
+faro e piedistallo (`gl/HeroProps.tsx`, `config/props.ts`), il primo piano col
+tappo acceso (vecchio step 1), `core/heroLayout.ts`. L'ingresso
+(`core/Intro.ts`) è la bottiglia che sale dal basso finendo un mezzo giro.
+
+**Prestazioni.** Il colpevole era l'MSAA 4× del composer: su GPU integrata
+la scena andava a 19–30 fps, con FXAA a 60 (misurato con Playwright su ANGLE
+D3D11, 1440×900). Le bottiglie della gamma sono sempre `lowEnd` (niente
+`transmission` né birra). **Resta aperto:** passando dalla gamma al finale
+la GPU si ferma 1,5–2,5 s in un flush di raster di Chromium; c'era anche
+prima del cambio (fra F4 e finale), non dipende né dalla scritta gigante né
+dalla nebbia né dal clone della gamma. Da guardare su un PC vero.
+
 ## Cambio di direzione del 2026-10-08: il hero resta
 
 Il proprietario del repo l'ha detto chiaro: **la prima sezione della home, il

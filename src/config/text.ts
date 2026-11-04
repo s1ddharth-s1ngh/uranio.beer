@@ -50,23 +50,13 @@ export const FINALE = {
   ctaTop: { desktop: 0.85, mobile: 0.72 },
 } as const;
 
-/** L'interfaccia dell'hero: nome, frecce, slider, invito a scorrere (task 8.19). */
+/** L'interfaccia dello step 0: nome e invito a scorrere (task 8.19). */
 export const HERO_UI = {
-  /**
-   * Dove sta il logotipo rispetto al bordo alto anteriore del piedistallo:
-   * 0 tutto sopra, 1 tutto sotto. A metà copre il bordo senza coprire il fondo
-   * della bottiglia, che sopra il piedistallo non lascia spazio. Da tarare a
-   * occhio (task 8.28).
-   */
-  nameAnchor: 0.5,
-  /** distanza delle frecce dal centro della protagonista, in px */
-  arrowOffset: 120,
   /** uscita al passaggio 0 → 1 (spec 7.6): opacità e un filo verso il basso */
   exit: { duration: 0.35, y: 20 },
   /**
-   * Al ritorno 1 → 0 si rientra dopo che le laterali sono tornate: andando
-   * indietro la loro finestra [0; 0,5] del segmento si percorre nella seconda
-   * metà della corsa. Frazione della durata di `durationFor(1, 0)`.
+   * Al ritorno 1 → 0 si rientra quando la bottiglia ha quasi finito il mezzo
+   * giro all'indietro. Frazione della durata di `durationFor(1, 0)`.
    */
   returnDelayFraction: 0.55,
 } as const;

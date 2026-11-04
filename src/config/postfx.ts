@@ -2,8 +2,14 @@
 // piu' facilmente rovina tutto, quindi la soglia e' alta di proposito.
 
 export const POSTFX = {
-  /** antialias: lo fa il composer, non il contesto WebGL */
-  multisampling: 4,
+  /**
+   * Antialias: lo fa il composer, non il contesto WebGL. Con FXAA e non con
+   * l'MSAA 4× del composer: su una GPU integrata (AMD, 1440×900 a DPR 1)
+   * l'MSAA su render target a mezza precisione portava la scena da 60 a
+   * 19–30 fps, misurato il 2026-11-04. FXAA è un passaggio a schermo intero e
+   * basta: i bordi del vetro restano puliti, un filo più morbidi.
+   */
+  multisampling: 0,
   /**
    * Deve brillare solo il bordo del tappo, la lama di luce e il disco del
    * faro. Con la soglia piu' bassa si accende anche l'etichetta bianca, e

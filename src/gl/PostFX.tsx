@@ -5,6 +5,7 @@ import {
   BloomEffect,
   EffectComposer,
   EffectPass,
+  FXAAEffect,
   NoiseEffect,
   RenderPass,
   VignetteEffect,
@@ -19,11 +20,11 @@ import { useViewport } from "../hooks/useViewport";
  * effetti compatibili in un unico shader, quindi tre effetti costano un
  * passaggio e non tre.
  *
- * L'antialias lo fa il `multisampling` del composer, non `antialias: true` sul
- * contesto (vedi `Stage.tsx`): pagarlo due volte non migliorerebbe niente.
- * Per la stessa ragione non c'è SMAA, che la spec 4.1 elencava come
- * alternativa: con l'MSAA attivo sarebbe un passaggio in più per lo stesso
- * risultato.
+ * L'antialias è un FXAA in un passaggio suo, prima degli effetti: è un
+ * effetto di convoluzione e non si fonde col bloom, e venendo prima non
+ * sbava la grana. Non `antialias: true` sul contesto (vedi `Stage.tsx`) né
+ * l'MSAA del composer: su una GPU integrata costavano metà dei frame
+ * (`config/postfx.ts`).
  *
  * I testi dell'interfaccia non sono toccati da nulla di tutto questo: vivono
  * in HTML, su strati sopra il canvas (spec 4.2).
@@ -45,6 +46,7 @@ export default function PostFX() {
       frameBufferType: HalfFloatType,
     });
     c.addPass(new RenderPass(scene, camera));
+    c.addPass(new EffectPass(camera, new FXAAEffect()));
 
     const effetti = [];
     // Su mobile niente bloom (spec 6.9): è l'effetto che costa più banda di

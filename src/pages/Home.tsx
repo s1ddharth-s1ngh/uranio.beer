@@ -20,6 +20,7 @@ import { usePrefersReducedMotion } from "../hooks/usePrefersReducedMotion";
 import { useIsTouch } from "../hooks/useIsTouch";
 import { HERO_OVERLAP, transitionAt } from "../lib/heroTransition";
 import { PageScroll } from "../lib/pageScroll";
+import FaqSection from "../components/faq/FaqSection";
 import styles from "./Home.module.css";
 
 // Le scene WebGL (three + R3F) vivono in chunk separati: la home shell e
@@ -207,6 +208,10 @@ export default function Home() {
             </Suspense>
           </section>
         </div>
+
+        {/* DOMANDE FREQUENTI: dopo il finale, a scroll nativo. Nel bundle
+            principale: è HTML e CSS, niente da caricare a parte */}
+        <FaqSection />
 
         {/* CHI SIAMO: scrollytelling con canvas pinnato, dopo il finale
             dell'esperienza, a scroll nativo */}

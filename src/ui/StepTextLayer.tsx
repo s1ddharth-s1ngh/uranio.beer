@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react";
-import { LAST_STEP } from "../config/theme.ts";
 import { STEPS } from "../content/steps.it";
 import { durationFor, sharedProgress, type StepLeaveDetail } from "../core/Progress.ts";
 import { useFontsReady } from "../hooks/useFontsReady";
@@ -7,14 +6,14 @@ import { prefersReducedMotion } from "../hooks/usePrefersReducedMotion";
 import { StepText } from "./StepText.ts";
 
 /**
- * Il testo che si vede a uno step: solo dall'1 al 5.
+ * Il testo che si vede a uno step: solo le quattro fasce, quelle con
+ * un'icona.
  *
- * Nell'hero il titolo sta sul piedistallo (task 8.19) e nel finale è la
- * scritta gigante (task 8.20): il blocco a sinistra è dei soli step
- * raccontati (spec 7.5).
+ * Nell'hero il nome ha il suo strato (`HeroUi`), nella gamma parla la fila
+ * di bottiglie e nel finale c'è la scritta gigante (task 8.20): il blocco a
+ * sinistra è dei soli step raccontati (spec 7.5).
  */
-const testoPer = (step: number) =>
-  step >= 1 && step < LAST_STEP ? STEPS[step] : null;
+const testoPer = (step: number) => (STEPS[step]?.icon ? STEPS[step] : null);
 
 /**
  * Lo strato dei testi degli step.
