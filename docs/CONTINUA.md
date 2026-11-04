@@ -57,6 +57,10 @@ siamo" (la bottiglia che apriva il tappo dopo le domande). I sette step ora:
 Poi, a scroll nativo, le **domande frequenti**, ed è la fine della pagina:
 `components/about/` non c'è più.
 
+Lo studio del modello (mesh, misure, mappa dell'etichetta con le quattro
+fasce) e il confronto step per step con il riferimento stanno in
+`docs/STUDIO_MODELLO.md`.
+
 Dove stanno le cose nuove:
 
 - **anello e fila** sono gli stessi cloni in due pose, mescolate da

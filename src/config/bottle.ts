@@ -165,11 +165,11 @@ export const SHADER = {
    */
   focusFloor: 0.015,
   /** il bagliore rosso sul testo chiaro dentro la fascia */
-  focusGlowAmt: 0.55,
+  focusGlowAmt: 0.9,
   /** quanto è più chiaro il centro della fascia dei suoi bordi */
-  focusHot: 0.35,
+  focusHot: 0.6,
   /** l'alone colorato attorno alla fascia, additivo */
-  focusHalo: 0.06,
+  focusHalo: 0.12,
   /** la lama di luce entra ed esce da qui, in spazio normale */
   sweepFrom: -1.5,
   sweepTo: 1.5,
