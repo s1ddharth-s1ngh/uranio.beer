@@ -97,10 +97,11 @@ const RETRO = {
  */
 export const KEYFRAMES: readonly Keyframe[] = [
   // 0 · Anello: camera lontana, la protagonista col fondo verso di noi e la
-  // cima un filo a sinistra, come la lattina al centro del riferimento
+  // cima un filo a sinistra, come la lattina al centro del riferimento; la
+  // faccia già un poco in alto a destra, verso il faro
   {
     camera: { position: [0, 0.4, 16], look: [0, 0.2, 0] },
-    rotation: [-0.2, 0, 0.16],
+    rotation: [-0.2, 0.22, 0.16],
     anchor: { localY: 0, screen: [0.5, 0.45] },
     spot: 1,
     face: 0.45,
@@ -113,13 +114,15 @@ export const KEYFRAMES: readonly Keyframe[] = [
     cap: 0,
     look: 1,
   },
-  // 1 · Fronte: grande, inclinata con la cima a sinistra e verso di noi (si
-  // vede il tappo dall'alto), la faccia girata a destra; il fondo esce dal
-  // bordo basso come la lattina del riferimento
+  // 1 · Fronte: grande, inclinata con la cima a sinistra, la faccia che
+  // guarda in alto a destra, verso il cielo e verso la luce (la richiesta del
+  // proprietario sull'immagine 13 del riferimento); il fondo esce dal bordo
+  // basso come la lattina del riferimento. `x` negativo alza la faccia: con
+  // `x` positivo la cima veniva verso di noi e la faccia guardava in basso
   {
     camera: { position: [0, 0, 8.6], look: [0, 0, 0] },
-    rotation: [0.16, 0.5, 0.4],
-    anchor: { localY: LABEL_CENTER_LOCAL, screen: [0.66, 0.8] },
+    rotation: [-0.25, 0.5, 0.4],
+    anchor: { localY: LABEL_CENTER_LOCAL, screen: [0.66, 0.84] },
     spot: 1.6,
     face: 1,
     ...SPENTA,
@@ -290,7 +293,9 @@ export const SEGMENTS: readonly Segment[] = [
       focus: [0.45, 1],
       sweep: [0.15, 0.75],
     },
-    sweepAmt: 1,
+    // non piena: a metà giro la bottiglia è di profilo, e la lama intera la
+    // faceva diventare tutta bianca per un paio di frame
+    sweepAmt: 0.65,
   },
   // 2 ↔ 3 ↔ 4 ↔ 5 · la fascia accesa scivola sul paragrafo nuovo
   { windows: { focus: [0.1, 0.9], sweep: [0.2, 0.8] }, sweepAmt: 0.4 },

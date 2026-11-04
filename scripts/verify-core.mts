@@ -431,7 +431,7 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
   // del mezzo giro (fronte → retro, segmento 1)
   {
     const meta = sm.apply(1.45).uniforms;
-    assert(meta.sweepAmt > 0.9, `la lama non si accende: ${meta.sweepAmt}`);
+    assert(meta.sweepAmt > SEGMENTS[1].sweepAmt * 0.9, `la lama non si accende: ${meta.sweepAmt}`);
     assert(meta.sweep > SHADER.sweepFrom && meta.sweep < SHADER.sweepTo);
     // nei segmenti fra le fasce è volutamente più timida
     assert(sm.apply(2.5).uniforms.sweepAmt <= SEGMENTS[2].sweepAmt + 1e-9);
@@ -615,6 +615,12 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
       }
       return b;
     };
+    // la faccia (il fronte dell'etichetta, +z nel modello) guarda in alto a
+    // destra, verso la luce: allo step 1 decisamente, allo step 0 un poco
+    for (const step of [0, 1]) {
+      const faccia = new THREE.Vector3(0, 0, 1).applyEuler(new StateMapper(vp).apply(step).rotation);
+      assert(faccia.x > 0.15 && faccia.y > 0.1, `${nome}: allo step ${step} la faccia non guarda in alto a destra (${faccia.toArray().map((n) => n.toFixed(2))})`);
+    }
     const anello = box(0, BOTTLE.minY, BOTTLE.maxY, BOTTLE.bodyRadius);
     assert(anello.y0 > 0.03 && anello.y1 < 0.97, `${nome}: allo step 0 la protagonista esce dal quadro`);
     assert(Math.abs((anello.x0 + anello.x1) / 2 - 0.5) < 0.05, `${nome}: allo step 0 la protagonista non è al centro`);

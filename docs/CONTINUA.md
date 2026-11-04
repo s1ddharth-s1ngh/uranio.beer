@@ -50,7 +50,7 @@ siamo" (la bottiglia che apriva il tappo dopo le domande). I sette step ora:
 | step | cosa |
 | --- | --- |
 | 0 | **anello**: tutte le bottiglie (7 su desktop, 5 su telefono), la protagonista al centro fra faro e piedistallo, il logotipo sul piedistallo (`HeroUi`, `gl/HeroProps.tsx`, `core/heroLayout.ts`) |
-| 1 | **fronte**: lei sola, grande, inclinata, la faccia girata a destra e illuminata (`face`), il nome a sinistra (`HeroUi`) |
+| 1 | **fronte**: lei sola, grande, inclinata, la faccia che guarda in alto a destra verso la luce (`face`; `rotation.x` negativo, lo controlla `verify:core`), il nome a sinistra (`HeroUi`) |
 | 2–5 | il retro, una fascia accesa per step; all'1 → 2 **il tappo salta** e resta sospeso in alto a destra |
 | 6 | **gamma e finale insieme**: le altre tornano in fila, il tappo si richiude, "ZERO CRISI" dietro e le call to action |
 
