@@ -69,9 +69,13 @@ const accesa = (b: (typeof BANDS)[keyof typeof BANDS]) => ({
   focusAngleHalf: b.angleHalf,
 });
 
-/** il retro: niente anello, niente faro, tappo sospeso, sfondo degli step */
+/**
+ * il retro: niente anello, niente faro, tappo sospeso, sfondo degli step. La
+ * camera è vicina come nel riferimento, dove la lattina riempie il frame e il
+ * blocco acceso è grande quanto il titolo accanto (confronto del 2026-11-04)
+ */
 const RETRO = {
-  camera: { position: [0, 0, 7], look: [0, 0, 0] },
+  camera: { position: [0, 0, 6], look: [0, 0, 0] },
   spot: 0.25,
   face: 0,
   background: [0, 1, 0],
@@ -120,9 +124,9 @@ export const KEYFRAMES: readonly Keyframe[] = [
   // basso come la lattina del riferimento. `x` negativo alza la faccia: con
   // `x` positivo la cima veniva verso di noi e la faccia guardava in basso
   {
-    camera: { position: [0, 0, 8.6], look: [0, 0, 0] },
+    camera: { position: [0, 0, 6.4], look: [0, 0, 0] },
     rotation: [-0.25, 0.5, 0.4],
-    anchor: { localY: LABEL_CENTER_LOCAL, screen: [0.66, 0.84] },
+    anchor: { localY: LABEL_CENTER_LOCAL, screen: [0.64, 0.62] },
     spot: 1.6,
     face: 1,
     ...SPENTA,
@@ -138,34 +142,34 @@ export const KEYFRAMES: readonly Keyframe[] = [
   {
     ...RETRO,
     rotation: [0.12, Math.PI, 0.26],
-    anchor: { localY: fasciaLocale(BANDS.f1.y), screen: [0.6, 0.44] },
+    anchor: { localY: fasciaLocale(BANDS.f1.y), screen: [0.63, 0.44] },
     ...accesa(BANDS.f1),
   },
   {
     ...RETRO,
     rotation: [0.12, Math.PI, 0.19],
-    anchor: { localY: fasciaLocale(BANDS.f2.y), screen: [0.6, 0.44] },
+    anchor: { localY: fasciaLocale(BANDS.f2.y), screen: [0.63, 0.44] },
     ...accesa(BANDS.f2),
   },
   {
     ...RETRO,
     rotation: [0.1, Math.PI, 0.14],
-    anchor: { localY: fasciaLocale(BANDS.f3.y), screen: [0.6, 0.46] },
+    anchor: { localY: fasciaLocale(BANDS.f3.y), screen: [0.63, 0.46] },
     ...accesa(BANDS.f3),
   },
   {
     ...RETRO,
     rotation: [0.08, Math.PI, 0.1],
-    anchor: { localY: fasciaLocale(BANDS.f4.y), screen: [0.6, 0.46] },
+    anchor: { localY: fasciaLocale(BANDS.f4.y), screen: [0.63, 0.46] },
     ...accesa(BANDS.f4),
   },
   // 6 · La gamma e il finale: finito il giro (2π, di nuovo il fronte) le
   // altre arrivano dai lati in fila curva e il tappo torna sul collo. Sfondo
   // da studio, "ZERO CRISI" dietro, le call to action sotto
   {
-    camera: { position: [0, 0, 16], look: [0, 0, 0] },
+    camera: { position: [0, 0, 13.5], look: [0, 0, 0] },
     rotation: [0, Math.PI * 2, 0.08],
-    anchor: { localY: 0, screen: [0.5, 0.42] },
+    anchor: { localY: 0, screen: [0.5, 0.45] },
     spot: 0.8,
     face: 0.35,
     ...SPENTA,

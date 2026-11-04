@@ -19,7 +19,7 @@ export const CAP_MOTION = {
    * icone. Verticale: in alto a destra, sopra la spalla.
    */
   hover: {
-    desktop: { screen: [0.79, 0.25], depth: 8 },
+    desktop: { screen: [0.85, 0.2], depth: 6.5 },
     portrait: { screen: [0.8, 0.13], depth: 9.5 },
   },
   /** da sospeso è inclinato verso la camera: si vede la corona di tre quarti */

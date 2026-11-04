@@ -72,17 +72,19 @@ export function ringFor(vp: { mobile: boolean; portrait: boolean }) {
  * la **stessa** bottiglia che vive tutta l'esperienza, non una copia. Le
  * altre (`gl/Carousel.tsx`) sono cloni che compaiono qui e nell'anello. Misure in unità
  * di scena relative al pivot della protagonista; la camera dell'ultimo keyframe sta
- * a 16, dove 1440×900 inquadra ~12,8 unità di larghezza.
+ * a 13,5, dove 1440×900 inquadra ~10,8 unità di larghezza: le bottiglie
+ * quasi si toccano e la fila riempie il frame, come le lattine del
+ * riferimento.
  */
 export const GAMMA = {
   /** quante bottiglie in tutto, protagonista compresa */
   count: 9,
   /** su mobile il frame è stretto: nove sarebbero una fila di francobolli */
   countMobile: 5,
-  /** passo orizzontale: le due estreme escono a metà dai bordi */
-  spacing: 1.62,
+  /** passo orizzontale, poco più di un corpo: le due estreme escono a metà dai bordi */
+  spacing: 1.38,
   /** di quanto sale la fila a ogni passo verso destra */
-  rise: 0.36,
+  rise: 0.3,
   /** quanto si piegano in basso i due capi (∝ passo²) */
   arc: 0.07,
   /** quanto arretrano i capi (∝ passo²): la fila è un arco anche in pianta */

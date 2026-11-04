@@ -582,11 +582,12 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
 
 // --- anello e fronte: le due composizioni dell'apertura (riferimento
 // ciaoenergy.com). Allo step 0 la protagonista sta tutta in quadro, al
-// centro. Allo step 1 è grande e inclinata col fondo fuori dal bordo basso,
-// ma il tappo resta in quadro e sotto l'header (allo step dopo salta, e deve
-// vedersi), e l'etichetta non finisce sotto il nome: desktop, il nome è a
-// `left: 10vw`, largo `min(460px, 36vw)` (HeroUi.module.css); layout
-// verticale, il nome sta in basso e l'etichetta sopra il 60% dell'altezza
+// centro. Allo step 1, su desktop, è il primo piano della faccia come la
+// lattina del riferimento: l'etichetta grande (almeno un terzo
+// dell'altezza), tutta in quadro e a destra del nome (`left: 10vw`, largo
+// `min(460px, 36vw)`, HeroUi.module.css); il collo esce dal bordo alto. Nei
+// formati verticali la bottiglia intera: il tappo in quadro sotto l'header
+// (allo step dopo salta) e l'etichetta sopra il nome, che sta in basso
 {
   const THREE = await import("three");
   const { CAMERA } = await import("../src/config/solvePivot.ts");
@@ -627,14 +628,16 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
 
     const tappo = box(1, 4.05, BOTTLE.maxY, 0.35);
     const etichetta = box(1, LABEL.minY, LABEL.maxY, LABEL.radius);
-    console.log(`fronte ${nome}: tappo da y ${tappo.y0.toFixed(3)}, etichetta x0 ${etichetta.x0.toFixed(3)} y ${((etichetta.y0 + etichetta.y1) / 2).toFixed(3)}`);
-    assert(tappo.y0 > (verticale ? 0.06 : 0.1), `${nome}: allo step 1 il tappo è sotto l'header o fuori quadro (y ${tappo.y0.toFixed(3)})`);
-    assert(tappo.x0 > 0.02 && tappo.x1 < 0.98, `${nome}: allo step 1 il tappo esce dai lati`);
+    console.log(`fronte ${nome}: tappo da y ${tappo.y0.toFixed(3)}, etichetta x0 ${etichetta.x0.toFixed(3)} y ${etichetta.y0.toFixed(3)}–${etichetta.y1.toFixed(3)}`);
     if (verticale) {
+      assert(tappo.y0 > 0.06, `${nome}: allo step 1 il tappo è sotto l'header o fuori quadro (y ${tappo.y0.toFixed(3)})`);
+      assert(tappo.x0 > 0.02 && tappo.x1 < 0.98, `${nome}: allo step 1 il tappo esce dai lati`);
       assert((etichetta.y0 + etichetta.y1) / 2 < 0.6, `${nome}: allo step 1 l'etichetta scende nel nome`);
     } else {
       const bordoNome = (0.1 * vp.width + Math.min(460, 0.36 * vp.width)) / vp.width;
       assert(etichetta.x0 > bordoNome, `${nome}: l'etichetta arriva a ${etichetta.x0.toFixed(3)}, sotto il nome (${bordoNome.toFixed(3)})`);
+      assert(etichetta.y0 > 0.1 && etichetta.y1 < 0.99 && etichetta.x1 < 0.97, `${nome}: allo step 1 l'etichetta esce dal quadro`);
+      assert(etichetta.y1 - etichetta.y0 > 0.33, `${nome}: allo step 1 la faccia non è un primo piano (${(etichetta.y1 - etichetta.y0).toFixed(3)} dell'altezza)`);
     }
   }
 }
