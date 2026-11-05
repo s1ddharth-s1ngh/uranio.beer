@@ -13,7 +13,10 @@ import { COLORS } from "./theme.ts";
 export const PROPS = {
   /** il faro sopra la bottiglia, tagliato dal bordo alto del frame */
   faro: {
-    y: 4.1,
+    // con la camera dell'anello a 14,5 il bordo alto è ~3,25 sopra il
+    // pivot: così ne spunta la metà bassa, dietro il logo dell'header, come
+    // il disco del riferimento
+    y: 3.05,
     z: 0.4,
     /** la scocca: un cilindro schiacciato in metallo scuro */
     shellRadius: 1.9,
@@ -28,8 +31,6 @@ export const PROPS = {
     /** il disco che fa luce, dentro l'anello più piccolo */
     discRadius: 0.92,
     discColor: "#FFF4E8",
-    /** il cono di luce sotto: additivo, quasi invisibile, dà il volume */
-    beam: { length: 3.4, radiusTop: 0.9, radiusBottom: 2.2, opacity: 0.07 },
   },
   /** il piedistallo sotto la bottiglia */
   base: {

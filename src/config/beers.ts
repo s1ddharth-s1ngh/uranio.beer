@@ -42,7 +42,7 @@ export const BEERS: readonly Beer[] = [
  * bordi, le terze tagliate a metà; su telefono le vicine a ~⅕ e ⅘.
  */
 export const RING = {
-  desktop: { radius: 9, step: 0.42 },
+  desktop: { radius: 9, step: 0.33 },
   portrait: { radius: 5, step: 0.46 },
   mobile: { radius: 3.4, step: 0.5 },
   /** l'anello è inclinato: sale verso destra di tanto per unità di x */

@@ -104,7 +104,7 @@ export const KEYFRAMES: readonly Keyframe[] = [
   // cima un filo a sinistra, come la lattina al centro del riferimento; la
   // faccia già un poco in alto a destra, verso il faro
   {
-    camera: { position: [0, 0.4, 16], look: [0, 0.2, 0] },
+    camera: { position: [0, 0.4, 14.5], look: [0, 0.2, 0] },
     rotation: [-0.2, 0.22, 0.16],
     anchor: { localY: 0, screen: [0.5, 0.45] },
     spot: 1,
@@ -124,9 +124,9 @@ export const KEYFRAMES: readonly Keyframe[] = [
   // basso come la lattina del riferimento. `x` negativo alza la faccia: con
   // `x` positivo la cima veniva verso di noi e la faccia guardava in basso
   {
-    camera: { position: [0, 0, 6.4], look: [0, 0, 0] },
+    camera: { position: [0, 0, 5.8], look: [0, 0, 0] },
     rotation: [-0.25, 0.5, 0.4],
-    anchor: { localY: LABEL_CENTER_LOCAL, screen: [0.64, 0.62] },
+    anchor: { localY: LABEL_CENTER_LOCAL, screen: [0.66, 0.64] },
     spot: 1.6,
     face: 1,
     ...SPENTA,

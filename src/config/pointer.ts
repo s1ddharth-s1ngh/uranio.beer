@@ -10,8 +10,8 @@ export const POINTER = {
   yaw: 0.42,
   /** in alto / in basso: meno, la bottiglia è alta e il collo spazzerebbe lo schermo */
   pitch: 0.26,
-  /** costante di tempo dello smorzamento, in secondi: segue, non insegue */
-  tau: 0.45,
+  /** costante di tempo dello smorzamento, in secondi: segue subito, senza scatti */
+  tau: 0.3,
   /** l'anello e la fila seguono con questa frazione: il fondo si muove meno del primo piano */
   ring: 0.35,
 } as const;

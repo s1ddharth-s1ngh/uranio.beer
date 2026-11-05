@@ -52,8 +52,8 @@ function Cromo() {
  *
  * Il faro sta sopra la bottiglia e **tagliato dal bordo alto**: nel
  * riferimento si vede solo la metà bassa del disco, ed è quel taglio a far
- * sembrare la scena più grande del frame. Sotto ha un cono di luce appena
- * accennato. Il piedistallo è un cilindro scuro con i bordi cromati, un filo
+ * sembrare la scena più grande del frame. Niente cono di luce sotto: nel
+ * riferimento il faro è solo il disco metallico. Il piedistallo è un cilindro scuro con i bordi cromati, un filo
  * rosso emissivo e un bagliore additivo sotto; sopra ci si appoggia il
  * logotipo "CRISI ECONOMICA" in HTML (`ui/HeroUi.tsx`).
  */
@@ -70,29 +70,7 @@ export function HeroProps() {
       ]),
     [],
   );
-  // il cono: dal bianco in alto al niente in basso, lungo la v della geometria
-  const fascio = useMemo(() => {
-    const c = document.createElement("canvas");
-    c.width = 2;
-    c.height = 128;
-    const ctx = c.getContext("2d")!;
-    const g = ctx.createLinearGradient(0, 0, 0, 128);
-    g.addColorStop(0, "rgba(255,244,232,1)");
-    g.addColorStop(1, "rgba(255,244,232,0)");
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, 2, 128);
-    const t = new THREE.CanvasTexture(c);
-    t.colorSpace = THREE.SRGBColorSpace;
-    return t;
-  }, []);
-
-  useEffect(
-    () => () => {
-      glow.dispose();
-      fascio.dispose();
-    },
-    [glow, fascio],
-  );
+  useEffect(() => () => glow.dispose(), [glow]);
 
   const mapper = sharedMapper(sharedViewport().state);
   const intro = sharedIntro();
@@ -132,21 +110,6 @@ export function HeroProps() {
             color={f.discColor}
             toneMapped={false}
             side={THREE.DoubleSide}
-          />
-        </mesh>
-        {/* il cono di luce, aperto sotto e senza profondità: non taglia niente */}
-        <mesh position-y={fondo - f.beam.length / 2}>
-          <cylinderGeometry
-            args={[f.beam.radiusTop, f.beam.radiusBottom, f.beam.length, 48, 1, true]}
-          />
-          <meshBasicMaterial
-            map={fascio}
-            transparent
-            opacity={f.beam.opacity}
-            blending={THREE.AdditiveBlending}
-            depthWrite={false}
-            side={THREE.DoubleSide}
-            toneMapped={false}
           />
         </mesh>
       </group>

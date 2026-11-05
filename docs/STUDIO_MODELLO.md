@@ -70,8 +70,8 @@ Dopo, a scroll nativo, le domande frequenti.
   alto. Il tappo, allo step dopo, entra in volo;
 - il colore degli step è il rosso cupo della nostra etichetta, non il viola
   del gusto Double Litchi;
-- il faro ha un cono di luce appena accennato; nel riferimento è solo un
-  disco metallico.
+- nel finale, sotto la fila, ci sono le call to action e dietro una
+  scritta "ZERO CRISI" tenue; il riferimento mostra solo la fila.
 
 ## Dove sta nel codice
 

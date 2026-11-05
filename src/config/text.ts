@@ -33,7 +33,9 @@ export const FINALE = {
    */
   enterAt: 0.8,
   /** entrata delle lettere, una alla volta in ordine sparso */
-  chars: { duration: 0.9, stagger: 0.05, ease: "power3.out", opacity: 0.35 },
+  // tenue: nel finale parla la fila di bottiglie (riferimento, immagine 17),
+  // la scritta resta solo come fondo
+  chars: { duration: 0.9, stagger: 0.05, ease: "power3.out", opacity: 0.14 },
   /**
    * Uscita, subito alla partenza della transizione all'indietro. Deve finire
    * prima che la bottiglia ricominci a ruotare: il tetto lo calcola
