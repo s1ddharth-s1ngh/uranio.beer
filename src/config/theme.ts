@@ -51,12 +51,24 @@ export const LAST_STEP = STEP_DURATION.length;
 /**
  * Curva del tween di `p`: parte piano, accelera, atterra molto morbida.
  * Va registrata in GSAP come `CustomEase` col nome `uranio` (task 8.6).
+ *
+ * Questa curva e quella delle finestre (sotto) si **moltiplicano**: ogni
+ * gruppo vede la finestra applicata a una `p` già curvata. Con
+ * `C0.65,0 0.18,1` e `power2.inOut` l'80% del moto della camera stava nel
+ * 12% della transizione (170 ms su 1,4 s, picco 12 volte la velocità
+ * media): più uno scatto che uno scroll a scatti morbido, e il tappo volava
+ * in un paio di frame. Così è nel 23–25%, come un `expo.inOut` su tutta la
+ * durata (misurato il 2026-11-05).
  */
 export const EASE_NAME = "uranio";
-export const EASE_PATH = "M0,0 C0.65,0 0.18,1 1,1";
+export const EASE_PATH = "M0,0 C0.45,0 0.2,1 1,1";
 
-/** curva di default dentro le finestre di coreografia (spec 7.4) */
-export const EASE_WINDOW = "power2.inOut";
+/**
+ * curva di default dentro le finestre di coreografia (spec 7.4): solo quel
+ * tanto di morbidezza che serve a non partire di colpo quando una finestra
+ * comincia a metà segmento; il grosso della curva lo fa già `p`
+ */
+export const EASE_WINDOW = "sine.inOut";
 
 /** Tempi del motore di scroll (spec 5.1). In millisecondi dove indicato. */
 export const SCROLL = {

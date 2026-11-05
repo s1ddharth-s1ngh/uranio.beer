@@ -277,20 +277,29 @@ assert(
   b.dispose();
 }
 
-// --- 4c. la birra dentro (task 8.26): sta nella cavità del vetro a ogni
-// altezza, arriva al livello giusto, non esce dal fondo; su GPU deboli non
-// c'è; i cloni del carosello la condividono per intero
-{
+// --- 4c. la birra dentro (task 8.26): c'è solo se il vetro la lascia
+// vedere; quando c'è, sta nella cavità del vetro a ogni altezza, arriva al
+// livello giusto, non esce dal fondo; su GPU deboli non c'è; i cloni del
+// carosello la condividono per intero
+birra: {
   const b = prepareBottle(ottimizzato);
   const birra = b.liquid;
-  assert(birra, "con LIQUID.enabled e senza lowEnd la birra deve esserci");
+  const vetroMat = b.meshes.vetro.material as THREE.MeshPhysicalMaterial;
+  if (!LIQUID.enabled || vetroMat.transmission === 0) {
+    // oggi è così (`GLASS.transmission` a 0, config/materials.ts): una birra
+    // dietro un vetro opaco sarebbe una draw call che non si vede
+    assert.equal(birra, null, "il vetro non trasmette: la birra non deve essere creata");
+    assert.equal(cloneBottle(b).liquid, null);
+    console.log("birra  spenta: il vetro non trasmette");
+    b.dispose();
+    break birra;
+  }
+  assert(birra, "con LIQUID.enabled e un vetro che trasmette la birra deve esserci");
   assert.equal(birra.parent, b.inner, "la birra deve stare in inner: segue il pivot");
 
-  // Il vetro è disegnato davanti alla birra solo se non è `transparent` e ha
-  // la trasmissione: è questo che la fa vedere filtrata e spenta dalle maschere
-  const vetroMat = b.meshes.vetro.material as THREE.MeshPhysicalMaterial;
+  // Il vetro è disegnato davanti alla birra solo se non è `transparent`: è la
+  // trasmissione che la fa vedere filtrata e spenta dalle maschere
   assert(!vetroMat.transparent, "il vetro è transparent: la birra finirebbe sopra, non dietro");
-  assert(vetroMat.transmission > 0, "senza transmission la birra non si vede");
 
   // Il controllo non riusa la misura di prepareBottle: spara raggi veri contro
   // vetro e birra, dall'asse verso fuori e dall'alto verso il fondo

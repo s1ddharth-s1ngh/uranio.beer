@@ -17,15 +17,27 @@ import { COLORS } from "./theme.ts";
  */
 export const ENV = {
   resolution: 256,
-  /** softbox grande sopra la bottiglia */
-  top: { scale: [12, 12, 1], position: [0, 7, 0], intensity: 1.1, color: COLORS.white },
+  /**
+   * La sfumatura di ogni piano, dal centro al bordo (gradiente radiale
+   * stirato sul piano): un nucleo pieno che si spegne morbido, come un
+   * softbox vero. È lei a fare del riflesso una lama con gli orli sfumati
+   * invece di una toppa grigia.
+   */
+  falloff: [
+    [0, "#ffffff"],
+    [0.3, "#ffffff"],
+    [0.65, "#6e6e6e"],
+    [1, "#000000"],
+  ],
+  /** softbox sopra la bottiglia: la luce morbida sulla spalla */
+  top: { scale: [7, 7, 1], position: [0, 7, 0], intensity: 1.6, color: COLORS.white },
   /** le due strisce verticali: i riflessi lunghi sul vetro */
   sides: {
-    scale: [0.7, 9, 1],
+    scale: [1, 10, 1],
     x: 5,
     y: 1,
     z: 1.5,
-    intensity: 2.2,
+    intensity: 4,
     color: COLORS.white,
   },
   /** rimbalzo caldo e debole dal basso, perché i neri non siano morti */

@@ -9,16 +9,23 @@
 import { COLORS } from "./theme.ts";
 
 /**
- * Vetro scuro: quasi nero, ma non opaco. Vive di riflessi, quindi `roughness`
- * bassissima e `clearcoat` pieno; la `transmission` è appena 0,2 perché la
- * birra dentro è scura e non si deve vedere attraverso la bottiglia, solo
- * intuire un bordo che si illumina.
+ * Vetro scuro, quasi nero. Vive di riflessi, quindi `roughness` bassissima e
+ * `clearcoat` pieno.
+ *
+ * `transmission` a 0, misurato il 2026-11-05: three moltiplica la luce
+ * trasmessa per `color`, e `#15110d` in lineare è lo 0,7% — a 0,2 come a 0,75,
+ * con la birra sette volte più accesa, le schermate con e senza erano
+ * identiche, anche a metà giro col vetro nudo in camera. Costava invece un
+ * passaggio in più su tutti gli opachi: 2 ms a frame nel primo piano, 8 nella
+ * gamma (GPU integrata, 1440×900). Per vedere la birra in controluce non
+ * basta alzare questo numero: va schiarito il vetro, che è una scelta di look.
+ * Riportato sopra 0, la birra torna da sé (`prepareBottle`).
  */
 export const GLASS = {
   color: "#15110d",
   metalness: 0,
   roughness: 0.06,
-  transmission: 0.2,
+  transmission: 0,
   thickness: 0.5,
   ior: 1.5,
   attenuationColor: "#4a2208",
@@ -63,7 +70,8 @@ export const LABEL_RENDER_ORDER = 2;
 /**
  * La birra dentro (spec 6.10). Opaca di proposito: si vede solo attraverso la
  * `transmission` del vetro, che la cattura nel suo render target e la
- * restituisce filtrata e già spenta dalle maschere. Come la tinta del vetro,
+ * restituisce filtrata e già spenta dalle maschere: con `GLASS.transmission`
+ * a 0, com'è oggi, non viene creata. Come la tinta del vetro,
  * `#5a2a08` vive solo nel 3D e quindi sta qui e non in `COLORS`.
  *
  * Il profilo non è un numero di config: lo misura `prepareBottle` sulla cavità

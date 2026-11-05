@@ -18,8 +18,12 @@ export const BG = {
   floor: "#5E5E5E",
   /** gli sbuffi più chiari della nebbia del finale */
   fog3: "#FFC2B8",
-  /** grana su tutto, cambia a ogni frame: è ciò che evita le bande */
-  grain: 0.035,
+  /**
+   * grana su tutto, cambia a ogni frame: è ciò che evita le bande. In spazio
+   * display (dopo la conversione sRGB): ±3 livelli su 255 bastano a
+   * sciogliere gli scalini senza vedersi come trama
+   */
+  grain: 0.024,
   /** quanto lenta respira la nebbia */
   timeScale: 0.03,
 } as const;

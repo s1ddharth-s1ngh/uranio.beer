@@ -304,12 +304,13 @@ export function prepareBottle(
 
   // La birra si vede solo attraverso la `transmission` del vetro: il vetro non
   // è `transparent`, la copre del tutto e la restituisce dal render target
-  // della trasmissione, filtrata e già moltiplicata dalle maschere. Su GPU
-  // deboli la trasmissione è 0 e la birra sarebbe invisibile: non si crea,
-  // ed è una draw call in meno per bottiglia. Niente maschere qui, quindi
-  // geometria e materiale si possono condividere con i cloni.
+  // della trasmissione, filtrata e già moltiplicata dalle maschere. Senza
+  // trasmissione (su GPU deboli, o con `GLASS.transmission` a 0) sarebbe
+  // invisibile: non si crea, ed è una draw call in meno per bottiglia. Niente
+  // maschere qui, quindi geometria e materiale si possono condividere con i
+  // cloni.
   let liquid: THREE.Mesh | null = null;
-  if (LIQUID.enabled && !lowEnd) {
+  if (LIQUID.enabled && materiali.vetro.transmission > 0) {
     liquid = new THREE.Mesh(
       new THREE.LatheGeometry(profiloBirra(geometrie.vetro), LIQUID.segments),
       new THREE.MeshPhysicalMaterial({

@@ -37,6 +37,55 @@ npm run verify:glb    # il modello e la sua preparazione
 Quando arrivi in fondo al 8.28, fermati e scrivi un resoconto finale di cosa
 è stato fatto e cosa resta non verificabile.
 
+## Terzo giro del 2026-11-05: vetro, grana, curve, costo
+
+Un giro di pulizia su grafica e animazione, tutto guardato con Playwright
+(schermate per step e transizioni fotogramma per fotogramma con
+`page.clock`). Nessuna inquadratura e nessuna posa è cambiata: anello, fila e
+primo piano restano quelli tarati sul riferimento nel giro prima.
+
+1. **La toppa grigia sulla spalla.** Ogni bottiglia aveva sulla spalla una
+   macchia grigia piatta col bordo a zigzag, e due righe grigie sui fianchi.
+   Era l'ambiente: softbox e strisce erano piani pieni a bordo netto (il
+   softbox 12 × 12), e sulla spalla del vetro, che ha pochi anelli di
+   vertici, il bordo del riflesso seguiva le sfaccettature. Ora ogni piano ha
+   una sfumatura radiale (`ENV.falloff`, la `makeGlowTexture` di sempre) e
+   il softbox è 7 × 7: la spalla ha una luce morbida, i fianchi due lame da
+   vetro. Si vede bene con `?debug=env`.
+2. **La grana del fondo** si sommava in lineare, prima della conversione in
+   sRGB: vicino al nero la conversione la moltiplicava per più di dieci, e il
+   rosso degli step era un tessuto a puntini 2 × 2 (lo sfondo è a mezza
+   risoluzione). Ora si somma dopo, in spazio display, a ±3 livelli: scioglie
+   le bande e non si vede.
+3. **Le transizioni scattavano.** La curva di `p` e quella delle finestre si
+   moltiplicano: con `C0.65,0 0.18,1` e `power2.inOut` l'80% del moto della
+   camera stava nel 12% della transizione (170 ms su 1,4 s, picco 12 volte la
+   velocità media). Ora `C0.45,0 0.2,1` e `sine.inOut`: 23–25%, come un
+   `expo.inOut`. Il conto è nel commento di `EASE_PATH` (`config/theme.ts`).
+4. **La `transmission` del vetro è 0, e la birra non c'è più.** Con
+   `#15110d` la luce trasmessa (moltiplicata per il colore) è lo 0,7%: a 0,2
+   come a 0,75, con la birra sette volte più accesa, le schermate con e senza
+   erano identiche. Costava un passaggio in più su tutti gli opachi. La birra
+   ora esiste solo se il vetro trasmette (`prepareBottle`, e `verify:glb`
+   controlla i due rami): per riaverla va schiarito il vetro, non solo
+   alzato il numero.
+
+**Costo GPU**, build di produzione, 1440×900, metodo `readPixels` (vedi più
+sotto): il pavimento di Chromium headless con due canvas vuoti è già 17 ms,
+quindi il costo della scena è la differenza.
+
+| step | prima | dopo |
+| --- | --- | --- |
+| 0 anello | 32,9 ms | 28,1 ms |
+| 1 fronte | 35,4 ms | 29,8 ms |
+| 3 retro | 35,2 ms | 26,4 ms |
+| 6 gamma | 48,3 ms | 31,4 ms |
+
+Escluso misurando, per chi cerca il prossimo taglio: senza tutto il
+post-processing, senza bloom o con la trasmissione a mezza risoluzione i
+tempi non cambiavano. Il costo restante è il disegno delle bottiglie, e
+scala coi pixel (720×450 → 18 ms, cioè il pavimento).
+
 ## Secondo giro del 2026-11-04: anello, tappo, cursore
 
 Il proprietario ha guardato il primo giro (qui sotto) e l'ha trovato "per
@@ -451,8 +500,9 @@ come "primi numeri da ritoccare guardando", guardate il 2026-10-08:
 - Zigrinatura del tappo: si vede, ondulata e senza sfaccettature.
 - `HERO_UI.nameAnchor` (0,5): il logotipo sta sul piedistallo, sopra il
   bordo rosso, leggibile. Lasciato.
-- Birra dentro (`LIQUID`): in nessuna schermata si intuisce. Se la si vuole
-  vedere, il primo numero da toccare è la `transmission` del vetro (0,2).
+- Birra dentro (`LIQUID`): in nessuna schermata si intuisce. Dal 2026-11-05
+  la `transmission` del vetro è 0 e la birra non viene creata (terzo giro,
+  in cima a questo file): alzarla da sola non basta, va schiarito il vetro.
 
 Restano **non verificabili qui**, perché sono movimento o dispositivi: la
 fluidità e gli fps su un M1 e su un telefono, l'inerzia del trackpad, il
