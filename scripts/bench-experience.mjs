@@ -82,7 +82,7 @@ function sonda() {
   };
   // un contesto perso (GPU contesa, reset del driver) manda l'esperienza alla
   // versione statica: la misura non vale. In cattura arrivano solo i canvas
-  // nel documento, non quello di prova di `hasWebGL2`
+  // nel documento, non quello di prova di `hasHardwareWebGL2`
   let persi = 0;
   addEventListener("webglcontextlost", () => persi++, true);
   let frame = 0;

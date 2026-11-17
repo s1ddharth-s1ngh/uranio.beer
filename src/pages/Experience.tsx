@@ -7,7 +7,7 @@ import { useExperienceLock } from "../hooks/useExperienceLock";
 import { prefersReducedMotion } from "../hooks/usePrefersReducedMotion";
 import { useStepEngine } from "../hooks/useStepEngine";
 import type { PageScroll } from "../lib/pageScroll";
-import { hasWebGL2 } from "../gl/webgl";
+import { hasHardwareWebGL2 } from "../gl/webgl";
 import { Fallback } from "../ui/Fallback";
 import { HeroUi } from "../ui/HeroUi";
 import { Finale } from "../ui/Finale";
@@ -78,14 +78,15 @@ function Scene({
 }
 
 /**
- * Senza WebGL2, o con il contesto perso a metà, la versione statica (task
+ * Senza WebGL2, con WebGL disegnato in software dalla CPU (`gl/webgl.ts`), o
+ * con il contesto perso a metà, la versione statica (task
  * 8.24). La prova si fa una volta, prima di montare scena e sfondo: un
  * contesto perso dopo non torna, e la pagina resta statica fino al reload.
  */
 export default function Experience(
   props: Omit<Parameters<typeof Scene>[0], "onContextLost">,
 ) {
-  const [statica, setStatica] = useState(() => !hasWebGL2());
+  const [statica, setStatica] = useState(() => !hasHardwareWebGL2());
   if (statica) return <Fallback onHudChange={props.onHudChange} />;
   return <Scene {...props} onContextLost={() => setStatica(true)} />;
 }

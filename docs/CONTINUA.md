@@ -60,10 +60,12 @@ AI". Priorità: deve girare sul PC più debole in commercio (poi i telefoni).
    il cursore in base a quanto le è vicino sullo schermo (campana di raggio
    `POINTER.sigma`), le altre quasi niente; fuori dalla finestra l'effetto si
    spegne piano. Prima girava tutta la scena, anello compreso.
-3. **Lo sfondo è quello del hero**: il nero della pagina e lo stesso
-   `Starfield` (più `FallingStars`, le stelle cadenti fatte dalla sessione del
-   hero) dentro il canvas della scena (`gl/Stars.tsx`). Via il secondo canvas
-   WebGL con lo shader a nebbia (`gl/Background.ts`).
+3. **Lo sfondo è quello del hero**: il nero della pagina e lo stesso cielo
+   del hero, `DeepSpace` senza la lente (che è del logo) più `FallingStars`,
+   dentro il canvas della scena (`gl/Stars.tsx`). Via il secondo canvas WebGL
+   con lo shader a nebbia (`gl/Background.ts`). Con WebGL disegnato in
+   software (SwiftShader: 5–10 fps anche ottimizzato) la sezione passa alla
+   versione statica (`gl/webgl.ts`).
 4. **Via il post-processing** (`gl/PostFX.tsx`): niente render target a mezza
    precisione e tre passaggi a schermo intero; antialias MSAA del contesto,
    niente tone mapping (col composer three non lo applicava, quindi i colori

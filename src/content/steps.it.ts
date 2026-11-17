@@ -60,7 +60,8 @@ export const STEPS: Step[] = [
     title: "Crisi Economica",
     subtitle: "Ordinary Bitter · 4,2%",
     scrollHint: "Scorri per scoprire",
-    image: { file: "crisi-economica-logotipo.webp", alt: "Il logotipo Crisi Economica dell'etichetta" },
+    // niente immagine nella versione statica: era il logotipo a pennello,
+    // tolto dappertutto su richiesta del proprietario (2026-11-17)
   },
   {
     // il fronte: lei sola, intera a destra, il nome nel blocco a sinistra

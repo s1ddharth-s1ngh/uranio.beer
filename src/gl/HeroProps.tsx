@@ -53,9 +53,9 @@ function Cromo() {
  * Il faro sta sopra la bottiglia e **tagliato dal bordo alto**: nel
  * riferimento si vede solo la metà bassa del disco, ed è quel taglio a far
  * sembrare la scena più grande del frame. Niente cono di luce sotto: nel
- * riferimento il faro è solo il disco metallico. Il piedistallo è un cilindro scuro con i bordi cromati, un filo
- * rosso emissivo e un bagliore additivo sotto; sopra ci si appoggia il
- * logotipo "CRISI ECONOMICA" in HTML (`ui/HeroUi.tsx`).
+ * riferimento il faro è solo il disco metallico. Il piedistallo è un cilindro
+ * scuro con i bordi cromati, un filo rosso emissivo e un bagliore additivo
+ * sotto; davanti, in HTML, stile e gradazione (`ui/HeroUi.tsx`).
  */
 export function HeroProps() {
   const faro = useRef<THREE.Group>(null);

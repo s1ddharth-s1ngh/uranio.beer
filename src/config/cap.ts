@@ -18,11 +18,12 @@ export const CAP_MOTION = {
    * lei a ogni step. Desktop: in alto a destra, fra la bottiglia e
    * l'indice degli step, poco davanti a lei (la camera del retro sta a 11):
    * più vicino sembrava un piatto accanto a una bottiglia intera.
-   * Verticale: in alto a destra, sopra la spalla.
+   * Verticale: in alto a destra, sopra la spalla e un filo sotto l'header,
+   * che a 0,12 il tappo sfiorava.
    */
   hover: {
     desktop: { screen: [0.82, 0.22], depth: 8.5 },
-    portrait: { screen: [0.8, 0.12], depth: 12.5 },
+    portrait: { screen: [0.78, 0.17], depth: 12.5 },
   },
   /** da sospeso è inclinato verso la camera: si vede la corona di tre quarti */
   tilt: 0.95,
