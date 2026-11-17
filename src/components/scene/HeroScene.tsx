@@ -10,6 +10,7 @@ import {
 import * as THREE from "three";
 import UranioLogo, { URANIO_URL } from "./UranioLogo";
 import Starfield from "./Starfield";
+import FallingStars from "./FallingStars";
 import { useWindowPointer } from "./useWindowPointer";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { useIsTouch } from "../../hooks/useIsTouch";
@@ -175,6 +176,9 @@ function SceneContents({
       <color attach="background" args={["#050505"]} />
       <ambientLight intensity={0.15} />
       <Starfield reduceMotion={reduceMotion} factor={view.starFactor} />
+      {/* lo sciame di stelle cadenti, dietro al logo; con reduced motion
+          resta il cielo fermo (una meteora congelata a metà corsa no) */}
+      {!reduceMotion && <FallingStars factor={view.starFactor} />}
       <Suspense fallback={null}>
         <ChromeEnvironment resolution={view.envRes} />
         {/* il logo Uranio: emblema + 6 lettere, ciascuno calciabile per conto

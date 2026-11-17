@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
@@ -29,10 +29,33 @@ function makeStarSprite(): THREE.CanvasTexture {
   return tex;
 }
 
+// Luccichio: una stella su tre respira piano (periodi di 3-10 s, fino a -60%
+// di luce). Patch del PointsMaterial e non uno shader nuovo: sprite,
+// attenuazione e tone mapping restano quelli di prima, cambia solo la luce
+// per stella. Il tempo è un uniform condiviso dai due strati
+function patchTwinkle(
+  shader: THREE.WebGLProgramParametersWithUniforms,
+  time: { value: number },
+) {
+  shader.uniforms.uTime = time;
+  shader.vertexShader = shader.vertexShader
+    .replace(
+      "#include <common>",
+      "#include <common>\nattribute vec2 aTwinkle;\nuniform float uTime;",
+    )
+    .replace(
+      "#include <color_vertex>",
+      `#include <color_vertex>
+      vColor *= 1.0 - aTwinkle.y * (0.5 + 0.5 * sin(uTime * floor(30.0 + 70.0 * aTwinkle.x) / 50.0 + aTwinkle.x * 44.0));`,
+    );
+}
+
 // Posizioni casuali in un guscio sferico [rMin, rMax] + luminosità variabile
 function makeStars(count: number, rMin: number, rMax: number) {
   const positions = new Float32Array(count * 3);
   const colors = new Float32Array(count * 3);
+  // luccichio: [fase e velocità, ampiezza]; due stelle su tre restano ferme
+  const twinkle = new Float32Array(count * 2);
   const v = new THREE.Vector3();
   for (let i = 0; i < count; i++) {
     v.set(
@@ -46,8 +69,12 @@ function makeStars(count: number, rMin: number, rMax: number) {
     // dal grigio tenue al bianco pieno, con code deboli più frequenti
     const brightness = 0.25 + Math.pow(Math.random(), 2.2) * 0.75;
     colors.set([brightness, brightness, brightness], i * 3);
+    twinkle.set(
+      [Math.random(), Math.random() < 0.35 ? 0.25 + Math.random() * 0.35 : 0],
+      i * 2,
+    );
   }
-  return { positions, colors };
+  return { positions, colors, twinkle };
 }
 
 function StarLayer({
@@ -56,14 +83,16 @@ function StarLayer({
   rMax,
   size,
   sprite,
+  onBeforeCompile,
 }: {
   count: number;
   rMin: number;
   rMax: number;
   size: number;
   sprite: THREE.CanvasTexture;
+  onBeforeCompile: THREE.Material["onBeforeCompile"];
 }) {
-  const { positions, colors } = useMemo(
+  const { positions, colors, twinkle } = useMemo(
     () => makeStars(count, rMin, rMax),
     [count, rMin, rMax],
   );
@@ -72,6 +101,7 @@ function StarLayer({
       <bufferGeometry>
         <bufferAttribute attach="attributes-position" args={[positions, 3]} />
         <bufferAttribute attach="attributes-color" args={[colors, 3]} />
+        <bufferAttribute attach="attributes-aTwinkle" args={[twinkle, 2]} />
       </bufferGeometry>
       <pointsMaterial
         size={size}
@@ -81,6 +111,7 @@ function StarLayer({
         depthWrite={false}
         map={sprite}
         alphaMap={sprite}
+        onBeforeCompile={onBeforeCompile}
       />
     </points>
   );
@@ -92,13 +123,24 @@ export default function Starfield({
 }: StarfieldProps) {
   const group = useRef<THREE.Group>(null);
   const sprite = useMemo(() => makeStarSprite(), []);
+  const time = useRef({ value: 0 });
+  // letto quando three compila il materiale, non durante il render
+  const twinkle = useCallback<THREE.Material["onBeforeCompile"]>(
+    (shader) => patchTwinkle(shader, time.current),
+    [],
+  );
 
-  // rotazione lentissima dell'intero campo; la parallasse col mouse
-  // arriva "gratis" dal movimento della camera (CameraRig)
+  // rotazione lentissima dell'intero campo (la camera del hero è ferma) e il
+  // tempo del luccichio; con reduced motion il cielo resta immobile
   useFrame((_, delta) => {
     if (reduceMotion || !group.current) return;
     group.current.rotation.y += delta * 0.004;
     group.current.rotation.x += delta * 0.0015;
+    // limitato come in FallingStars: alla ripresa niente balzo in avanti.
+    // Modulo 100π, così il float32 dello shader non perde i decimali: le
+    // velocità sono n/50 rad/s con n intero, quindi in 100π secondi ogni
+    // stella fa giri interi e al giro nessuna cambia luce di colpo
+    time.current.value = (time.current.value + Math.min(delta, 0.1)) % (Math.PI * 100);
   });
 
   return (
@@ -110,6 +152,7 @@ export default function Starfield({
         rMax={42}
         size={0.14}
         sprite={sprite}
+        onBeforeCompile={twinkle}
       />
       {/* strato vicino: poche stelle più grandi e luminose, più parallasse */}
       <StarLayer
@@ -118,6 +161,7 @@ export default function Starfield({
         rMax={17}
         size={0.3}
         sprite={sprite}
+        onBeforeCompile={twinkle}
       />
     </group>
   );
