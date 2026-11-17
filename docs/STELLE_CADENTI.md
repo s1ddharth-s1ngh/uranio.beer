@@ -145,3 +145,97 @@ sopra quello che c'è sotto.
 **Non verificato**: dispositivi veri (Safari iOS, Android), schermi a 120 Hz
 (il tempo viene dal delta, quindi la velocità non cambia), il luccichio in
 movimento (solo fotogrammi fermi).
+
+
+## Secondo giro: il sogno spaziale
+
+Il proprietario: le stelle cadenti sono belle, ma restano un effetto
+"normale", il cielo visto dalla Terra. Vuole qualcosa che dica che siamo
+fuori da questo pianeta, un sogno spaziale vivido, sempre senza diecimila
+colori, e un'animazione migliore.
+
+**L'idea.** Uranio è l'elemento naturale più pesante: nel sogno il logo
+pesa così tanto da piegare lo spazio. È una lente gravitazionale, la cosa
+che dalla Terra non si vede e che tutti conoscono da Interstellar e dalla
+foto del buco nero di M87: la luce di ciò che sta dietro gli si avvolge
+attorno. Le stelle cadenti restano.
+
+**Com'è fatto** (`DeepSpace.tsx`, al posto dello `Starfield` nel hero;
+`Starfield.tsx` resta per la sezione 2, che lo usa):
+
+1. *L'anello.* Il nucleo di una galassia lontana, quasi esattamente dietro
+   al logo, si apre in un anello di Einstein sottile appena fuori dalla
+   sagoma del logo, con un lato tre volte più acceso che gira piano (un
+   giro in due minuti). Dietro a una lente un nucleo così si vede solo come
+   anello, quindi si disegna solo una corona attorno al logo, in modo
+   analitico: equazione della lente all'indietro più una gaussiana. Lungo
+   la curva critica l'anello è acceso un poco di più, come l'anello di
+   fotoni di un buco nero: licenza poetica.
+2. *Le stelle.* Derivano piano verso il basso a sinistra, la direzione
+   delle stelle cadenti, su tre strati di parallasse. Passando vicino al
+   logo gli scivolano attorno, si sdoppiano e si stirano ad arco: la lente
+   (puntiforme, `s = θ(1 − E²/|θ|²)`) è calcolata per pixel e all'indietro,
+   dal punto dello schermo a dove starebbe la luce senza la massa, così gli
+   archi vengono curvi da soli. Ogni immagine è disegnata in una striscia ad
+   arco di otto spicchi che la contiene. Densità per area: 260 stelle per
+   megapixel del quadrato in cui derivano, uguale su telefono e desktop.
+3. *Le comete.* Due slot (16 e 27 s) di comete che passano proprio dietro
+   al logo, a distanze diverse dall'asse: la lente le apre in due archi che
+   corrono lungo l'anello e, più passano allineate, più lo chiudono. È la
+   fisica esatta di una sorgente in moto dietro una massa, nello stesso
+   shader delle stelle. La prima passa due secondi e mezzo dopo l'avvio.
+4. Il nucleo e le comete sono piegati 1,16 volte più delle stelle (la
+   deviazione cresce con la distanza della sorgente): il loro anello sta
+   fuori dalla sagoma del logo, mentre le stelle lontane dal logo restano
+   puntini. In portrait il raggio è un po' più largo (0,36 invece di 0,33
+   del lato corto), perché il logo occupa quasi tutta la larghezza.
+5. Sotto il menu l'anello si spegne (le voci restano leggibili), e un
+   livello di dither evita i gradini nelle sfumature su fondo nero.
+6. Reduced motion: cielo e anello fermi, niente comete, niente meteore.
+
+**Come ci si è arrivati**, riprese dopo riprese:
+
+1. Primo tentativo: volo in avanti tra le stelle, che uscivano dal logo,
+   con la lente sulle stelle. Le stelle erano invisibili (conservavo
+   l'energia da una dimensione nominale di 0,25 px). Con raggio 0,4 tutto
+   il cielo diventava trattini, le immagini interne facevano un pulviscolo
+   che sfarfallava, le stelle vicine sfocate sembravano macchie sull'obiettivo.
+2. Con le sole stelle la lente si vedeva poco: un punto diventa un arco
+   solo quando passa proprio dietro. Le immagini famose funzionano perché
+   dietro c'è una sorgente estesa: aggiunta una Via Lattea (fascia e nucleo)
+   da piegare ad anello.
+3. Un parere indipendente sui fotogrammi (un agente senza le mie
+   conclusioni) è stato netto. Il volo in avanti era il cliché del salvaschermo
+   e contraddiceva il buco nero, perché dal buco nero le stelle non escono.
+   La fascia faceva smog: la mediana del frame era salita da 5 a 22 su 255.
+   L'anello era largo e fumoso, il respiro periodico sembrava
+   un'animazione di interfaccia, non c'era dither, e menu e scritta
+   perdevano contrasto. Corretto tutto: deriva al posto del volo, comete
+   lensate al posto del respiro, anello sottile dal nucleo, niente fascia,
+   dither, sfumatura sotto il menu.
+4. Costo: la galassia a schermo intero costava 2,9 ms a 2850×1800 su
+   questa GPU integrata, perché bisogna leggere e riscrivere ogni pixel.
+   Calcolarla in un bersaglio a bassa risoluzione non bastava: il solo
+   passaggio opaco per posarla costava circa 2,2 ms. Il nucleo dietro la
+   lente si vede solo come anello, quindi si disegna solo la corona.
+
+**Verifiche** (build di produzione, Playwright con ANGLE D3D11 sulla GPU
+integrata, tempo fermato con `page.clock`):
+
+- 1440×900: l'anello sottile (10-12 px a metà altezza) con il lato acceso
+  2,5 volte l'altro; una cometa ripresa per intero mentre la lente la piega
+  lungo il bordo superiore, la apre in un arco sul lato sinistro, la
+  sdoppia sui due lati e la lascia riemergere in basso a sinistra.
+- 390×844 a DPR 2 e 768×1024: l'anello resta una ventina di px fuori dalla
+  sagoma del logo, le stelle restano rade.
+- Il profilo dell'anello rifatto in JavaScript: sul bordo della corona la
+  luce è 0,36/255, quindi non c'è un taglio visibile.
+- Reduced motion: cielo e anello fermi, niente comete né meteore, nessun
+  errore in console.
+- Costo, misurato nella stessa pagina ridisegnando 21 volte: l'anello
+  0,21 ms a 2850×1800 e 0,05 ms a 1425×900; stelle, comete e meteore
+  insieme 0,30 ms a 2850×1800.
+- `tsc -b`, `eslint src` e `vite build` puliti su tutto il progetto.
+
+**Non verificato**: dispositivi veri (Safari iOS, Android) e la resa in
+movimento a 60 fps, vista solo a fotogrammi fermi.

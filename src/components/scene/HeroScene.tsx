@@ -9,7 +9,7 @@ import {
 } from "@react-three/drei";
 import * as THREE from "three";
 import UranioLogo, { URANIO_URL } from "./UranioLogo";
-import Starfield from "./Starfield";
+import DeepSpace from "./DeepSpace";
 import FallingStars from "./FallingStars";
 import { useWindowPointer } from "./useWindowPointer";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
@@ -175,7 +175,18 @@ function SceneContents({
     <>
       <color attach="background" args={["#050505"]} />
       <ambientLight intensity={0.15} />
-      <Starfield reduceMotion={reduceMotion} factor={view.starFactor} />
+      {/* lo spazio profondo: il logo pesa così tanto da piegare la luce
+          (lente gravitazionale), con un anello di luce attorno e le stelle
+          che gli scivolano intorno. Il centro della lente è il centro del
+          logo, che UranioLogo alza del 4% dell'altezza (6% in portrait); il
+          raggio tiene l'anello appena fuori dalla sua sagoma, un po' più
+          largo in portrait, dove il logo prende quasi tutta la larghezza */}
+      <DeepSpace
+        reduceMotion={reduceMotion}
+        factor={view.starFactor}
+        lift={portrait ? 0.06 : 0.04}
+        lens={portrait ? 0.36 : 0.33}
+      />
       {/* lo sciame di stelle cadenti, dietro al logo; con reduced motion
           resta il cielo fermo (una meteora congelata a metà corsa no) */}
       {!reduceMotion && <FallingStars factor={view.starFactor} />}
