@@ -39,6 +39,9 @@ Quando arrivi in fondo al 8.28, fermati e scrivi un resoconto finale di cosa
 
 ## Quarto giro del 2026-11-17: ferma, intera, naturale, leggera
 
+Il piano del giro, richiesta per richiesta con lo stato e le misure di
+fluidità, è in `docs/PIANO_2026-11-17.md`.
+
 Le note del proprietario sulla sezione 2, tutte insieme: andava a scatti
 già all'arrivo dal hero, le bottiglie "shakeravano come se esplodessero", il
 mouse muoveva tutto, lo sfondo studio bianco e nero non piaceva, il fronte e
@@ -97,7 +100,13 @@ AI". Priorità: deve girare sul PC più debole in commercio (poi i telefoni).
    riparte da capo a ogni risveglio del loop (il passaggio dal hero).
 10. **Testi e interfaccia** (agent a parte): via il logotipo a pennello, font
    serif, nuove animazioni dei testi, l'indice degli step al posto delle
-   icone, niente `backdrop-filter` sopra il canvas.
+   icone, niente `backdrop-filter` sopra il canvas. I blocchi dei testi si
+   preparano sotto il Loader, già nella posa di partenza
+   (`StepText.prepara`): costruirli al cambio di step, con lo split in
+   lettere e i `from()`, era uno scatto da 50–100 ms a ogni transizione con
+   la CPU rallentata 4×. E i font dei blocchi si chiedono a mano
+   (`caricaFont`): `fonts.ready` non aspetta un font che nessun testo
+   visibile ha ancora chiesto.
 
 **Costo GPU**, build di produzione, DPR 1, `scripts/bench-experience.mjs`
 (headless shell con ANGLE D3D11 sulla iGPU AMD della macchina, coda della

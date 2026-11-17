@@ -5,14 +5,25 @@
 // ragione è una sola: durante una transizione **esistono due testi insieme**
 // — il vecchio che esce e il nuovo che entra — e il nuovo entra a metà
 // dell'uscita del vecchio. Con React bisognerebbe tenere in stato una coda di
-// blocchi uscenti e rimuoverli a fine animazione; qui il blocco vecchio è un
-// nodo che la sua timeline si porta via da sé. Il requisito "mai due testi
-// sovrapposti" diventa così una riga di codice invece di una macchina a stati.
+// blocchi uscenti; qui ogni blocco ha la sua timeline e si rimette a posto da
+// sé. Il requisito "mai due testi sovrapposti" resta una riga di codice
+// invece di una macchina a stati.
 //
 // Entrata e uscita muovono pezzi diversi, ed è voluto: si entra con le
 // lettere del titolo e le parole del paragrafo, si esce con le righe che le
 // contengono. Un'uscita che riprendesse gli stessi pezzi, a entrata
 // interrotta, li farebbe ripassare in vista dal basso verso l'alto.
+//
+// I blocchi si costruiscono **prima** (`prepara`), nascosti e già nella posa
+// di partenza dell'entrata (lettere sotto la maschera, trasparenti), e si
+// riusano. Farlo al cambio di step voleva dire, alla partenza di ogni
+// transizione, il DOM del blocco, due `SplitText` con la misura del layout,
+// la crenatura e dei `from()` che leggono lo stile calcolato di ogni lettera
+// e parola: ~35 ms in un frame con la CPU rallentata di 4 volte come su un
+// portatile economico, cioè la bottiglia che si inchioda per tre o quattro
+// frame proprio quando parte (misurato il 2026-11-17). Ora al cambio di step
+// ci sono solo dei `to()` verso lo stato naturale, che leggono i loro valori
+// di partenza tutti insieme quando partono.
 
 import gsap from "gsap";
 import { SplitText } from "gsap/SplitText";
@@ -24,10 +35,18 @@ gsap.registerPlugin(SplitText);
 
 interface Blocco {
   el: HTMLElement;
-  /** titolo e paragrafo: spezzati in due modi diversi, due split */
-  split: SplitText[];
-  tl: gsap.core.Timeline;
+  titolo: SplitText;
+  corpo: SplitText;
+  /** tutto quello che le animazioni toccano, per rimetterlo a posto */
+  pezzi: Element[];
+  /** l'entrata, finché il blocco è quello in scena */
+  tl?: gsap.core.Timeline;
+  /** l'uscita in corso, finché non torna nascosto */
+  uscita?: gsap.core.Timeline;
 }
+
+/** gli stili che le animazioni scrivono in linea: la crenatura (margini) no */
+const STILI_ANIMATI = "transform,opacity,filter,clipPath";
 
 /**
  * Rimette la crenatura che lo split a lettere toglie.
@@ -64,10 +83,36 @@ export class StepText {
   private corrente: Blocco | undefined;
   /** l'id dello step mostrato: evita di rianimare lo stesso testo */
   private mostrato: string | undefined;
+  /** i blocchi già costruiti, uno per step, nascosti quando non sono in scena */
+  private blocchi = new Map<string, Blocco>();
 
   constructor(host: HTMLElement, reduced = false) {
     this.host = host;
     this.reduced = reduced;
+  }
+
+  /**
+   * Costruisce in anticipo i blocchi di questi step, nascosti. Va chiamata a
+   * font pronti (le righe si misurano qui) e quando la finestra cambia
+   * larghezza, dopo `rifai`.
+   */
+  prepara(steps: readonly Step[]) {
+    for (const step of steps) {
+      if (!this.blocchi.has(step.id)) this.blocchi.set(step.id, this.costruisci(step));
+    }
+  }
+
+  /**
+   * Butta i blocchi fermi: con la finestra cambiata le righe sono misurate
+   * male. Quello in scena e quelli che stanno uscendo restano com'erano
+   * (come prima, quando si spezzava una volta sola all'entrata).
+   */
+  rifai() {
+    for (const [id, b] of this.blocchi) {
+      if (b === this.corrente || b.uscita) continue;
+      this.distruggi(b);
+      this.blocchi.delete(id);
+    }
   }
 
   /**
@@ -91,14 +136,14 @@ export class StepText {
   }
 
   dispose() {
-    this.corrente?.tl.kill();
-    this.corrente?.split.forEach((s) => s.revert());
+    for (const b of this.blocchi.values()) this.distruggi(b);
+    this.blocchi.clear();
     this.host.replaceChildren();
     this.corrente = undefined;
     this.mostrato = undefined;
   }
 
-  /** Il blocco in scena esce verso l'alto e si porta via il suo nodo. */
+  /** Il blocco in scena esce verso l'alto, poi torna nascosto e pronto. */
   private esci() {
     const vecchio = this.corrente;
     if (!vecchio) return;
@@ -106,29 +151,32 @@ export class StepText {
     // uccidere la timeline di entrata è ciò che rende sicure le inversioni a
     // metà corsa: se non lo si fa, il blocco vecchio continua a entrare
     // mentre esce
-    vecchio.tl.kill();
+    vecchio.tl?.kill();
+    vecchio.tl = undefined;
     // per lo screen reader il blocco che esce sparisce subito: due regioni
     // `aria-live` insieme farebbero annunciare anche il testo vecchio
     vecchio.el.removeAttribute("aria-live");
     vecchio.el.setAttribute("aria-hidden", "true");
     // su mobile spegne la sua sfumatura (StepText.module.css)
     vecchio.el.classList.add(styles.leaving);
-    const via = () => {
-      vecchio.split.forEach((s) => s.revert());
-      vecchio.el.remove();
-    };
+    const tl = gsap.timeline({
+      onComplete: () => {
+        vecchio.uscita = undefined;
+        this.nascondi(vecchio);
+      },
+    });
+    vecchio.uscita = tl;
     if (this.reduced) {
-      gsap.to(vecchio.el, { opacity: 0, duration: 0.2, onComplete: via });
+      tl.to(vecchio.el, { opacity: 0, duration: 0.2 });
       return;
     }
     const { duration, stagger, ease, y, blur } = TEXT.exit;
     const tag = vecchio.el.querySelector(`.${styles.tag}`);
-    const tl = gsap.timeline({ onComplete: via });
     // il tag si richiude verso destra: da qualunque punto sia arrivata la
     // sua entrata, i due bordi si incontrano senza riaprirlo
     if (tag) tl.to(tag, { clipPath: "inset(0% 0% 0% 100%)", duration, ease }, 0);
     tl.to(
-      vecchio.split.flatMap((s) => s.lines),
+      [...vecchio.titolo.lines, ...vecchio.corpo.lines],
       {
         yPercent: y,
         opacity: 0,
@@ -141,8 +189,124 @@ export class StepText {
     );
   }
 
+  /**
+   * La posa di partenza dell'entrata, messa a blocco nascosto: le lettere
+   * sotto la loro maschera, girate e sfocate, le parole sotto, il tag chiuso,
+   * la riga barrata a zero. Col moto ridotto l'entrata è una dissolvenza del
+   * blocco intero, e non serve.
+   */
+  private arma(b: Blocco) {
+    if (this.reduced) return;
+    const { chars } = TEXT;
+    gsap.set(b.titolo.chars, {
+      yPercent: chars.y,
+      rotateX: chars.rotateX,
+      transformPerspective: 600,
+      transformOrigin: "50% 100%",
+      opacity: 0,
+      filter: `blur(${chars.blur}px)`,
+    });
+    gsap.set(b.corpo.words, { yPercent: 100, opacity: 0 });
+    const tag = b.el.querySelector(`.${styles.tag}`);
+    if (tag) gsap.set(tag, { clipPath: "inset(0% 100% 0% 0%)" });
+    const riga = b.el.querySelector(`.${styles.strike}`);
+    if (riga) gsap.set(riga, { scaleX: 0, transformOrigin: "left center" });
+  }
+
   private entra(step: Step, durata: number): Blocco {
+    let b = this.blocchi.get(step.id);
+    if (!b) {
+      // non preparato (uno step senza testo diventato con testo, o un resize
+      // proprio adesso): si costruisce qui, come si faceva sempre
+      b = this.costruisci(step);
+      this.blocchi.set(step.id, b);
+    }
+    // stava uscendo (inversione a metà corsa): si ferma e riparte da capo
+    if (b.uscita) {
+      b.uscita.kill();
+      b.uscita = undefined;
+      this.nascondi(b);
+    }
+    b.el.classList.remove(styles.pronto);
+    b.el.removeAttribute("aria-hidden");
+    // il testo resta leggibile dagli screen reader e annunciato quando cambia
+    b.el.setAttribute("aria-live", "polite");
+    // anche col moto ridotto si aspetta: il testo vecchio deve essere
+    // sparito prima che arrivi il nuovo
+    const tl = gsap.timeline({ delay: durata * TEXT.enter.delayFraction });
+    b.tl = tl;
+
+    if (this.reduced) {
+      tl.from(b.el, { opacity: 0, duration: 0.25 });
+      return b;
+    }
+
+    // dalla posa di `arma` allo stato naturale
+    const tag = b.el.querySelector(`.${styles.tag}`);
+    if (tag) {
+      tl.to(
+        tag,
+        { clipPath: "inset(0% 0% 0% 0%)", duration: TEXT.tag.duration, ease: TEXT.tag.ease },
+        TEXT.tag.at,
+      );
+    }
+    const { chars, words, strike } = TEXT;
+    tl.to(
+      b.titolo.chars,
+      {
+        yPercent: 0,
+        rotateX: 0,
+        opacity: 1,
+        filter: "blur(0px)",
+        duration: chars.duration,
+        stagger: chars.stagger,
+        ease: chars.ease,
+        // a fine corsa niente stili inline: una trasformazione 3D o un
+        // filtro rimasti, anche a zero, tengono ogni lettera su un suo
+        // livello del compositor per tutto il tempo in cui il testo è letto
+        clearProps: "transform,filter,opacity",
+      },
+      chars.at,
+    );
+    tl.to(
+      b.corpo.words,
+      {
+        yPercent: 0,
+        opacity: 1,
+        duration: words.duration,
+        stagger: words.stagger,
+        ease: words.ease,
+        clearProps: "transform,opacity",
+      },
+      words.at,
+    );
+    const riga = b.el.querySelector(`.${styles.strike}`);
+    if (riga) tl.to(riga, { scaleX: 1, duration: strike.duration, ease: strike.ease }, strike.at);
+    return b;
+  }
+
+  /**
+   * Il blocco torna nascosto e pronto per la prossima entrata: senza gli
+   * stili lasciati da un'entrata o un'uscita interrotte, crenatura esclusa.
+   */
+  private nascondi(b: Blocco) {
+    gsap.set(b.pezzi, { clearProps: STILI_ANIMATI });
+    b.el.classList.remove(styles.leaving);
+    b.el.classList.add(styles.pronto);
+    b.el.removeAttribute("aria-live");
+    b.el.setAttribute("aria-hidden", "true");
+    this.arma(b);
+  }
+
+  /**
+   * Il blocco di uno step, costruito, spezzato e nascosto. `visibility` e non
+   * `display`: le righe si misurano sul layout vero, e nascosto così il
+   * blocco occupa il suo posto ma non si vede e non si legge.
+   */
+  private costruisci(step: Step): Blocco {
     const el = this.render(step);
+    el.classList.add(styles.pronto);
+    el.setAttribute("aria-hidden", "true");
     this.host.appendChild(el);
     // le righe sono maschere, ed è ciò che fa sembrare che il testo scorra
     // dietro un bordo invece di sbiadire. Il titolo si spezza anche in
@@ -161,74 +325,31 @@ export class StepText {
       aria: "none",
     });
     crena(titolo.chars);
-    const split = [titolo, corpo];
-    // anche col moto ridotto si aspetta: il testo vecchio deve essere
-    // sparito prima che arrivi il nuovo
-    const tl = gsap.timeline({ delay: durata * TEXT.enter.delayFraction });
+    const pezzi: Element[] = [
+      el,
+      ...titolo.lines,
+      ...titolo.chars,
+      ...corpo.lines,
+      ...corpo.words,
+      ...el.querySelectorAll(`.${styles.tag}, .${styles.strike}`),
+    ];
+    const b: Blocco = { el, titolo, corpo, pezzi };
+    this.arma(b);
+    return b;
+  }
 
-    if (this.reduced) {
-      tl.from(el, { opacity: 0, duration: 0.25 });
-      return { el, split, tl };
-    }
-
-    const tag = el.querySelector(`.${styles.tag}`);
-    if (tag) {
-      tl.fromTo(
-        tag,
-        { clipPath: "inset(0% 100% 0% 0%)" },
-        { clipPath: "inset(0% 0% 0% 0%)", duration: TEXT.tag.duration, ease: TEXT.tag.ease },
-        TEXT.tag.at,
-      );
-    }
-    const { chars, words, strike } = TEXT;
-    tl.from(
-      titolo.chars,
-      {
-        yPercent: chars.y,
-        rotateX: chars.rotateX,
-        transformPerspective: 600,
-        transformOrigin: "50% 100%",
-        opacity: 0,
-        filter: `blur(${chars.blur}px)`,
-        duration: chars.duration,
-        stagger: chars.stagger,
-        ease: chars.ease,
-        // a fine corsa niente stili inline: una trasformazione 3D o un
-        // filtro rimasti, anche a zero, tengono ogni lettera su un suo
-        // livello del compositor per tutto il tempo in cui il testo è letto
-        clearProps: "transform,filter,opacity",
-      },
-      chars.at,
-    );
-    tl.from(
-      corpo.words,
-      {
-        yPercent: 100,
-        opacity: 0,
-        duration: words.duration,
-        stagger: words.stagger,
-        ease: words.ease,
-        clearProps: "transform,opacity",
-      },
-      words.at,
-    );
-    const riga = el.querySelector(`.${styles.strike}`);
-    if (riga) {
-      tl.from(
-        riga,
-        { scaleX: 0, transformOrigin: "left center", duration: strike.duration, ease: strike.ease },
-        strike.at,
-      );
-    }
-    return { el, split, tl };
+  private distruggi(b: Blocco) {
+    b.tl?.kill();
+    b.uscita?.kill();
+    b.titolo.revert();
+    b.corpo.revert();
+    b.el.remove();
   }
 
   /** Il markup di un blocco: tag, titolo, paragrafo (spec 8.18). */
   private render(step: Step): HTMLElement {
     const el = document.createElement("div");
     el.className = styles.block;
-    // il testo resta leggibile dagli screen reader e annunciato quando cambia
-    el.setAttribute("aria-live", "polite");
 
     if (step.tag) {
       const tag = document.createElement("p");

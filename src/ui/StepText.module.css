@@ -14,6 +14,13 @@
   gap: 22px;
 }
 
+/* un blocco costruito in anticipo e non in scena (`StepText.prepara`):
+   `visibility` e non `display`, così le sue righe restano misurate sul
+   layout vero; non si vede e gli screen reader non lo leggono */
+.pronto {
+  visibility: hidden;
+}
+
 /* Il titolo segue la larghezza del blocco, non solo quella della finestra.
    La parola più lunga dei testi, "Leggerezza", è larga 3,7 volte il corpo
    (misurata in Chromium): 4 lascia margine. Coi corpi di oggi non scatta
