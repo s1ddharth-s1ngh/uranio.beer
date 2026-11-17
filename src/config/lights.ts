@@ -47,6 +47,15 @@ export const ENV = {
     intensity: 0.35,
     color: COLORS.redMid,
   },
+  /**
+   * Due lame rosse dietro la bottiglia, a sinistra e a destra: ai bordi il
+   * vetro riflette quello che ha dietro, e il profilo si accende di rosso.
+   * Fino al 2026-11-17 erano due luci direzionali (`RIM`), pagate in ogni
+   * pixel di ogni bottiglia anche dove non illuminavano niente: 2–3 ms a frame
+   * nel finale su una GPU integrata a 1920×1080. Nell'ambiente riflesso sono
+   * gratis, come le strisce bianche dei fianchi
+   */
+  rims: { scale: [3, 9, 1], x: 4.5, y: 1.5, z: -5, intensity: 3, color: COLORS.redMid },
 } as const;
 
 /**
@@ -85,18 +94,6 @@ export const FACE = {
   direction: [0.55, 0.5, 0.67],
   gain: 1.2,
   color: "#FFF1E6",
-} as const;
-
-/**
- * Rim light: due direzionali da dietro, a sinistra e a destra. Tengono
- * leggibile la silhouette anche quando il corpo della bottiglia è spento —
- * negli step del retro sono loro a disegnare il profilo del vetro.
- */
-export const RIM = {
-  intensity: 1.2,
-  color: COLORS.redMid,
-  /** direzione da cui arrivano, specchiata sull'asse x */
-  position: [4.5, 1.5, -5],
 } as const;
 
 /** Riempimento debolissimo: serve solo a non avere neri morti. */

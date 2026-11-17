@@ -40,7 +40,7 @@ function piano(geo: THREE.PlaneGeometry, map: THREE.Texture, p: Piano): THREE.Me
  * la regola `react-hooks/immutability` vieta di scriverci dal componente.
  */
 function accendi(gl: THREE.WebGLRenderer, scene: THREE.Scene): () => void {
-  const { top, sides, bottom } = ENV;
+  const { top, sides, bottom, rims } = ENV;
   const geo = new THREE.PlaneGeometry(1, 1);
   const sfumatura = makeGlowTexture(ENV.falloff);
   const env = new THREE.Scene();
@@ -57,6 +57,17 @@ function accendi(gl: THREE.WebGLRenderer, scene: THREE.Scene): () => void {
     );
   }
   env.add(piano(geo, sfumatura, { ...bottom, rotation: [-Math.PI / 2, 0, 0] }));
+  // le lame rosse da dietro, girate verso la bottiglia: il profilo rosso
+  for (const segno of [-1, 1]) {
+    const x = segno * rims.x;
+    env.add(
+      piano(geo, sfumatura, {
+        ...rims,
+        position: [x, rims.y, rims.z],
+        rotation: [0, Math.atan2(-x, -rims.z), 0],
+      }),
+    );
+  }
 
   const pmrem = new THREE.PMREMGenerator(gl);
   const rt = pmrem.fromScene(env, 0, 0.1, 100, { size: ENV.resolution });
@@ -75,7 +86,8 @@ function accendi(gl: THREE.WebGLRenderer, scene: THREE.Scene): () => void {
 
 /**
  * L'ambiente riflesso (spec 6.4): un softbox sopra, due strisce verticali ai
- * lati, un rimbalzo caldo dal basso, passati una volta sola a
+ * lati, un rimbalzo caldo dal basso e due lame rosse dietro (il profilo
+ * rosso, che prima facevano due luci direzionali), passati una volta sola a
  * `PMREMGenerator.fromScene` — i piani non si muovono, rigenerarla a ogni
  * frame costerebbe più di tutta la scena.
  *
