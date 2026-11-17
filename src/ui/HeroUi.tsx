@@ -9,18 +9,13 @@ import { useViewport } from "../hooks/useViewport";
 import styles from "./HeroUi.module.css";
 
 const ANELLO = STEPS[0];
-const FRONTE = STEPS[1];
-const LOGOTIPO = `${import.meta.env.BASE_URL}images/crisi-economica-logotipo.webp`;
 
 /**
- * L'interfaccia dei primi due step (riferimento ciaoenergy.com):
- *
- * - **anello** (0): il logotipo sul piedistallo, sotto la bottiglia al
- *   centro, e l'invito a scorrere. Niente frecce né slider: la bottiglia è
- *   sempre la stessa, non c'è niente da sfogliare;
- * - **fronte** (1): il nome e due righe a sinistra della bottiglia
- *   inclinata, nella stessa colonna dei testi del retro (`StepText`), così
- *   passando allo step 2 il testo cambia senza spostarsi.
+ * L'interfaccia dell'anello, lo step 0 (riferimento ciaoenergy.com): sotto
+ * il piedistallo stile e gradazione, in basso l'invito a scorrere. Niente
+ * frecce né slider: la bottiglia è sempre la stessa, non c'è niente da
+ * sfogliare. E niente logotipo: il nome lo portano le etichette, e allo
+ * step 1 il titolo del blocco a sinistra (`StepText`, lo stesso del retro).
  *
  * L'entrata e l'uscita sono transizioni CSS su una classe, come `StepIcons`:
  * se la direzione si inverte a metà si fermano e tornano indietro da sole,
@@ -28,7 +23,7 @@ const LOGOTIPO = `${import.meta.env.BASE_URL}images/crisi-economica-logotipo.web
  *
  * Due involucri, due ragioni per non vedersi: il **cancello** esterno si apre
  * una volta sola, quando la bottiglia è quasi arrivata (`Intro`), senza
- * ritardo; quelli interni seguono lo step, con il ritardo del rientro. Con
+ * ritardo; quello interno segue lo step, con il ritardo del rientro. Con
  * una classe sola la prima entrata erediterebbe il ritardo del ritorno.
  */
 export function HeroUi({ step, className }: { step: number; className?: string }) {
@@ -39,11 +34,9 @@ export function HeroUi({ step, className }: { step: number; className?: string }
   const intro = sharedIntro();
   const aperto = useSyncExternalStore(intro.subscribe, () => intro.uiReady);
   const suAnello = step === 0;
-  const suFronte = step === 1;
 
   const style = {
     "--pedestal-y": `${layout.pedestalTopY * 100}%`,
-    "--name-anchor": HERO_UI.nameAnchor,
     "--hero-fade": `${HERO_UI.exit.duration}s`,
     "--hero-shift": `${HERO_UI.exit.y}px`,
     "--hero-return-delay": `${durationFor(1, 0, reduced) * HERO_UI.returnDelayFraction}s`,
@@ -60,10 +53,10 @@ export function HeroUi({ step, className }: { step: number; className?: string }
     <div className={className} style={style}>
       <div className={`${styles.gate} ${aperto ? styles.open : ""}`}>
         <div className={`${styles.ui} ${suAnello ? styles.in : ""}`} aria-hidden={!suAnello}>
-          <div className={styles.pedestal}>
-            <h1 className={styles.logo}>
-              <img src={LOGOTIPO} alt={ANELLO.title} width={546} height={261} />
-            </h1>
+          <div className={styles.caption}>
+            {/* il nome per chi non vede le etichette: h2 e non h1, l'h1
+                della pagina è il titolo del hero */}
+            <h2 className={styles.srOnly}>{ANELLO.title}</h2>
             <p className="t-label">{ANELLO.subtitle}</p>
           </div>
 
@@ -71,16 +64,6 @@ export function HeroUi({ step, className }: { step: number; className?: string }
             <span className="t-label">{ANELLO.scrollHint}</span>
             <i className={styles.hintLine} aria-hidden="true" />
           </button>
-        </div>
-
-        <div className={`${styles.ui} ${suFronte ? styles.in : ""}`} aria-hidden={!suFronte}>
-          <div className={styles.name}>
-            <p className={`${styles.tag} t-label`}>{FRONTE.subtitle}</p>
-            <h2 className={styles.logo}>
-              <img src={LOGOTIPO} alt={FRONTE.title} width={546} height={261} />
-            </h2>
-            <p className={`${styles.body} t-body`}>{FRONTE.body}</p>
-          </div>
         </div>
       </div>
     </div>

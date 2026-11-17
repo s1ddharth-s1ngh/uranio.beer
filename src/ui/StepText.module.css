@@ -1,4 +1,6 @@
-/* Il blocco di testo a sinistra (spec 8.18). */
+/* Il blocco di testo a sinistra (spec 8.18): filo e tag, titolo serif,
+   paragrafo. Niente cornice: il serif grande e l'aria attorno bastano a
+   tenerlo insieme. */
 
 .block {
   position: absolute;
@@ -9,89 +11,64 @@
   width: var(--larghezza);
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  /* gli angolari piccoli del blocco: in alto a sinistra e in basso a destra,
-     disegnati con due gradienti invece di due elementi vuoti */
-  padding: 14px 0 14px 14px;
+  gap: 22px;
 }
 
-.block::before,
-.block::after {
-  content: "";
-  position: absolute;
-  width: 8px;
-  height: 8px;
-}
-
-.block::before {
-  top: 0;
-  left: 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.45);
-  border-left: 1px solid rgba(255, 255, 255, 0.45);
-}
-
-.block::after {
-  bottom: 0;
-  right: 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.45);
-  border-right: 1px solid rgba(255, 255, 255, 0.45);
-}
-
-/* Il titolo segue la larghezza del blocco, non solo quella della finestra:
-   il blocco si ferma a 520 px già da 1238 px, il corpo `t-display` cresce
-   fino a 1565. "LEGGEREZZA", la parola più lunga dei testi, è larga 8,51
-   volte il corpo (misurata in Chromium): a 1440×900 veniva 564 px contro
-   506 di spazio e la maschera delle righe la tagliava (screenshot del 8.28).
-   8,8 lascia il margine per lo sbalzo del corsivo. Il blocco non si può
-   allargare: 33 px più a destra comincia la fascia accesa */
+/* Il titolo segue la larghezza del blocco, non solo quella della finestra.
+   La parola più lunga dei testi, "Leggerezza", è larga 3,7 volte il corpo
+   (misurata in Chromium): 4 lascia margine. Coi corpi di oggi non scatta
+   mai, è la rete per una parola nuova più lunga */
 .block :global(.t-display) {
-  font-size: min(clamp(40px, 4.6vw, 72px), (var(--larghezza) - 14px) / 8.8);
+  font-size: min(clamp(48px, 7vw, 104px), var(--larghezza) / 4);
 }
 
-/* --- il tag: quadratino rosso con la × + etichetta bianca */
+/* Le maschere delle righe del titolo: `SplitText` le crea attorno a ogni
+   riga, con `overflow: clip`. Con l'interlinea a 0,95 la riga è più bassa
+   delle lettere, e la maschera taglierebbe le discendenti (g, p, la
+   virgola) e l'alone della sfocatura in entrata. Il padding allarga il
+   ritaglio, il margine negativo rimette le righe dov'erano */
+.block :global(.t-display) > * {
+  padding: 0.14em 0.2em 0.22em;
+  margin: -0.14em -0.2em -0.22em;
+}
+
+.block :global(.t-body) {
+  max-width: 38ch;
+  /* un passo indietro rispetto al titolo, senza diventare grigio */
+  color: color-mix(in srgb, var(--u-white) 74%, transparent);
+}
+
+/* --- il tag: un filo rosso e l'etichetta, come l'occhiello di una rivista */
 
 .tag {
   display: inline-flex;
-  align-items: stretch;
+  align-items: center;
   align-self: flex-start;
-  gap: 0;
-  /* l'animazione lo apre da sinistra */
-  transform-origin: left center;
+  gap: 14px;
+  color: color-mix(in srgb, var(--u-white) 82%, transparent);
 }
 
-.tagMark {
-  width: 22px;
-  height: 22px;
-  display: grid;
-  place-items: center;
+.tagRule {
+  display: block;
+  width: 28px;
+  height: 1px;
   background: var(--u-red);
-  color: var(--u-white);
-  font-style: normal;
-  font-size: 13px;
-  line-height: 1;
 }
 
 .tagText {
   position: relative;
-  display: inline-flex;
-  align-items: center;
-  padding: 0 10px;
-  background: var(--u-white);
-  color: #000;
-  font-size: 12px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
   white-space: nowrap;
 }
 
-/* la riga che cancella il testo del tag */
+/* la riga che cancella il testo del tag: rossa come il filo, è la penna di
+   chi corregge */
 .strike {
   position: absolute;
-  left: 6px;
-  right: 6px;
+  left: -3px;
+  right: -3px;
   top: 50%;
-  height: 1.5px;
-  background: #000;
+  height: 1px;
+  background: var(--u-red);
   transform-origin: left center;
 }
 
@@ -99,9 +76,9 @@
   /* su mobile il testo va in basso, sopra una sfumatura scura (spec 7.3 e
      8.23): la bottiglia può passarci dietro, e la sfumatura è ciò che lo
      tiene leggibile. Il blocco arriva al bordo e il fondo lo riserva il
-     padding, così la sfumatura copre anche la riga delle icone: 86 px sono
-     le icone di Hud.module.css (16 + 8 di margine, 46 di bottone) più 16 di
-     respiro */
+     padding, così la sfumatura copre anche la riga dell'indice: 76 px sono
+     l'indice di Hud.module.css (16 + 8 di margine, 38 di bottone) più 14
+     di respiro */
   .block {
     left: 0;
     right: 0;
@@ -109,20 +86,30 @@
     bottom: 0;
     transform: none;
     width: auto;
-    /* qui il titolo resta al minimo di 40 px: a 390 "LEGGEREZZA" fa 340 px
-       contro 358 di spazio */
     --larghezza: 100vw;
-    padding: 48px calc(16px + var(--safe-r)) calc(86px + var(--safe-b))
+    padding: 48px calc(16px + var(--safe-r)) calc(76px + var(--safe-b))
       calc(16px + var(--safe-l));
-    gap: 12px;
+    gap: 14px;
+  }
+
+  /* La sfumatura è un livello sotto e non lo sfondo del blocco: il blocco
+     nuovo entra nel DOM subito, col testo ancora nascosto, e da sfondo
+     coprirebbe il testo di quello che sta uscendo. Con `z-index: -1` le
+     sfumature di tutti e due finiscono sotto tutti e due i testi; quella
+     del blocco uscente sfuma via mentre le sue righe salgono */
+  .block::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
     background: linear-gradient(
       transparent,
       color-mix(in srgb, var(--u-black) 85%, transparent) 35%
     );
+    transition: opacity 0.4s ease;
   }
 
-  .block::before,
-  .block::after {
-    display: none;
+  .leaving::before {
+    opacity: 0;
   }
 }

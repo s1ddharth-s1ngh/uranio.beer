@@ -31,11 +31,23 @@ export function tickerTime(): number {
   return gsap.ticker.time;
 }
 
+let risvegli = 0;
+
 /**
  * Ferma o riavvia il loop. A esperienza scrollata fuori vista non c'è niente
  * da disegnare: il ticker è l'unico loop della scena, quindi basta lui.
  */
 export function setTickerAwake(awake: boolean) {
-  if (awake) gsap.ticker.wake();
-  else gsap.ticker.sleep();
+  if (awake) {
+    gsap.ticker.wake();
+    risvegli++;
+  } else gsap.ticker.sleep();
 }
+
+/**
+ * Quante volte il loop è stato svegliato. Chi misura i frame (il DPR
+ * adattivo) riparte da capo a ogni risveglio: il risveglio è il passaggio dal
+ * hero, con due scene WebGL a schermo insieme, e quei frame lenti non dicono
+ * niente di come gira l'esperienza da sola.
+ */
+export const tickerWakes = () => risvegli;

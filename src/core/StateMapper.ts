@@ -12,7 +12,6 @@
 
 import gsap from "gsap";
 import * as THREE from "three";
-import { SHADER } from "../config/bottle.ts";
 import {
   FULL_WINDOW,
   KEYFRAMES,
@@ -69,7 +68,7 @@ export interface SceneState {
   /** posizione del gruppo pivot della bottiglia protagonista */
   pivot: THREE.Vector3;
   rotation: THREE.Euler;
-  /** intensità dello spot sul tappo */
+  /** intensità dello spot sulla cima */
   spot: number;
   /** intensità della luce sulla faccia */
   face: number;
@@ -79,18 +78,6 @@ export interface SceneState {
   look: number;
   /** 0 faro e piedistallo in scena, 1 usciti dal frame */
   props: number;
-  uniforms: {
-    reveal: number;
-    revealY: number;
-    focus: number;
-    focusY: number;
-    focusHalf: number;
-    focusAngleHalf: number;
-    /** posizione della lama di luce, `SHADER.sweepIdle` quando è spenta */
-    sweep: number;
-    sweepAmt: number;
-  };
-  background: { hero: number; step: number; finale: number };
   carousel: {
     /** luminosità delle altre bottiglie della gamma */
     sideDim: number;
@@ -117,17 +104,6 @@ export class StateMapper {
     cap: 0,
     look: 0,
     props: 0,
-    uniforms: {
-      reveal: 0,
-      revealY: SHADER.revealY,
-      focus: 0,
-      focusY: 0,
-      focusHalf: 0,
-      focusAngleHalf: SHADER.focusAngleHalf,
-      sweep: SHADER.sweepIdle,
-      sweepAmt: 0,
-    },
-    background: { hero: 1, step: 0, finale: 0 },
     carousel: { sideDim: 0, escape: 1, layout: 0 },
   };
 
@@ -203,44 +179,16 @@ export class StateMapper {
       mix(a.rotation[2], b.rotation[2], wRot),
     );
 
-    // lo spot segue la maschera della cima: si accendono e si spengono insieme
-    const wReveal = w("reveal");
-    s.spot = mix(a.spot, b.spot, wReveal);
-    s.uniforms.reveal = mix(a.reveal, b.reveal, wReveal);
-    s.uniforms.revealY = mix(a.revealY, b.revealY, wReveal);
-
-    const wFocus = w("focus");
-    s.uniforms.focus = mix(a.focus, b.focus, wFocus);
-    s.uniforms.focusY = mix(a.focusY, b.focusY, wFocus);
-    s.uniforms.focusHalf = mix(a.focusHalf, b.focusHalf, wFocus);
-    s.uniforms.focusAngleHalf = mix(a.focusAngleHalf, b.focusAngleHalf, wFocus);
-
-    // la luce sulla faccia e il tappo: ognuno con la sua finestra, così il
-    // tappo salta quando la bottiglia comincia a girare e non a metà giro
-    s.face = mix(a.face, b.face, w("luce"));
+    // la luce sulla faccia, lo spot e il tappo: ognuno con la sua finestra,
+    // così il tappo salta quando la bottiglia comincia a girare e non a metà
+    // giro
+    const wLuce = w("luce");
+    s.face = mix(a.face, b.face, wLuce);
+    s.spot = mix(a.spot, b.spot, wLuce);
     s.cap = mix(a.cap, b.cap, w("tappo"));
     // quanto segue il cursore va con la camera: è l'inquadratura a decidere
-    // quanto movimento regge (sul retro, poco: la fascia va letta)
+    // quanto movimento regge
     s.look = mix(a.look, b.look, wCam);
-
-    // La lama di luce vive solo dentro la transizione: `sin(π·tt)` vale 0 ai
-    // due estremi, quindi nelle pause si spegne da sé. Al contrario scorre
-    // all'indietro gratis, perché è funzione di `p` come tutto il resto.
-    const wSweep = w("sweep");
-    const grezzo =
-      Math.sin(Math.PI * Math.min(1, Math.max(0, wSweep))) * seg.sweepAmt;
-    // `sin(π)` in virgola mobile non è zero ma 1e-16: senza questa soglia la
-    // lama resterebbe formalmente accesa a ogni pausa e lo shader
-    // continuerebbe a calcolarla
-    const amt = grezzo < 1e-4 ? 0 : grezzo;
-    s.uniforms.sweepAmt = amt;
-    s.uniforms.sweep =
-      amt === 0 ? SHADER.sweepIdle : mix(SHADER.sweepFrom, SHADER.sweepTo, wSweep);
-
-    const wBg = w("sfondo");
-    s.background.hero = mix(a.background[0], b.background[0], wBg);
-    s.background.step = mix(a.background[1], b.background[1], wBg);
-    s.background.finale = mix(a.background[2], b.background[2], wBg);
 
     const wLati = w("lati");
     s.carousel.sideDim = mix(a.sideDim, b.sideDim, wLati);

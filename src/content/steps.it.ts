@@ -8,7 +8,11 @@
 // ⚠️ Bozza: i fatti vengono tutti dall'etichetta, ma i testi sono da far
 // validare dal birrificio (spec 10.2).
 
-/** Il tag sopra il titolo: un quadratino rosso e un'etichetta bianca. */
+/**
+ * Il tag sopra il titolo: un filo rosso e un'etichetta. Il testo va scritto
+ * normale, il maiuscolo lo mette il CSS: in maiuscolo nel sorgente certi
+ * screen reader lo compitano lettera per lettera.
+ */
 export interface StepTag {
   text: string;
   /** se vero, dopo l'entrata del titolo una riga lo attraversa da sinistra */
@@ -20,10 +24,14 @@ export interface Step {
   id: string;
   tag?: StepTag;
   title?: string;
+  /** chi ha un paragrafo ha il blocco di testo a sinistra (`StepTextLayer`) */
   body?: string;
-  /** nome dell'icona Lucide nella colonna di destra (spec 8.17) */
-  icon?: "wheat" | "zap" | "droplet" | "recycle";
-  /** anello e fronte: stile e gradazione */
+  /**
+   * Una delle quattro fasce del retro: la elenca l'indice numerato a destra
+   * (`StepIcons`, spec 8.17), che si vede solo su questi step.
+   */
+  band?: true;
+  /** anello: stile e gradazione, sotto il piedistallo */
   subtitle?: string;
   scrollHint?: string;
   /**
@@ -45,50 +53,52 @@ export const HUD_LETTERS = { top: "CRISI", bottom: "ECONOMICA" } as const;
 
 export const STEPS: Step[] = [
   {
-    // l'anello: tutte le bottiglie, il nome sul piedistallo
+    // l'anello: tutte le bottiglie, stile e gradazione sotto il piedistallo.
+    // Il nome qui lo portano le etichette: il titolo resta per screen reader
+    // e versione statica
     id: "anello",
-    title: "CRISI ECONOMICA",
-    subtitle: "ORDINARY BITTER · 4,2%",
-    scrollHint: "SCORRI PER SCOPRIRE",
+    title: "Crisi Economica",
+    subtitle: "Ordinary Bitter · 4,2%",
+    scrollHint: "Scorri per scoprire",
     image: { file: "crisi-economica-logotipo.webp", alt: "Il logotipo Crisi Economica dell'etichetta" },
   },
   {
-    // il fronte: lei sola, grande, col nome a sinistra
+    // il fronte: lei sola, intera a destra, il nome nel blocco a sinistra
     id: "fronte",
-    title: "CRISI ECONOMICA",
-    subtitle: "ORDINARY BITTER · 4,2%",
+    tag: { text: "Ordinary Bitter · 4,2%" },
+    title: "Crisi Economica",
     body: "Una Ordinary Bitter all'inglese, leggera e da bere a pinte. Per i giorni in cui tutto va storto.",
   },
   {
     id: "f1",
-    tag: { text: "4 INGREDIENTI" },
-    icon: "wheat",
+    tag: { text: "4 ingredienti" },
+    band: true,
     image: { file: "crisi-economica-fascia-1.webp", alt: "Il retro dell'etichetta: nome della birra e ingredienti" },
-    title: "ORDINARY BITTER",
+    title: "Ordinary Bitter",
     body: "Acqua, malto d'orzo, luppolo, lievito. Nient'altro in etichetta.",
   },
   {
     id: "f2",
-    tag: { text: "CRISI", strike: true },
-    icon: "zap",
+    tag: { text: "Crisi", strike: true },
+    band: true,
     image: { file: "crisi-economica-fascia-2.webp", alt: "Il retro dell'etichetta: motto e produttore" },
-    title: "TRASFORMA LA CRISI IN PIACERE",
+    title: "Trasforma la crisi in piacere",
     body: "Prodotta e confezionata per Uranio a Castelletto Stura (CN), in Piemonte.",
   },
   {
     id: "f3",
-    tag: { text: "4,2% VOL" },
-    icon: "droplet",
+    tag: { text: "4,2% vol" },
+    band: true,
     image: { file: "crisi-economica-fascia-3.webp", alt: "Il retro dell'etichetta: gradazione, formato e marchio Uranio" },
-    title: "33 CL DI LEGGEREZZA",
+    title: "33 cl di leggerezza",
     body: "Gradazione bassa, bottiglia da 33 cl: una birra da sessione, da stappare senza pensarci troppo.",
   },
   {
     id: "f4",
-    tag: { text: "INDIFFERENZIATA", strike: true },
-    icon: "recycle",
+    tag: { text: "Indifferenziata", strike: true },
+    band: true,
     image: { file: "crisi-economica-fascia-4.webp", alt: "Il retro dell'etichetta: raccolta differenziata e scadenza" },
-    title: "VETRO, METALLO, PLASTICA",
+    title: "Vetro, metallo, plastica",
     body: "Bottiglia in vetro GL72, tappo in metallo C/FE91, etichetta in plastica PP5. Verifica le regole del tuo comune.",
   },
   {
@@ -96,7 +106,7 @@ export const STEPS: Step[] = [
     // scritta gigante dietro. Il titolo serve a screen reader e versione
     // statica
     id: "finale",
-    title: "TUTTE LE CRISI",
+    title: "Tutte le crisi",
     bigWord: ["ZERO", "CRISI"],
     note: "Conservare al freddo e al buio. Contiene deposito naturale.",
     // ⚠️ href segnaposto: destinazioni da confermare (spec 10.2)

@@ -1,8 +1,7 @@
-/* L'interfaccia di anello e fronte (riferimento ciaoenergy.com). Allo step 0
-   il logotipo siede sul piedistallo, la cui altezza arriva da `heroLayout()`
+/* L'interfaccia dell'anello (riferimento ciaoenergy.com): stile e
+   gradazione sotto il piedistallo, la cui altezza arriva da `heroLayout()`
    come variabile (`--pedestal-y`): è la scena proiettata, non una
-   percentuale scritta qui. Allo step 1 il nome sta a sinistra, nella stessa
-   colonna del blocco dei testi del retro (`StepText.module.css`). */
+   percentuale scritta qui. In basso l'invito a scorrere. */
 
 /* ----------------------------------------------------- uscita e rientro */
 
@@ -50,73 +49,44 @@
   pointer-events: auto;
 }
 
-.logo {
-  margin: 0;
-  line-height: 0;
+/* il nome resta agli screen reader: a vista lo portano le etichette */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
-/* ------------------------------------------- anello: nome sul piedistallo */
+/* ------------------------------------- anello: didascalia del piedistallo */
 
-.pedestal {
-  --logo-w: clamp(220px, 22vw, 360px);
+/* Sotto il piedistallo, come la didascalia di un oggetto in vetrina: i due
+   fili ai lati la chiudono senza bisogno di un riquadro. Lo scarto in `vh`
+   segue la scena, che in prospettiva scala con l'altezza della finestra;
+   il `min` la tiene sopra l'invito a scorrere */
+.caption {
   position: absolute;
   left: 50%;
-  top: var(--pedestal-y);
-  /* il logotipo si appoggia al bordo del piedistallo: `--name-anchor` 0 lo
-     mette tutto sopra, 1 tutto sotto. Margine e non transform, così il
-     sottotitolo lo segue nel flusso */
-  margin-top: calc((var(--name-anchor) - 1) * var(--logo-w) * 261 / 546);
+  top: min(calc(var(--pedestal-y) + 13vh), calc(100% - 130px - var(--safe-b)));
   transform: translateX(-50%);
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 8px;
-  text-align: center;
+  gap: 16px;
+  white-space: nowrap;
 }
 
-.pedestal img {
-  width: var(--logo-w);
-  height: auto;
-  /* stacca il logotipo dal metallo del piedistallo, come la scritta del
-     riferimento */
-  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.65));
+.caption::before,
+.caption::after {
+  content: "";
+  width: 28px;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.45;
 }
 
-.pedestal p {
-  margin: 0;
-  opacity: 0.85;
-}
-
-/* ------------------------------------------------- fronte: nome a sinistra */
-
-.name {
-  position: absolute;
-  left: 10vw;
-  top: 45%;
-  transform: translateY(-50%);
-  width: min(460px, 36vw);
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 18px;
-}
-
-.tag {
-  margin: 0;
-  padding: 4px 10px;
-  background: var(--u-white);
-  color: #000;
-}
-
-.name img {
-  width: clamp(240px, 26vw, 400px);
-  height: auto;
-}
-
-.body {
-  margin: 0;
-  max-width: 34ch;
-  opacity: 0.9;
+.caption p {
+  opacity: 0.88;
 }
 
 /* ------------------------------------------------- scorri per scoprire */
@@ -129,59 +99,44 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  padding: 4px 8px;
+  gap: 12px;
+  padding: 6px 10px;
   border: 0;
   background: none;
   color: inherit;
   cursor: pointer;
 }
 
+.hint span {
+  opacity: 0.62;
+  transition: opacity 0.3s ease;
+}
+
+.hint:hover span,
+.hint:focus-visible span {
+  opacity: 1;
+}
+
+/* Il filo sotto l'invito si disegna una volta, verso il basso, quando
+   l'anello compare. Niente pulsazione continua: un'animazione perenne
+   ricomporrebbe la pagina a ogni frame sopra la scena WebGL */
 .hintLine {
   display: block;
   width: 1px;
-  height: 22px;
-  background: currentColor;
+  height: 32px;
+  background: linear-gradient(currentColor, transparent);
+  transform: scaleY(0);
   transform-origin: top;
-  animation: pulse 1.8s ease-in-out infinite;
+  transition: transform 1.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@keyframes pulse {
-  0%,
-  100% {
-    transform: scaleY(0.35);
-    opacity: 0.35;
-  }
-  50% {
-    transform: scaleY(1);
-    opacity: 1;
-  }
+.open .in .hintLine {
+  transform: none;
+  transition-delay: calc(var(--hero-return-delay) + 0.25s);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .hintLine {
-    animation: none;
-  }
-}
-
-/* telefono e tablet verticale: la bottiglia sta in alto, il nome del fronte
-   sotto (stessa regola di `keyframesFor`) */
-@media (max-width: 767px), (max-aspect-ratio: 1/1) {
-  .pedestal {
-    --logo-w: min(56vw, 300px);
-  }
-
-  .name {
-    left: 50%;
-    top: auto;
-    bottom: calc(96px + var(--safe-b));
-    transform: translateX(-50%);
-    width: min(88vw, 460px);
-    align-items: center;
-    text-align: center;
-  }
-
-  .name img {
-    width: min(64vw, 320px);
+    transition: none;
   }
 }

@@ -236,11 +236,12 @@
 
 /* ----------------------------------------------------------------- menu */
 
+/* niente `backdrop-filter`: sopra il canvas WebGL vorrebbe dire risfocare
+   tutta la scena a ogni frame, e con il fondo quasi opaco non si vedrebbe */
 .menuPanel {
   position: absolute;
   inset: 0;
   background: rgba(5, 5, 5, 0.92);
-  backdrop-filter: blur(8px);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -266,14 +267,13 @@
   gap: 18px;
 }
 
+/* le voci nel serif dei titoli, come scritte: il menu è un indice */
 .menuLink {
   font-family: var(--u-font-display);
-  font-weight: 900;
-  font-stretch: 118%;
-  font-style: italic;
-  text-transform: uppercase;
-  font-size: clamp(28px, 5vw, 56px);
-  line-height: 0.95;
+  font-weight: 400;
+  font-size: clamp(36px, 5.5vw, 64px);
+  line-height: 1;
+  letter-spacing: -0.01em;
   color: var(--u-white);
   text-decoration: none;
   opacity: 0.85;
@@ -336,79 +336,84 @@
   right: -1px;
 }
 
-/* ------------------------------------------------------- icone degli step */
+/* ------------------------------------------------- indice delle fasce */
 
-.icons {
+/* Quattro numeri piccoli in colonna, allineati al bordo destro: il
+   corrente acceso e con un filo lungo, gli altri spenti col filo corto.
+   Solo trasformazioni e opacità, tutte transizioni su un cambio di classe:
+   a riposo l'indice non costa niente */
+.index {
   position: absolute;
-  right: calc(var(--hud-inset) + 18px);
+  right: calc(var(--hud-inset) + var(--safe-r));
   top: 50%;
   transform: translateY(-50%);
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-end;
 }
 
-.iconSlot {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+.indexSlot {
   /* entrata sfalsata: il ritardo lo mette il componente, slot per slot */
   opacity: 0;
-  transform: translateX(16px);
+  transform: translateX(12px);
   transition:
-    opacity 0.45s ease,
-    transform 0.45s ease;
+    opacity 0.5s ease,
+    transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.iconsIn .iconSlot {
+.indexIn .indexSlot {
   opacity: 1;
   transform: none;
 }
 
-.icon {
+.indexItem {
   pointer-events: auto;
-  width: 62px;
-  height: 62px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  background: rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  /* il bottone è più grande del numero: un bersaglio da 11 px non si
+     prende né col mouse né col dito */
+  padding: 9px 0 9px 14px;
+  border: 0;
+  background: none;
   color: var(--u-white);
-  display: grid;
-  place-items: center;
+  font-family: var(--u-font-body);
+  font-weight: 500;
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.14em;
+  font-variant-numeric: tabular-nums;
   cursor: pointer;
-  transition:
-    border-color 0.4s ease,
-    background-color 0.4s ease,
-    box-shadow 0.4s ease;
+  opacity: 0.38;
+  transition: opacity 0.4s ease;
 }
 
-.icons:not(.iconsIn) .icon {
+.index:not(.indexIn) .indexItem {
   pointer-events: none;
 }
 
-.icon:hover {
-  border-color: rgba(255, 255, 255, 0.6);
+.indexItem:hover {
+  opacity: 0.75;
 }
 
-.iconActive {
-  border: 1.5px solid var(--u-white);
-  background: rgba(219, 68, 66, 0.25);
-  box-shadow: 0 0 18px rgba(219, 68, 66, 0.6);
+.indexActive,
+.indexActive:hover {
+  opacity: 1;
 }
 
-/* i tre puntini fra un cerchio e l'altro */
-.iconDots {
-  width: 2px;
-  height: 18px;
-  margin: 8px 0;
-  background-image: radial-gradient(
-    circle,
-    rgba(255, 255, 255, 0.45) 1px,
-    transparent 1px
-  );
-  background-size: 2px 6px;
-  background-repeat: repeat-y;
+/* il filo cresce verso sinistra, dal numero verso la pagina */
+.indexRule {
+  display: block;
+  width: 32px;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0.25);
+  transform-origin: right center;
+  transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.indexActive .indexRule {
+  transform: none;
 }
 
 @media (max-width: 767px), (max-aspect-ratio: 1/1) {
@@ -417,9 +422,10 @@
     right: calc(16px + var(--safe-r));
   }
 
-  /* su mobile le icone passano in riga (spec 7.3): la colonna a destra
-     coprirebbe la bottiglia su un frame stretto */
-  .icons {
+  /* su mobile l'indice passa in riga, in basso al centro (spec 7.3): la
+     colonna a destra coprirebbe la bottiglia su un frame stretto. Il filo
+     va sotto il numero, così i quattro restano equidistanti */
+  .index {
     right: calc(var(--hud-inset) + var(--safe-r));
     left: calc(var(--hud-inset) + var(--safe-l));
     top: auto;
@@ -427,24 +433,23 @@
     transform: none;
     flex-direction: row;
     justify-content: center;
+    gap: 8px;
   }
 
-  .iconSlot {
-    flex-direction: row;
-    transform: translateY(16px);
+  .indexSlot {
+    transform: translateY(12px);
   }
 
-  .icon {
-    width: 46px;
-    height: 46px;
+  .indexItem {
+    flex-direction: column-reverse;
+    gap: 8px;
+    padding: 10px 10px 9px;
   }
 
-  .iconDots {
-    width: 18px;
-    height: 2px;
-    margin: 0 6px;
-    background-size: 6px 2px;
-    background-repeat: repeat-x;
+  .indexRule {
+    width: 100%;
+    transform: scaleX(0);
+    transform-origin: left center;
   }
 }
 
@@ -471,6 +476,13 @@
 
   .header {
     gap: 8px;
+  }
+
+  /* la riga bassa delle lettere cade al 75%, dentro la fascia dei testi di
+     mobile (dal 60 al 92%, spec 7.3): passerebbe sopra occhiello e titolo,
+     che sono più sottili di prima e non la coprono più */
+  .bottom {
+    display: none;
   }
 }
 

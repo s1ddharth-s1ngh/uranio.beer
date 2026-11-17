@@ -7,7 +7,6 @@
 // 10.1.6): le ancore e le finestre sono la cosa che più probabilmente va
 // ritoccata guardando gli screenshot.
 
-import { BANDS, BOTTLE, LABEL_CENTER_LOCAL, SHADER } from "./bottle.ts";
 import type { Anchor, CameraSpec } from "./solvePivot.ts";
 
 export type Vec3 = readonly [number, number, number];
@@ -17,21 +16,10 @@ export interface Keyframe {
   /** rotazione del pivot in radianti, interpolata come numeri (vedi sotto) */
   rotation: Vec3;
   anchor: Anchor;
-  /** intensità dello spot sul tappo */
+  /** intensità dello spot che segue la cima (e il tappo staccato) */
   spot: number;
-  /** intensità della luce sulla faccia, da destra in alto (`gl/Lights.tsx`) */
+  /** intensità della luce sulla faccia, da destra in alto (`materials/patchBottle.ts`) */
   face: number;
-  /** maschera "solo la cima accesa" */
-  reveal: number;
-  revealY: number;
-  /** maschera "solo la fascia accesa" */
-  focus: number;
-  focusY: number;
-  focusHalf: number;
-  /** mezzo arco della fascia accesa, in radianti */
-  focusAngleHalf: number;
-  /** pesi dello sfondo: studio, alone degli step, nebbia */
-  background: Vec3;
   /** luminosità delle altre bottiglie */
   sideDim: number;
   /** 0 = le altre bottiglie in scena, 1 = fuori dal frame ai lati */
@@ -46,91 +34,66 @@ export interface Keyframe {
   look: number;
 }
 
-/** una fascia dell'etichetta in coordinate locali del pivot */
-const fasciaLocale = (y: number) => y - BOTTLE.centerY;
-
-/** i canali delle fasce, uguali per tutti gli step che non ne accendono una */
-const SPENTA = {
-  reveal: 0,
-  revealY: SHADER.revealY,
-  focus: 0,
-  focusY: BANDS.f1.y,
-  focusHalf: BANDS.f1.half,
-  focusAngleHalf: BANDS.f1.angleHalf,
-} as const;
-
-/** una fascia del retro accesa */
-const accesa = (b: (typeof BANDS)[keyof typeof BANDS]) => ({
-  reveal: 0,
-  revealY: SHADER.revealY,
-  focus: 1,
-  focusY: b.y,
-  focusHalf: b.half,
-  focusAngleHalf: b.angleHalf,
-});
-
 /**
- * il retro: niente anello, niente faro, tappo sospeso, sfondo degli step. La
- * camera è vicina come nel riferimento, dove la lattina riempie il frame e il
- * blocco acceso è grande quanto il titolo accanto (confronto del 2026-11-04)
+ * il retro: niente anello, niente faro, tappo sospeso. La bottiglia resta
+ * **intera** in quadro (la richiesta del 2026-11-17: "mi fa vedere l'intera
+ * bottiglia, non solo questa parte"), a destra del testo, e da uno step
+ * all'altro gira piano sul retro: niente fasce accese né resto spento, solo
+ * luce vera su una bottiglia vera
  */
 const RETRO = {
-  camera: { position: [0, 0, 6], look: [0, 0, 0] },
-  spot: 0.25,
-  face: 0,
-  background: [0, 1, 0],
+  camera: { position: [0, 0, 11], look: [0, 0, 0] },
+  anchor: { localY: 0, screen: [0.64, 0.5] },
+  spot: 0.9,
+  face: 0.7,
   sideDim: 0,
   escape: 1,
   layout: 1,
   props: 1,
   cap: 1,
-  look: 0.45,
+  look: 0.6,
 } as const;
 
 /**
- * Keyframe desktop, composti su 1440×900, sul riferimento ciaoenergy.com
- * (rivisti il 2026-11-04 sulle schermate del proprietario):
+ * Keyframe desktop, composti su 1440×900 (rivisti il 2026-11-17 sulle note del
+ * proprietario):
  *
- * 0. tutte le bottiglie su un anello, la protagonista al centro fra faro e
- *    piedistallo, il nome sul piedistallo;
- * 1. lei sola, grande e inclinata, la faccia girata in alto a destra e la
- *    luce addosso, il nome a sinistra;
- * 2–5. gira sul retro (e il tappo salta via), una fascia accesa per step;
+ * 0. un gruppo stretto di bottiglie, la protagonista al centro fra faro e
+ *    piedistallo;
+ * 1. lei sola, **intera** e inclinata, la faccia girata in alto a destra e la
+ *    luce addosso, il testo a sinistra;
+ * 2–5. gira sul retro, e il tappo salta via davanti agli occhi; poi un quarto
+ *    di giro lento a ogni step;
  * 6. il giro finisce, le altre tornano in fila, il tappo si richiude:
  *    "ZERO CRISI" e le call to action.
  */
 export const KEYFRAMES: readonly Keyframe[] = [
-  // 0 · Anello: camera lontana, la protagonista col fondo verso di noi e la
-  // cima un filo a sinistra, come la lattina al centro del riferimento; la
-  // faccia già un poco in alto a destra, verso il faro
+  // 0 · Il gruppo: camera lontana, la protagonista col fondo verso di noi e la
+  // cima un filo a sinistra; la faccia già un poco in alto a destra, verso il
+  // faro
   {
     camera: { position: [0, 0.4, 14.5], look: [0, 0.2, 0] },
     rotation: [-0.2, 0.22, 0.16],
     anchor: { localY: 0, screen: [0.5, 0.45] },
     spot: 1,
     face: 0.45,
-    ...SPENTA,
-    background: [1, 0, 0],
-    sideDim: 0.34,
+    sideDim: 0.6,
     escape: 0,
     layout: 0,
     props: 0,
     cap: 0,
     look: 1,
   },
-  // 1 · Fronte: grande, inclinata con la cima a sinistra, la faccia che
-  // guarda in alto a destra, verso il cielo e verso la luce (la richiesta del
-  // proprietario sull'immagine 13 del riferimento); il fondo esce dal bordo
-  // basso come la lattina del riferimento. `x` negativo alza la faccia: con
-  // `x` positivo la cima veniva verso di noi e la faccia guardava in basso
+  // 1 · Fronte: intera, inclinata con la cima a sinistra, la faccia che guarda
+  // in alto a destra, verso la luce. `x` negativo alza la faccia. La camera a
+  // 11,5 tiene in quadro tutta la bottiglia inclinata (~4,4 unità di altezza
+  // su ~5,7 di frame) e lascia spazio sopra al tappo, che allo step dopo salta
   {
-    camera: { position: [0, 0, 5.8], look: [0, 0, 0] },
-    rotation: [-0.25, 0.5, 0.4],
-    anchor: { localY: LABEL_CENTER_LOCAL, screen: [0.66, 0.64] },
-    spot: 1.6,
+    camera: { position: [0, 0, 11.5], look: [0, 0, 0] },
+    rotation: [-0.22, 0.5, 0.36],
+    anchor: { localY: 0, screen: [0.64, 0.52] },
+    spot: 1.4,
     face: 1,
-    ...SPENTA,
-    background: [0, 1, 0],
     sideDim: 0,
     escape: 1,
     layout: 0,
@@ -138,45 +101,21 @@ export const KEYFRAMES: readonly Keyframe[] = [
     cap: 0,
     look: 1,
   },
-  // 2–5 · il retro, una fascia per step: la bottiglia sale e si raddrizza
-  {
-    ...RETRO,
-    rotation: [0.12, Math.PI, 0.26],
-    anchor: { localY: fasciaLocale(BANDS.f1.y), screen: [0.63, 0.44] },
-    ...accesa(BANDS.f1),
-  },
-  {
-    ...RETRO,
-    rotation: [0.12, Math.PI, 0.19],
-    anchor: { localY: fasciaLocale(BANDS.f2.y), screen: [0.63, 0.44] },
-    ...accesa(BANDS.f2),
-  },
-  {
-    ...RETRO,
-    rotation: [0.1, Math.PI, 0.14],
-    anchor: { localY: fasciaLocale(BANDS.f3.y), screen: [0.63, 0.46] },
-    ...accesa(BANDS.f3),
-  },
-  {
-    ...RETRO,
-    rotation: [0.08, Math.PI, 0.1],
-    anchor: { localY: fasciaLocale(BANDS.f4.y), screen: [0.63, 0.46] },
-    ...accesa(BANDS.f4),
-  },
+  // 2–5 · il retro: la bottiglia si raddrizza e gira piano, uno spicchio per
+  // step, da poco prima del retro a poco dopo
+  { ...RETRO, rotation: [0.08, Math.PI - 0.3, 0.14] },
+  { ...RETRO, rotation: [0.06, Math.PI - 0.1, 0.1] },
+  { ...RETRO, rotation: [0.05, Math.PI + 0.1, 0.07] },
+  { ...RETRO, rotation: [0.04, Math.PI + 0.3, 0.04] },
   // 6 · La gamma e il finale: finito il giro (2π, di nuovo il fronte) le
-  // altre arrivano dai lati in fila curva e il tappo torna sul collo. Sfondo
-  // da studio, "ZERO CRISI" dietro, le call to action sotto
+  // altre arrivano dai lati in fila curva e il tappo torna sul collo.
+  // "ZERO CRISI" dietro, le call to action sotto
   {
     camera: { position: [0, 0, 13.5], look: [0, 0, 0] },
     rotation: [0, Math.PI * 2, 0.08],
     anchor: { localY: 0, screen: [0.5, 0.45] },
     spot: 0.8,
     face: 0.35,
-    ...SPENTA,
-    focusY: BANDS.f4.y,
-    focusHalf: BANDS.f4.half,
-    focusAngleHalf: BANDS.f4.angleHalf,
-    background: [1, 0, 0],
     sideDim: 0.9,
     escape: 0,
     layout: 1,
@@ -192,21 +131,18 @@ export const KEYFRAMES: readonly Keyframe[] = [
  * alte. Cambiano **solo** quelle due cose: tutto il resto è lo stesso stato,
  * e tenerlo scritto una volta sola è il motivo per cui le ancore esistono.
  */
-// - anello più lontano: su un frame stretto le vicine devono stare ai lati
+// - gruppo più lontano: su un frame stretto le vicine devono stare ai lati
 //   della protagonista, non sopra;
-// - fronte abbastanza lontano da tenere in quadro il tappo, che allo step
-//   dopo salta: dal tappo al centro dell'etichetta sono ~2,9 unità in
-//   verticale, il 37% di un frame a 15,5;
-// - retro un filo più lontano del desktop e al centro, perché a destra resti
-//   spazio per il tappo sospeso
-const MOBILE_CAM_Z = [21, 15.5, 10.5, 10.5, 10.5, 10.5, 24] as const;
+// - fronte e retro abbastanza lontani da tenere in quadro tutta la bottiglia
+//   (e il tappo che salta) sopra il testo, che occupa il 60–92% dell'altezza
+const MOBILE_CAM_Z = [21, 16.5, 16, 16, 16, 16, 24] as const;
 const MOBILE_SCREEN: readonly Vec3[] = [
   [0.5, 0.31, 0],
-  [0.56, 0.48, 0],
-  [0.5, 0.32, 0],
-  [0.5, 0.32, 0],
-  [0.5, 0.32, 0],
-  [0.5, 0.32, 0],
+  [0.54, 0.33, 0],
+  [0.5, 0.33, 0],
+  [0.5, 0.33, 0],
+  [0.5, 0.33, 0],
+  [0.5, 0.33, 0],
   [0.5, 0.4, 0],
 ];
 
@@ -248,96 +184,48 @@ export const KEYFRAMES_TABLET: readonly Keyframe[] = KEYFRAMES_MOBILE.map((k) =>
  * lineare: le laterali scappano subito, la camera arriva dopo, la luce per
  * ultima.
  */
-export type Group =
-  | "lati"
-  | "sfondo"
-  | "camera"
-  | "rotazione"
-  | "reveal"
-  | "luce"
-  | "focus"
-  | "sweep"
-  | "tappo";
+export type Group = "lati" | "camera" | "rotazione" | "luce" | "tappo";
 
 export type Window = readonly [number, number];
 export const FULL_WINDOW: Window = [0, 1];
 
 export interface Segment {
   windows: Partial<Record<Group, Window>>;
-  /** ampiezza della lama di luce in questo segmento */
-  sweepAmt: number;
 }
 
 /** Una voce per segmento: `p` da k a k+1 (spec 7.4). */
 export const SEGMENTS: readonly Segment[] = [
-  // 0 → 1 · anello → fronte: le altre scappano e faro e piedistallo escono
+  // 0 → 1 · gruppo → fronte: le altre scappano e faro e piedistallo escono
   // subito, poi la camera si avvicina mentre lei si gira verso la luce
+  { windows: { lati: [0, 0.5], camera: [0.1, 1], rotazione: [0.1, 1], luce: [0.3, 1] } },
+  // 1 → 2 · fronte → retro: il mezzo giro. Il tappo salta **prima** che la
+  // bottiglia cominci a girare, a bottiglia ancora di fronte e intera in
+  // quadro ("vorrei vedere l'animazione che mi apre il tappo"), e vola
+  // accanto a lei mentre il retro arriva in camera
   {
     windows: {
-      lati: [0, 0.5],
-      camera: [0.1, 1],
-      rotazione: [0.1, 1],
-      sfondo: [0.15, 0.75],
-      luce: [0.3, 1],
-      sweep: [0.25, 0.85],
-    },
-    sweepAmt: 0.5,
-  },
-  // 1 → 2 · fronte → F1: il mezzo giro. Il tappo salta appena la bottiglia
-  // comincia a girare, e vola accanto a lei mentre il retro arriva in camera;
-  // la luce si stringe sulla prima fascia per ultima
-  {
-    windows: {
-      rotazione: [0, 0.85],
+      rotazione: [0.12, 0.9],
       camera: [0.1, 1],
       luce: [0, 0.5],
       // all'inizio del segmento, dove la curva di `p` è ancora lenta: nel
       // tratto centrale un volo intero dura un paio di frame e non si vede
-      tappo: [0, 0.62],
-      focus: [0.45, 1],
-      sweep: [0.15, 0.75],
+      tappo: [0, 0.55],
     },
-    // non piena: a metà giro la bottiglia è di profilo, e la lama intera la
-    // faceva diventare tutta bianca per un paio di frame
-    sweepAmt: 0.65,
   },
-  // 2 ↔ 3 ↔ 4 ↔ 5 · la fascia accesa scivola sul paragrafo nuovo
-  { windows: { focus: [0.1, 0.9], sweep: [0.2, 0.8] }, sweepAmt: 0.4 },
-  { windows: { focus: [0.1, 0.9], sweep: [0.2, 0.8] }, sweepAmt: 0.4 },
-  { windows: { focus: [0.1, 0.9], sweep: [0.2, 0.8] }, sweepAmt: 0.4 },
-  // 5 → 6 · F4 → gamma: lei finisce il giro e si allontana, le altre entrano
+  // 2 ↔ 3 ↔ 4 ↔ 5 · uno spicchio di giro, tutto insieme
+  { windows: {} },
+  { windows: {} },
+  { windows: {} },
+  // 5 → 6 · retro → gamma: lei finisce il giro e si allontana, le altre entrano
   // dai lati quando la camera ha già fatto spazio, e il tappo si richiude
   // quando sono quasi arrivate
   {
     windows: {
-      focus: [0, 0.35],
       rotazione: [0.05, 0.8],
       camera: [0.05, 0.85],
       lati: [0.3, 1],
-      sfondo: [0.2, 0.8],
       luce: [0.4, 1],
       tappo: [0.3, 0.92],
-      sweep: [0.1, 0.6],
     },
-    sweepAmt: 0.6,
   },
 ];
-
-/**
- * La vita a riposo della protagonista (spec 7.4): sommata sopra lo stato di
- * `p` da `gl/Bottle.tsx`, smorzata a zero mentre `p` si muove. Ampiezze in
- * unità di scena e radianti, periodi in secondi.
- */
-export const REST_LIFE = {
-  /**
-   * Costante di tempo del peso "quiete": quanto ci mette la vita a spegnersi
-   * quando parte una transizione e a riaccendersi quando finisce. Senza, il
-   * primo frame del movimento scatterebbe di tutta l'ampiezza.
-   */
-  tau: 0.6,
-  /** sempre: fluttuazione in altezza e un filo di dondolio */
-  y: { amp: 0.03, period: 5 },
-  z: { amp: 0.01, period: 7 },
-  /** nel finale, oscillazione lenta che mostra fronte e fianchi */
-  finaleSpin: { amp: 0.12, period: 8 },
-} as const;

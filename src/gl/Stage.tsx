@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef } from "react";
 import { useProgress } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
@@ -14,16 +14,18 @@ import {
 } from "../core/Progress.ts";
 import { sharedMapper, type StateMapper } from "../core/StateMapper.ts";
 import { sharedPointer } from "../core/Pointer.ts";
-import { onTick } from "../core/Ticker.ts";
+import { bottleRise, sharedIntro } from "../core/Intro.ts";
+import { onTick, tickerWakes } from "../core/Ticker.ts";
 import { DEBUG_MODE } from "../debug/registry";
 import { usePrefersReducedMotion } from "../hooks/usePrefersReducedMotion";
 import { sharedViewport, useViewport } from "../hooks/useViewport";
-import { setAssetProgress, setSceneReady } from "../lib/assetProgress";
+import { isSceneReady, setAssetProgress, setSceneReady } from "../lib/assetProgress";
 import { Bottle } from "./Bottle";
 import { Carousel } from "./Carousel";
 import { HeroProps } from "./HeroProps";
 import { LightRig } from "./Environment";
 import { Lights } from "./Lights";
+import { Stars } from "./Stars";
 
 // Il progresso reale dei GLB per il Loader del sito, che sta nel bundle
 // principale e non può importare drei. A livello di modulo: parte appena il
@@ -39,30 +41,6 @@ setAssetProgress({
 });
 
 const EnvProbe = lazy(() => import("../debug/EnvProbe"));
-// `postprocessing` sono ~15 KB gzip: non devono stare sul percorso del primo
-// frame, e su mobile il bloom non si accende nemmeno (task 8.27).
-const PostFX = lazy(() => import("./PostFX"));
-
-/**
- * Il post-processing monta solo dopo il primo frame con la bottiglia (task
- * 8.27): il suo chunk esce dal JavaScript del primo frame (budget 9.1) e i
- * suoi shader non si sommano a quelli della scena nello stesso frame. Il
- * prezzo è un primo frame senza bloom né vignetta, coperto dal Loader.
- *
- * Su mobile monta comunque: senza bloom, ma è il composer a fare l'antialias
- * (il contesto ha `antialias: false`), e senza i bordi del vetro seghettano.
- */
-function DeferredPostFX() {
-  const [on, setOn] = useState(false);
-  useFrame(() => {
-    if (!on) setOn(true);
-  });
-  return on ? (
-    <Suspense fallback={null}>
-      <PostFX />
-    </Suspense>
-  ) : null;
-}
 
 /**
  * Il cuore del frame: calcola lo stato da `p` e **poi** disegna.
@@ -78,24 +56,28 @@ function DeferredPostFX() {
  * R3F confronta questo oggetto con il renderer a ogni render e, se non
  * combacia, gli riapplica tutto.
  *
- * `antialias: false` perché l'antialias lo fa il composer (task 8.15): con
- * entrambi si paga due volte. `alpha: true` perché questo canvas sta **sopra**
- * quello dello sfondo e deve lasciarlo vedere.
+ * Si disegna dritti sullo schermo, senza post-processing (2026-11-17): bloom,
+ * FXAA, vignetta e grana volevano una render target a mezza precisione a
+ * schermo intero e tre passaggi in più a ogni frame, cioè banda di memoria,
+ * la prima cosa che manca a una GPU integrata o a un telefono. L'antialias
+ * torna al contesto (MSAA sul framebuffer, che sui telefoni si risolve quasi
+ * gratis in memoria di tile). Niente tone mapping: col composer three non lo
+ * applicava (la scena finiva in una render target, e `postprocessing` senza
+ * `ToneMappingEffect` converte solo in sRGB), quindi così il colore resta
+ * quello di prima. `alpha: true` perché dietro al canvas c'è la scritta
+ * gigante del finale, nel DOM.
  */
 const GL = {
-  antialias: false,
+  antialias: true,
   alpha: true,
   powerPreference: "high-performance",
   outputColorSpace: THREE.SRGBColorSpace,
-  toneMapping: THREE.AgXToneMapping,
-  toneMappingExposure: 1,
+  toneMapping: THREE.NoToneMapping,
 } as const;
 
 /**
  * Moto ridotto (spec 5.1.9, task 8.24): la scena va a gradini e il canvas
- * sfuma, invece di girare la bottiglia per tutta la corsa. Lo sfondo resta
- * sulla `p` continua: è morbido di suo, e a gradini cambierebbe colore di
- * scatto proprio mentre la bottiglia è sparita.
+ * sfuma, invece di girare la bottiglia per tutta la corsa.
  */
 function reducedMotion(progress: Progress, canvas: HTMLCanvasElement) {
   // la corsa in atto: `step:enter` copre anche il salto da `#step-N`
@@ -114,14 +96,9 @@ function reducedMotion(progress: Progress, canvas: HTMLCanvasElement) {
   return {
     apply(mapper: StateMapper) {
       reducedPose(progress.p, from, to, pose);
-      const { hero, step, finale } = mapper.apply(progress.p).background;
-      const s = mapper.apply(pose.p);
-      s.background.hero = hero;
-      s.background.step = step;
-      s.background.finale = finale;
       // si scrive solo quando cambia: a riposo nessuna stringa nel loop
       if (pose.alpha !== alpha) canvas.style.opacity = String((alpha = pose.alpha));
-      return s;
+      return mapper.apply(pose.p);
     },
     dispose() {
       progress.removeEventListener("step:leave", onLeave);
@@ -130,6 +107,9 @@ function reducedMotion(progress: Progress, canvas: HTMLCanvasElement) {
     },
   };
 }
+
+/** scratch del frame: la protagonista proiettata sullo schermo */
+const _schermo = new THREE.Vector3();
 
 function Driver() {
   const camera = useThree((s) => s.camera);
@@ -145,12 +125,14 @@ function Driver() {
     const ridotto = reduced ? reducedMotion(progress, canvas) : undefined;
     const adattivo = new AdaptiveDpr();
     // il cursore si avanza qui, una volta per frame e prima di disegnare: lo
-    // leggono in tre (bottiglia, anello, luci). Col moto ridotto resta a zero
+    // leggono in tre (bottiglia, anello, luci). Col moto ridotto non si
+    // aggancia nemmeno, e resta spento
     const pointer = sharedPointer();
     pointer.reset();
-    if (reduced) pointer.x = pointer.y = 0;
     const stopPointer = reduced ? undefined : pointer.attach(window);
+    const intro = sharedIntro();
     let dpr = vp.state.dpr;
+    let risvegli = tickerWakes();
     // le ancore sono in coordinate schermo: a ogni resize i pivot si rifanno.
     // Il DPR torna al tetto da sé: lo riapplica la prop `dpr` del Canvas
     const stopVp = vp.subscribe((s) => {
@@ -159,13 +141,33 @@ function Driver() {
       adattivo.reset();
     });
     const stopTick = onTick((time, delta) => {
-      const nuovo = adattivo.feed(delta, dpr);
+      if (tickerWakes() !== risvegli) {
+        risvegli = tickerWakes();
+        adattivo.reset();
+      }
+      // sotto il Loader i frame sono lenti per forza (compilazione, texture):
+      // contarli abbasserebbe il DPR prima ancora che la scena si veda
+      const nuovo = isSceneReady() ? adattivo.feed(delta, dpr) : null;
       if (nuovo !== null) setDpr((dpr = nuovo));
       if (!reduced) pointer.update(delta);
       const s = ridotto ? ridotto.apply(mapper) : mapper.apply(progress.p);
       camera.position.copy(s.camera.position);
       camera.lookAt(s.camera.look);
-      advance(time * 1000);
+      // dove sta la protagonista sullo schermo decide quanto il cursore le è
+      // vicino: lo calcola il Driver, una volta, perché bottiglia e luci lo
+      // leggono entrambe (`core/Pointer.ts`). All'arrivo resta ferma, per non
+      // sommare due movimenti
+      camera.updateMatrixWorld();
+      _schermo.copy(s.pivot).project(camera);
+      pointer.look(_schermo.x, -_schermo.y, s.look * bottleRise(intro.value), pointer.hero);
+      // In SECONDI. Con `frameloop="never"` R3F ricava il delta di `useFrame`
+      // e `clock.elapsedTime` dal timestamp che riceve qui, così com'è: col
+      // vecchio `time * 1000` arrivavano in millisecondi, e ogni onda pensata
+      // in secondi girava mille volte più veloce. Era il tremolio delle
+      // bottiglie (la vita a riposo, periodo 5 s, diventata 5 ms: a 60 fps un
+      // rumore) e il tappo sospeso che girava a caso; oggi farebbe correre
+      // stelle e stelle cadenti, che contano il tempo sui delta
+      advance(time);
     });
     return () => {
       stopVp();
@@ -239,8 +241,9 @@ function SceneReady() {
 }
 
 /**
- * Lo strato WebGL della scena (spec 4.2 strato 3): trasparente, sopra il
- * canvas dello sfondo: la bottiglia, la gamma e il post-processing.
+ * Lo strato WebGL della scena (spec 4.2 strato 3): trasparente, sopra il nero
+ * della pagina e la scritta gigante del finale: il cielo, le bottiglie, faro e
+ * piedistallo.
  */
 export function Stage({
   className,
@@ -251,6 +254,7 @@ export function Stage({
   onContextLost?: () => void;
 }) {
   const vp = useViewport();
+  const reduced = usePrefersReducedMotion();
   return (
     <Canvas
       id="gl"
@@ -266,14 +270,14 @@ export function Stage({
       <Driver />
       <LightRig />
       <Lights />
+      <Stars reduced={reduced} />
       {/* la bottiglia sospende finché il GLB non è arrivato: il fondo è già
-          nero, quindi il fallback è il nulla e non un lampo */}
+          nero e stellato, quindi il fallback è il nulla e non un lampo */}
       <Suspense fallback={null}>
         <Bottle />
         <Carousel />
         <HeroProps />
         <SceneReady />
-        <DeferredPostFX />
       </Suspense>
       {DEBUG_MODE === "env" && (
         <Suspense fallback={null}>

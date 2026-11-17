@@ -15,7 +15,10 @@
   --u-fog-2: #ff8a80;
   --u-white: #f8f8f8;
 
-  /* famiglie: Inter era già self-hosted, Archivo si aggiunge come display */
-  --u-font-display: 'Archivo Variable', 'Archivo', Georgia, serif;
+  /* famiglie: Instrument Serif per i titoli, Inter (già self-hosted) per
+     corpo ed etichette. Archivo resta solo alla scritta gigante del finale:
+     è un manifesto, non un titolo, e il suo corsivo pesante piace così */
+  --u-font-display: 'Instrument Serif', 'Times New Roman', Georgia, serif;
+  --u-font-poster: 'Archivo Variable', 'Archivo', Georgia, serif;
   --u-font-body: var(--font-sans);
 }

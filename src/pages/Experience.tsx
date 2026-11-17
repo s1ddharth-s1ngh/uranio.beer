@@ -1,6 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { DEBUG_MODE, DEBUG_ON } from "../debug/registry";
-import { BackgroundLayer } from "../gl/BackgroundLayer";
 import { Stage } from "../gl/Stage";
 import { sharedIntro } from "../core/Intro.ts";
 import { sharedProgress } from "../core/Progress.ts";
@@ -20,7 +19,6 @@ import styles from "./Experience.module.css";
 // finisce in un chunk a parte che senza `?debug` non viene mai chiesto.
 const TypeSpecimen = lazy(() => import("../debug/TypeSpecimen"));
 const DebugPanel = lazy(() => import("../debug/DebugPanel"));
-const BandsProbe = lazy(() => import("../debug/BandsProbe"));
 
 /**
  * Lo scroll 3D a step (spec `docs/URANIO_SCROLL_SPEC.md`), seconda sezione
@@ -63,7 +61,6 @@ function Scene({
           controlli dell'hero, testo, call to action del finale. Chi sta
           davanti a chi lo decide lo z-index, non la posizione qui */}
       <Hud step={step} className={`${styles.layer} ${styles.hud}`} />
-      <BackgroundLayer className={`${styles.layer} ${styles.bg}`} />
       <Stage className={`${styles.layer} ${styles.gl}`} onContextLost={onContextLost} />
       <HeroUi step={step} className={`${styles.layer} ${styles.stageUi}`} />
       <StepTextLayer className={`${styles.layer} ${styles.stageUi}`} />
@@ -75,7 +72,6 @@ function Scene({
       <Suspense fallback={null}>
         {DEBUG_ON && <DebugPanel />}
         {DEBUG_MODE === "type" && <TypeSpecimen />}
-        {DEBUG_MODE === "bands" && <BandsProbe />}
       </Suspense>
     </div>
   );

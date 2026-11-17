@@ -1,6 +1,6 @@
-// Le altre bottiglie: l'anello dell'hero allo step 0 e la fila della gamma
-// all'ultimo step (riferimento ciaoenergy.com, le lattine in cerchio
-// all'apertura e in fila curva alla fine). Sono gli stessi cloni in due
+// Le altre bottiglie: il gruppo dell'hero allo step 0 e la fila della gamma
+// all'ultimo step (riferimento ciaoenergy.com: le lattine attorno a quella al
+// centro all'apertura e in fila curva alla fine). Sono gli stessi cloni in due
 // pose, mescolate da `layout`; niente stato, perché né l'anello né la fila si
 // toccano e dipendono solo da `p`.
 //

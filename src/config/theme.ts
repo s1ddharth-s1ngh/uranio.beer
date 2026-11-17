@@ -10,7 +10,7 @@
 export const COLORS = {
   /** fondo pagina: nero non assoluto, così i neri della scena si staccano */
   black: "#050505",
-  /** rosso dei fulmini: accento, fascia accesa, barra, icona attiva */
+  /** rosso dei fulmini: accento, barra, step attivo */
   red: "#DB4442",
   /** rosso smorzato: sfumature e rim light */
   redMid: "#A3302A",
@@ -126,17 +126,23 @@ export const PASSAGE = {
 export const ADAPTIVE_DPR = {
   /** frame medio oltre il quale la scena è "lenta" (20 ms = 50 fps) */
   slowFrame: 0.02,
-  /** la media si fa su finestre di questa durata */
-  window: 2,
+  /** la media si fa su finestre di questa durata: corta, il PC debole va servito subito */
+  window: 1,
   /** di quanto scende il DPR a ogni finestra lenta */
   step: 0.25,
-  /** sotto non si va: il canvas diventerebbe più sgranato della pagina */
-  min: 1,
   /**
-   * Nessun campione nei primi secondi: i primi frame compilano gli shader e
-   * sono lenti per forza. Diventerà la fine dell'intro (task 8.22).
+   * Sotto non si va. Sotto il pixel reale il canvas si ammorbidisce, ma sul
+   * PC più debole in commercio meglio una bottiglia un filo morbida che una
+   * che va a scatti (richiesta del 2026-11-17: "deve funzionare su qualsiasi
+   * PC"); su una scena scura quasi tutta nera si nota poco
    */
-  warmup: 3,
+  min: 0.75,
+  /**
+   * Nessun campione nei primi secondi dopo ogni risveglio del loop
+   * (`tickerWakes`): i primi frame compilano gli shader, e al risveglio c'è il
+   * passaggio dal hero (1,4 s) con due scene a schermo insieme.
+   */
+  warmup: 2,
 } as const;
 
 /** con `prefers-reduced-motion` tutto si appiattisce a questa durata */

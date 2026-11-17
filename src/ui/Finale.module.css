@@ -16,7 +16,9 @@
 
 .bigWord {
   margin: 0;
-  font-family: var(--u-font-display);
+  /* Archivo e non il display dei titoli: "ZERO CRISI" resta il manifesto
+     pesante di prima, il serif è dei testi */
+  font-family: var(--u-font-poster);
   font-weight: 900;
   font-stretch: 118%;
   font-style: italic;

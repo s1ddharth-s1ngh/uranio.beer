@@ -24,9 +24,9 @@ import {
   WheelGesture,
 } from "../src/core/StepController.ts";
 import { SCROLL, STEP_DURATION } from "../src/config/theme.ts";
-import { keyframesFor, StateMapper } from "../src/core/StateMapper.ts";
-import { KEYFRAMES, SEGMENTS } from "../src/config/keyframes.ts";
-import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
+import { keyframesFor, StateMapper, type SceneState } from "../src/core/StateMapper.ts";
+import { KEYFRAMES, SEGMENTS, type Keyframe } from "../src/config/keyframes.ts";
+import { BOTTLE, CAP } from "../src/config/bottle.ts";
 
 // --- viewport: tetto al DPR e breakpoint
 {
@@ -71,28 +71,33 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
     return dpr;
   };
   const W = ADAPTIVE_DPR.warmup;
+  // si parte dal tetto, come la scena dopo ogni resize
+  const TETTO = DPR_CAP.desktop;
+  const sogliaMs = ADAPTIVE_DPR.slowFrame * 1000;
 
   // nessun campione durante il riscaldamento, per quanto lenti siano i frame
-  const intro = new AdaptiveDpr();
-  assert.equal(gira(intro, 1.75, 100, W - 0.2), 1.75, "il DPR scende mentre compilano gli shader");
+  assert.equal(gira(new AdaptiveDpr(), TETTO, 100, W - 0.2), TETTO, "il DPR scende mentre compilano gli shader");
 
   // sotto soglia non scende mai
-  const veloce = new AdaptiveDpr();
-  assert.equal(gira(veloce, 1.75, 16.7, W + 20), 1.75, "a 60 fps il DPR è sceso");
-  assert.equal(gira(new AdaptiveDpr(), 1.75, 19.5, W + 20), 1.75, "appena sotto i 20 ms è sceso");
+  assert.equal(gira(new AdaptiveDpr(), TETTO, 16.7, W + 20), TETTO, "a 60 fps il DPR è sceso");
+  assert.equal(gira(new AdaptiveDpr(), TETTO, sogliaMs - 0.5, W + 20), TETTO, "appena sotto soglia è sceso");
 
-  // 2 s sopra soglia: un gradino da 0,25, non di più
+  // una finestra sopra soglia: un gradino, non di più
   const lenta = new AdaptiveDpr();
-  gira(lenta, 1.75, 25, W);
-  assert.equal(gira(lenta, 1.75, 25, ADAPTIVE_DPR.window - 0.1), 1.75, "è sceso prima dei 2 s");
-  assert.equal(gira(lenta, 1.75, 25, 0.2), 1.5, "2 s sopra soglia non hanno fatto scendere di 0,25");
+  gira(lenta, TETTO, sogliaMs + 5, W);
+  assert.equal(gira(lenta, TETTO, sogliaMs + 5, ADAPTIVE_DPR.window - 0.1), TETTO, "è sceso prima della fine della finestra");
+  assert.equal(
+    gira(lenta, TETTO, sogliaMs + 5, 0.2),
+    TETTO - ADAPTIVE_DPR.step,
+    "una finestra sopra soglia non ha fatto scendere di un gradino",
+  );
 
-  // e mai sotto 1, per quanto a lungo resti lenta
-  assert.equal(gira(new AdaptiveDpr(), 1.75, 40, W + 60), ADAPTIVE_DPR.min, "il DPR è andato sotto 1");
+  // e mai sotto il minimo, per quanto a lungo resti lenta
+  assert.equal(gira(new AdaptiveDpr(), TETTO, 40, W + 60), ADAPTIVE_DPR.min, "il DPR è andato sotto il minimo");
 
   // dopo un resize il riscaldamento riparte
   lenta.reset();
-  assert.equal(gira(lenta, 1.75, 40, W - 0.2), 1.75, "il reset non riavvia il riscaldamento");
+  assert.equal(gira(lenta, TETTO, 40, W - 0.2), TETTO, "il reset non riavvia il riscaldamento");
 }
 
 // --- gesti di rotella: una spinta = uno step
@@ -315,7 +320,7 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
   assert.equal(pr.p, 0, "il rimbalzo non è rientrato");
   assert.deepEqual(enter, [0], "il rimbalzo ha emesso uno step:enter");
 
-  // salto con l'icona: parte anche a transizione in corso e passa dagli
+  // salto con l'indice degli step: parte anche a transizione in corso e passa dagli
   // step intermedi senza fermarsi
   pr.goTo(4);
   avanza(0.2);
@@ -341,6 +346,14 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
   assert.equal(sm.last, KEYFRAMES.length - 1);
   assert.equal(SEGMENTS.length, sm.last, "un segmento per ogni passaggio");
 
+  // i numeri dello stato con il loro nome nel keyframe: luci, tappo, cursore,
+  // faro e piedistallo, le altre bottiglie
+  const numeri = (s: SceneState) => ({ spot: s.spot, face: s.face, cap: s.cap, look: s.look, props: s.props, ...s.carousel });
+  const numeriKf = (k: Keyframe): ReturnType<typeof numeri> => ({
+    spot: k.spot, face: k.face, cap: k.cap, look: k.look, props: k.props,
+    sideDim: k.sideDim, escape: k.escape, layout: k.layout,
+  });
+
   // sugli interi lo stato è esattamente il keyframe
   for (let i = 0; i <= sm.last; i++) {
     const s = sm.apply(i);
@@ -355,15 +368,11 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
       k.rotation.map((n) => +n.toFixed(6)),
       `rotazione allo step ${i}`,
     );
-    assert.equal(s.uniforms.focus, k.focus, `focus allo step ${i}`);
-    assert.equal(s.uniforms.reveal, k.reveal, `reveal allo step ${i}`);
-    assert.equal(s.spot, k.spot, `spot allo step ${i}`);
-    assert.equal(s.background.hero, k.background[0]);
-    assert.equal(s.background.step, k.background[1]);
-    assert.equal(s.background.finale, k.background[2]);
-    // nelle pause la lama di luce è spenta e parcheggiata fuori campo
-    assert.equal(s.uniforms.sweepAmt, 0, `lama accesa in pausa allo step ${i}`);
-    assert.equal(s.uniforms.sweep, SHADER.sweepIdle);
+    const atteso = numeriKf(k);
+    for (const [nome, v] of Object.entries(numeri(s))) {
+      const kv = atteso[nome as keyof typeof atteso];
+      assert(Math.abs(v - kv) < 1e-9, `${nome} allo step ${i}: ${v} invece di ${kv}`);
+    }
   }
 
   // i pivot risolti dalle ancore: la tabella 7.2 dà i valori attesi a 16:10
@@ -400,21 +409,20 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
     }
   }
 
-  // nessun salto fra la fine di un segmento e l'inizio del successivo
+  // nessun salto fra la fine di un segmento e l'inizio del successivo (lo
+  // stato è riusato: prima di riapplicarlo si copia)
   for (let i = 1; i < sm.last; i++) {
-    const prima = { ...sm.apply(i - 1e-4).uniforms };
-    const pPrima = sm.apply(i - 1e-4).pivot.clone();
-    const dopo = { ...sm.apply(i + 1e-4).uniforms };
-    const pDopo = sm.apply(i + 1e-4).pivot.clone();
-    assert(
-      pPrima.distanceTo(pDopo) < 1e-2,
-      `salto del pivot al confine ${i}: ${pPrima.distanceTo(pDopo)}`,
-    );
-    for (const key of ["reveal", "focus", "focusY", "focusHalf"] as const) {
-      assert(
-        Math.abs(prima[key] - dopo[key]) < 1e-2,
-        `salto di ${key} al confine ${i}: ${prima[key]} → ${dopo[key]}`,
-      );
+    const a = sm.apply(i - 1e-4);
+    const prima = { pivot: a.pivot.clone(), cam: a.camera.position.clone(), rot: a.rotation.toArray(), n: numeri(a) };
+    const dopo = sm.apply(i + 1e-4);
+    assert(prima.pivot.distanceTo(dopo.pivot) < 1e-2, `salto del pivot al confine ${i}: ${prima.pivot.distanceTo(dopo.pivot)}`);
+    assert(prima.cam.distanceTo(dopo.camera.position) < 1e-2, `salto della camera al confine ${i}`);
+    for (const [k, v] of [dopo.rotation.x, dopo.rotation.y, dopo.rotation.z].entries()) {
+      assert(Math.abs((prima.rot[k] as number) - v) < 1e-2, `salto della rotazione al confine ${i}`);
+    }
+    for (const [nome, v] of Object.entries(numeri(dopo))) {
+      const prec = prima.n[nome as keyof typeof prima.n];
+      assert(Math.abs(prec - v) < 1e-2, `salto di ${nome} al confine ${i}: ${prec} → ${v}`);
     }
   }
 
@@ -426,16 +434,6 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
     ultima = y;
   }
   assert(Math.abs(sm.apply(sm.last).rotation.y - Math.PI * 2) < 1e-9);
-
-  // la lama di luce vive solo dentro la transizione e tocca il massimo a metà
-  // del mezzo giro (fronte → retro, segmento 1)
-  {
-    const meta = sm.apply(1.45).uniforms;
-    assert(meta.sweepAmt > SEGMENTS[1].sweepAmt * 0.9, `la lama non si accende: ${meta.sweepAmt}`);
-    assert(meta.sweep > SHADER.sweepFrom && meta.sweep < SHADER.sweepTo);
-    // nei segmenti fra le fasce è volutamente più timida
-    assert(sm.apply(2.5).uniforms.sweepAmt <= SEGMENTS[2].sweepAmt + 1e-9);
-  }
 
   // le finestre sfalsano davvero: le altre scappano dall'anello appena parte
   // la corsa verso il fronte, e alla fine entrano in fila solo quando la
@@ -459,8 +457,8 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
   }
 
   // il tappo: chiuso sull'anello e sul fronte, staccato su tutto il retro,
-  // di nuovo chiuso quando arriva la gamma. Salta all'inizio del mezzo giro,
-  // quando la bottiglia è ancora quasi di fronte
+  // di nuovo chiuso quando arriva la gamma. Salta prima che la bottiglia
+  // cominci il mezzo giro, quando è ancora di fronte e intera in quadro
   {
     assert.equal(sm.apply(0).cap, 0);
     assert.equal(sm.apply(1).cap, 0, "il tappo è già aperto sul fronte");
@@ -468,18 +466,14 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
     assert.equal(sm.apply(6).cap, 0, "il tappo non si richiude con la gamma");
     const salto = SEGMENTS[1].windows.tappo!;
     const rot = SEGMENTS[1].windows.rotazione!;
-    assert(salto[0] <= rot[0] + 0.05, "il tappo salta a giro già avviato");
+    assert(salto[0] < rot[0], "il tappo salta a giro già avviato");
     // e si richiude mentre le altre arrivano, non prima che partano
     const chiude = SEGMENTS[5].windows.tappo!;
     assert(chiude[1] > SEGMENTS[5].windows.lati![0], "il tappo si richiude prima che arrivino le altre");
   }
 
-  // la luce sulla faccia: piena sul fronte, spenta su tutto il retro (lì
-  // comanda la fascia accesa)
-  {
-    assert.equal(sm.apply(1).face, 1);
-    for (const i of [2, 3, 4, 5]) assert.equal(sm.apply(i).face, 0, `luce sulla faccia accesa allo step ${i}`);
-  }
+  // la luce sulla faccia: piena sul fronte, dove la faccia guarda la luce
+  assert.equal(sm.apply(1).face, 1);
 
   // il rimbalzo ai bordi deve **vedersi**: `p` sotto zero extrapola
   {
@@ -491,26 +485,8 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
     );
   }
 
-  // le fasce dell'etichetta coincidono con le ancore degli step 2–5, e ogni
-  // fascia accende l'arco del suo blocco di testo, non uno uguale per tutte
-  for (const [i, b] of [BANDS.f1, BANDS.f2, BANDS.f3, BANDS.f4].entries()) {
-    const s = sm.apply(i + 2);
-    assert.equal(+s.uniforms.focusY.toFixed(6), +b.y.toFixed(6));
-    assert.equal(+s.uniforms.focusAngleHalf.toFixed(6), +b.angleHalf.toFixed(6));
-    assert(b.angleHalf > 0.2 && b.angleHalf < 1, `arco della fascia ${i + 1} fuori misura: ${b.angleHalf}`);
-    assert.equal(
-      +KEYFRAMES[i + 2].anchor.localY.toFixed(6),
-      +(b.y - BOTTLE.centerY).toFixed(6),
-      `l'ancora dello step ${i + 2} non è la sua fascia`,
-    );
-  }
-  assert(BANDS.f4.angleHalf < BANDS.f1.angleHalf, "la fascia della raccolta è larga quanto gli ingredienti");
-  // e salgono di step in step, raddrizzandosi (spec 7.2)
+  // sul retro si raddrizza di step in step (spec 7.2)
   for (let i = 2; i < 5; i++) {
-    assert(
-      sm.apply(i + 1).pivot.y > sm.apply(i).pivot.y,
-      `la bottiglia non sale dallo step ${i} al ${i + 1}`,
-    );
     assert(
       Math.abs(KEYFRAMES[i + 1].rotation[2]) < Math.abs(KEYFRAMES[i].rotation[2]),
       `la bottiglia non si raddrizza dallo step ${i} al ${i + 1}`,
@@ -518,76 +494,15 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
   }
 }
 
-// --- la fascia accesa non entra mai nel testo (task 8.23)
-//
-// Il criterio della spec ("la bottiglia non copre mai i testi e la fascia
-// accesa è sempre leggibile") in forma misurabile: agli step 2–5 la fascia,
-// proiettata in camera, sta fuori dal rettangolo del blocco di testo. Desktop:
-// il blocco è a `left: 10vw`, largo `min(520px, 42vw)` (StepText.module.css),
-// e la fascia sta tutta alla sua destra. Layout mobile: il testo occupa dal
-// 60% al 92% dell'altezza (spec 7.3), e la fascia sta tutta sopra il 60%.
-// Il resto della bottiglia può passare dietro il testo su mobile: lì la
-// leggibilità la danno la sfumatura e lo strato sopra il canvas.
-{
-  const THREE = await import("three");
-  const { CAMERA } = await import("../src/config/solvePivot.ts");
-  const { LABEL } = await import("../src/config/bottle.ts");
-  /** il testo su mobile comincia qui (spec 7.3) */
-  const TESTO_MOBILE_TOP = 0.6;
-  for (const vp of [computeViewport(1440, 900, 2), computeViewport(390, 844, 3), computeViewport(768, 1024, 2)]) {
-    const layoutMobile = vp.mobile || vp.portrait;
-    const m = new StateMapper(vp);
-    const cam = new THREE.PerspectiveCamera(CAMERA.fov, vp.aspect, 0.1, 100);
-    const bordoTesto = (0.1 * vp.width + Math.min(520, 0.42 * vp.width)) / vp.width;
-    for (let i = 2; i <= 5; i++) {
-      const s = m.apply(i);
-      cam.position.copy(s.camera.position);
-      cam.lookAt(s.camera.look);
-      cam.updateMatrixWorld(true);
-      let minX = Infinity;
-      let maxY = -Infinity;
-      const { focusY, focusHalf } = s.uniforms;
-      for (const y of [focusY - focusHalf, focusY, focusY + focusHalf]) {
-        for (let a = 0; a < Math.PI * 2; a += Math.PI / 24) {
-          const locale = new THREE.Vector3(Math.sin(a), 0, Math.cos(a));
-          const punto = locale
-            .clone()
-            .multiplyScalar(LABEL.radius)
-            .setY(y - BOTTLE.centerY)
-            .applyEuler(s.rotation)
-            .add(s.pivot);
-          // solo l'arco rivolto alla camera: il resto della fascia è dietro
-          const normale = locale.applyEuler(s.rotation);
-          if (normale.dot(cam.position.clone().sub(punto)) <= 0) continue;
-          const ndc = punto.project(cam);
-          minX = Math.min(minX, (ndc.x + 1) / 2);
-          maxY = Math.max(maxY, (1 - ndc.y) / 2);
-        }
-      }
-      const nome = `${vp.width}×${vp.height} step ${i}`;
-      if (layoutMobile) {
-        assert(maxY < TESTO_MOBILE_TOP, `${nome}: la fascia scende a ${maxY.toFixed(3)}, dentro il testo`);
-      } else {
-        assert(minX > bordoTesto, `${nome}: la fascia arriva a x ${minX.toFixed(3)}, dentro il testo (${bordoTesto.toFixed(3)})`);
-      }
-      if (i === 2 || i === 5) {
-        console.log(
-          `fascia ${nome}:`,
-          layoutMobile ? `fondo ${maxY.toFixed(3)} < ${TESTO_MOBILE_TOP}` : `bordo sinistro ${minX.toFixed(3)} > ${bordoTesto.toFixed(3)}`,
-        );
-      }
-    }
-  }
-}
-
-// --- anello e fronte: le due composizioni dell'apertura (riferimento
-// ciaoenergy.com). Allo step 0 la protagonista sta tutta in quadro, al
-// centro. Allo step 1, su desktop, è il primo piano della faccia come la
-// lattina del riferimento: l'etichetta grande (almeno un terzo
-// dell'altezza), tutta in quadro e a destra del nome (`left: 10vw`, largo
-// `min(460px, 36vw)`, HeroUi.module.css); il collo esce dal bordo alto. Nei
-// formati verticali la bottiglia intera: il tappo in quadro sotto l'header
-// (allo step dopo salta) e l'etichetta sopra il nome, che sta in basso
+// --- anello, fronte e retro: le composizioni (riferimento ciaoenergy.com).
+// Allo step 0 la protagonista sta tutta in quadro, al centro. Dal fronte a
+// tutto il retro la bottiglia è **intera** in quadro, dalla cima del tappo al
+// fondo (la richiesta del 2026-11-17: "mi fa vedere l'intera bottiglia, non
+// solo questa parte"). Su desktop, dal fronte a tutto il retro, la bottiglia
+// sta tutta a destra della colonna dei testi (`left: 10vw`, larga
+// `min(520px, 42vw)`, StepText.module.css); nei formati verticali allo step 1
+// il tappo sta sotto l'header (allo step dopo salta) e l'etichetta sopra il
+// testo, che sta in basso
 {
   const THREE = await import("three");
   const { CAMERA } = await import("../src/config/solvePivot.ts");
@@ -626,18 +541,33 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
     assert(anello.y0 > 0.03 && anello.y1 < 0.97, `${nome}: allo step 0 la protagonista esce dal quadro`);
     assert(Math.abs((anello.x0 + anello.x1) / 2 - 0.5) < 0.05, `${nome}: allo step 0 la protagonista non è al centro`);
 
-    const tappo = box(1, 4.05, BOTTLE.maxY, 0.35);
-    const etichetta = box(1, LABEL.minY, LABEL.maxY, LABEL.radius);
-    console.log(`fronte ${nome}: tappo da y ${tappo.y0.toFixed(3)}, etichetta x0 ${etichetta.x0.toFixed(3)} y ${etichetta.y0.toFixed(3)}–${etichetta.y1.toFixed(3)}`);
+    // la bottiglia intera: il tappo col suo raggio e il corpo col suo, alla
+    // rotazione del keyframe. Il collo sta dentro i due
+    const MARGINE = 0.02;
+    const quadro: string[] = [];
+    for (let step = 1; step <= 5; step++) {
+      const ingombro = [box(step, CAP.minY, CAP.maxY, CAP.radius), box(step, BOTTLE.minY, LABEL.maxY, BOTTLE.bodyRadius)];
+      const b = {
+        x0: Math.min(...ingombro.map((q) => q.x0)), x1: Math.max(...ingombro.map((q) => q.x1)),
+        y0: Math.min(...ingombro.map((q) => q.y0)), y1: Math.max(...ingombro.map((q) => q.y1)),
+      };
+      quadro.push(`${b.x0.toFixed(2)}–${b.x1.toFixed(2)} × ${b.y0.toFixed(2)}–${b.y1.toFixed(2)}`);
+      assert(
+        b.x0 > MARGINE && b.x1 < 1 - MARGINE && b.y0 > MARGINE && b.y1 < 1 - MARGINE,
+        `${nome}: allo step ${step} la bottiglia esce dal quadro (${quadro.at(-1)})`,
+      );
+      if (!verticale) {
+        const bordoTesto = (0.1 * vp.width + Math.min(520, 0.42 * vp.width)) / vp.width;
+        assert(b.x0 > bordoTesto, `${nome}: allo step ${step} la bottiglia entra nei testi (${b.x0.toFixed(3)} < ${bordoTesto.toFixed(3)})`);
+      }
+    }
+    console.log(`bottiglia ${nome}, step 1–5:`, quadro.join("  "));
+
     if (verticale) {
-      assert(tappo.y0 > 0.06, `${nome}: allo step 1 il tappo è sotto l'header o fuori quadro (y ${tappo.y0.toFixed(3)})`);
-      assert(tappo.x0 > 0.02 && tappo.x1 < 0.98, `${nome}: allo step 1 il tappo esce dai lati`);
-      assert((etichetta.y0 + etichetta.y1) / 2 < 0.6, `${nome}: allo step 1 l'etichetta scende nel nome`);
-    } else {
-      const bordoNome = (0.1 * vp.width + Math.min(460, 0.36 * vp.width)) / vp.width;
-      assert(etichetta.x0 > bordoNome, `${nome}: l'etichetta arriva a ${etichetta.x0.toFixed(3)}, sotto il nome (${bordoNome.toFixed(3)})`);
-      assert(etichetta.y0 > 0.1 && etichetta.y1 < 0.99 && etichetta.x1 < 0.97, `${nome}: allo step 1 l'etichetta esce dal quadro`);
-      assert(etichetta.y1 - etichetta.y0 > 0.33, `${nome}: allo step 1 la faccia non è un primo piano (${(etichetta.y1 - etichetta.y0).toFixed(3)} dell'altezza)`);
+      const tappo = box(1, CAP.minY, CAP.maxY, CAP.radius);
+      const etichetta = box(1, LABEL.minY, LABEL.maxY, LABEL.radius);
+      assert(tappo.y0 > 0.06, `${nome}: allo step 1 il tappo è sotto l'header (y ${tappo.y0.toFixed(3)})`);
+      assert((etichetta.y0 + etichetta.y1) / 2 < 0.6, `${nome}: allo step 1 l'etichetta scende nel testo`);
     }
   }
 }
@@ -646,7 +576,6 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
 {
   const THREE = await import("three");
   const { FINALE } = await import("../src/config/text.ts");
-  const { REST_LIFE } = await import("../src/config/keyframes.ts");
   const { EASE_NAME, LAST_STEP } = await import("../src/config/theme.ts");
   const ease = gsap.parseEase(EASE_NAME);
   const sm = new StateMapper(computeViewport(1440, 900, 2));
@@ -686,8 +615,8 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
   );
 
   // spazio: il fondo della bottiglia, riproiettato come le ancore, sta sopra
-  // le CTA. Il fondo è un anello del raggio del corpo (per eccesso), e la
-  // vita a riposo può abbassarlo di `REST_LIFE.y.amp`.
+  // le CTA. Il fondo è un anello del raggio del corpo (per eccesso); a riposo
+  // la bottiglia è ferma, quindi è lì che resta.
   for (const [vp, top] of [
     [computeViewport(1440, 900, 2), FINALE.ctaTop.desktop],
     [computeViewport(390, 844, 3), FINALE.ctaTop.mobile],
@@ -708,7 +637,6 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
       )
         .applyEuler(s.rotation)
         .add(s.pivot);
-      punto.y -= REST_LIFE.y.amp;
       fondo = Math.max(fondo, (1 - punto.project(cam).y) / 2);
     }
     console.log(
@@ -725,19 +653,15 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
     "../src/gl/materials/patchBottle.ts"
   );
 
-  // Le API di three cambiano spesso (regola 10.1.5) e questi tre `#include`
-  // sono l'unico appiglio della patch: se un aggiornamento li rinomina, la
-  // bottiglia resterebbe illuminata per intero senza un errore.
+  // Le API di three cambiano spesso (regola 10.1.5) e questi due `#include`
+  // sono l'unico appiglio della patch: se un aggiornamento li rinomina, le
+  // laterali dell'anello resterebbero accese quanto la protagonista senza un
+  // errore.
   for (const nome of ["physical", "standard"] as const) {
     const lib = THREE.ShaderLib[nome];
     assert(
-      lib.vertexShader.includes(MARKERS.common) &&
-        lib.vertexShader.includes(MARKERS.beginVertex),
-      `shader ${nome}: i marcatori del vertex shader non ci sono più (three ${THREE.REVISION})`,
-    );
-    assert(
       lib.fragmentShader.includes(MARKERS.common) &&
-        lib.fragmentShader.includes(MARKERS.dithering),
+        lib.fragmentShader.includes(MARKERS.tonemapping),
       `shader ${nome}: i marcatori del fragment shader non ci sono più (three ${THREE.REVISION})`,
     );
   }
@@ -756,32 +680,23 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
       fragmentShader: lib.fragmentShader,
     };
     mat.onBeforeCompile(shader as never, null as never);
-    assert(shader.vertexShader.includes("vObjPos = position;"), "vertex non patchato");
-    assert(shader.fragmentShader.includes("uniform float uReveal"), "uniform non dichiarati");
-    assert(shader.fragmentShader.includes("gl_FragColor.rgb *= reveal * focus * uDim;"), "maschere non applicate");
+    const fs = shader.fragmentShader;
+    assert.equal(shader.vertexShader, lib.vertexShader, "la patch tocca il vertex shader");
+    assert(fs.includes("uniform float uDim, uFace;"), "uniform non dichiarati");
+    // la penombra si applica alla luce ancora lineare: prima del tone mapping
+    // (che resta) e della conversione in sRGB
+    const dim = fs.indexOf("gl_FragColor.rgb *= uDim;");
+    assert(dim > 0, "penombra non applicata");
     assert(
-      shader.fragmentShader.includes("uFocusGlow") === true,
-      "il bagliore è dichiarato in entrambi: è la riga che lo usa a cambiare",
+      dim < fs.indexOf(MARKERS.tonemapping) && dim < fs.indexOf("#include <colorspace_fragment>"),
+      "la penombra lavora dopo il tone mapping o in sRGB",
     );
     assert.equal(
-      shader.fragmentShader.includes("gl_FragColor.rgb += uFocusGlow"),
-      etichetta,
-      "il bagliore rosso deve stare solo sull'etichetta",
-    );
-    assert.equal(
-      shader.fragmentShader.includes("uFace * uFaceColor * diffuseColor.rgb"),
+      fs.includes("uFace * uFaceColor * diffuseColor.rgb"),
       etichetta,
       "la luce sulla faccia deve stare solo sull'etichetta",
     );
-    // l'alone attorno alla fascia invece è di tutte le superfici
-    assert(shader.fragmentShader.includes("halo * uFocusGlow * uFocusHalo"), "manca l'alone della fascia");
-    // `pow(base, 2.0)` con base negativa è indefinito in GLSL: la lama di luce
-    // va scritta come prodotto
-    assert(
-      !shader.fragmentShader.includes("pow((normal.x"),
-      "la lama di luce usa pow() con base negativa",
-    );
-    assert.equal(shader.uniforms.uReveal, u.uReveal, "gli uniform non sono condivisi");
+    assert.equal(shader.uniforms.uDim, u.uDim, "gli uniform non sono condivisi");
     assert.equal(
       mat.customProgramCacheKey(),
       etichetta ? "bottle-label" : "bottle-surface",
@@ -811,8 +726,8 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
 // (riferimento ciaoenergy.com). Si proiettano i centri. La fila: la
 // protagonista al centro, sale verso destra, tutte in vista tranne le due
 // estreme che escono a metà dai bordi, anche su telefono dove sono cinque.
-// L'anello: le vicine ai lati della protagonista e non sopra di lei, chi gira
-// verso il fondo più spenta
+// L'anello: cinque bottiglie vicine, la protagonista davanti e le altre via
+// via più indietro, chi gira verso il fondo più spenta
 {
   const { ringPose, rowPose, slotOffset, slotPose } = await import("../src/core/Carousel.ts");
   const { GAMMA, RING, ringFor } = await import("../src/config/beers.ts");
@@ -835,7 +750,8 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
     return Array.from({ length: N }, (_, slot) => {
       pose(slot);
       const ndc = new THREE.Vector3(posa.x, posa.y, posa.z).add(s.pivot).project(cam);
-      return { i: slotOffset(slot), x: (ndc.x + 1) / 2, y: (1 - ndc.y) / 2, dim: posa.dim };
+      // a schermo (x, y) e in scena, relativa alla protagonista (wx, wz)
+      return { i: slotOffset(slot), x: (ndc.x + 1) / 2, y: (1 - ndc.y) / 2, dim: posa.dim, wx: posa.x, wz: posa.z };
     }).sort((a, b) => a.i - b.i);
   };
 
@@ -856,27 +772,30 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
       assert(p.x > 0.02 && p.x < 0.98 && p.y > 0.05 && p.y < 0.95, `${nome}: lo slot ${p.i} è fuori quadro (${p.x.toFixed(2)}, ${p.y.toFixed(2)})`);
     }
 
-    // l'anello, solo gli slot che si disegnano
+    // l'anello, solo gli slot che si disegnano (lo stesso filtro di
+    // `gl/Carousel.tsx`): un gruppo stretto di cinque, la protagonista e due
+    // per parte (richiesta del 2026-11-17)
     const ring = ringFor(vp);
     const anello = proietta(vp, 0, N, (slot) => ringPose(slot, ring, posa)).filter((p) => Math.abs(p.i) <= RING.maxOffset);
     console.log(`anello ${nome}:`, anello.map((p) => p.x.toFixed(2)).join("  "));
+    assert.equal(anello.length, 5, `${nome}: l'anello mostra ${anello.length} bottiglie invece di cinque`);
     for (let k = 1; k < anello.length; k++) {
       assert(anello[k].x > anello[k - 1].x, `${nome}: l'anello non va da sinistra a destra`);
     }
-    const centro = anello.find((p) => p.i === 0)!;
-    // la larghezza della protagonista a schermo, in frazione della larghezza:
-    // il corpo è largo 2 raggi, e la camera dell'anello ne vede `2·z·tan(fov/2)`
-    // in altezza
-    const s0 = new StateMapper(vp).apply(0);
-    const alto = 2 * s0.camera.position.z * Math.tan((28 * Math.PI) / 360);
-    const larga = ((2 * BOTTLE.bodyRadius) / alto) / vp.aspect;
     for (const p of anello) {
       if (p.i === 0) continue;
-      // la vicina non copre la protagonista: fra i centri più di una
-      // bottiglia, cioè non si toccano (su telefono il frame non concede di
-      // più: le vicine finirebbero fuori dai bordi)
-      assert(Math.abs(p.x - centro.x) > 1.15 * larga, `${nome}: lo slot ${p.i} dell'anello sta sopra la protagonista`);
+      // A schermo si sovrappongono, ed è voluto: un gruppo stretto. Ma chi
+      // sta più in fuori sta anche più indietro, quindi passa dietro alla
+      // vicina interna e la protagonista resta davanti a tutte
+      const interna = anello.find((q) => q.i === p.i - Math.sign(p.i))!;
+      assert(p.wz < interna.wz, `${nome}: lo slot ${p.i} dell'anello non sta dietro il ${interna.i}`);
       assert(p.dim < 1 && p.dim > 0, `${nome}: lo slot ${p.i} dell'anello non si spegne verso il fondo`);
+    }
+    // vicine fra loro, non "alla distanza di 200 km": fra due centri contigui
+    // meno di due corpi
+    for (let k = 1; k < anello.length; k++) {
+      const corpi = (anello[k].wx - anello[k - 1].wx) / (2 * BOTTLE.bodyRadius);
+      assert(corpi < 2, `${nome}: fra lo slot ${anello[k - 1].i} e il ${anello[k].i} ci sono ${corpi.toFixed(2)} corpi`);
     }
     const vicine = anello.filter((p) => Math.abs(p.i) === 1);
     for (const p of vicine) assert(p.x > 0.05 && p.x < 0.95, `${nome}: una vicina dell'anello è fuori quadro`);
@@ -904,7 +823,7 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
 
 // --- il tappo che salta (la richiesta del 2026-11-04): la forma del volo
 // come funzione di `cap`, e il punto in cui resta sospeso dentro il frame,
-// fuori dal blocco di testo e dalle icone, a ogni formato
+// fuori dal blocco di testo e dall'indice degli step, a ogni formato
 {
   const { capFlash, capPose } = await import("../src/core/Cap.ts");
   const { CAP_MOTION } = await import("../src/config/cap.ts");
@@ -937,26 +856,55 @@ import { BANDS, BOTTLE, SHADER } from "../src/config/bottle.ts";
     const [x, y] = h.screen;
     assert(x > 0.5 && x < 0.9 && y > 0.08 && y < 0.4, `${vp.width}×${vp.height}: il tappo sospeso è fuori posto`);
     if (!(vp.mobile || vp.portrait)) {
-      // a destra del testo e a sinistra delle icone (a ~92 px dal bordo)
+      // a destra del testo e a sinistra dell'indice degli step (cliccabile fino a ~112 px dal bordo)
       const bordoTesto = (0.1 * vp.width + Math.min(520, 0.42 * vp.width)) / vp.width;
-      assert(x > bordoTesto + 0.1 && x < 1 - 110 / vp.width, `${vp.width}×${vp.height}: il tappo sospeso tocca testo o icone`);
+      assert(x > bordoTesto + 0.1 && x < 1 - 110 / vp.width, `${vp.width}×${vp.height}: il tappo sospeso tocca testo o indice`);
     }
   }
 }
 
-// --- il cursore: a destra la faccia gira a destra, in alto si alza
+// --- il cursore: gira la bottiglia che gli sta vicino (richiesta del
+// 2026-11-17: "non deve muovere tutte le bottiglie"). Con il cursore a destra
+// di una bottiglia la sua faccia gira a destra, sopra si alza
 {
   const THREE = await import("three");
-  const { lookQuaternion, Pointer } = await import("../src/core/Pointer.ts");
+  const { Pointer } = await import("../src/core/Pointer.ts");
   const q = new THREE.Quaternion();
-  const faccia = (x: number, y: number, amp = 1) =>
-    new THREE.Vector3(0, 0, 1).applyQuaternion(lookQuaternion({ x, y }, amp, q));
-  assert(faccia(1, 0).x > 0.2, "col mouse a destra la faccia non gira a destra");
-  assert(faccia(-1, 0).x < -0.2, "col mouse a sinistra la faccia non gira a sinistra");
-  assert(faccia(0, -1).y > 0.1, "col mouse in alto la faccia non si alza");
-  assert(faccia(-1, -1).x < 0 && faccia(-1, -1).y > 0, "in alto a sinistra non guarda in alto a sinistra");
-  assert.equal(faccia(0, 0).z, 1, "al centro la faccia non guarda dritta");
-  assert(faccia(1, 0, 0.5).x < faccia(1, 0).x, "l'ampiezza non scala");
+  const dritta = new THREE.Quaternion();
+  // il cursore al centro di 1440×900, già raggiunto dallo smorzamento
+  const cursore = new Pointer();
+  cursore.set(720, 450, 1440, 900);
+  cursore.update(10);
+  // la bottiglia in (sx, sy), nelle coordinate del cursore (y verso il basso)
+  const faccia = (sx: number, sy: number, amp = 1) =>
+    new THREE.Vector3(0, 0, 1).applyQuaternion(cursore.look(sx, sy, amp, q));
+  const angolo = (sx: number, sy: number) => dritta.angleTo(cursore.look(sx, sy, 1, q));
+
+  assert(faccia(-0.2, 0).x > 0.1, "col cursore a destra la faccia non gira a destra");
+  assert(faccia(0.2, 0).x < -0.1, "col cursore a sinistra la faccia non gira a sinistra");
+  assert(faccia(0, 0.2).y > 0.05, "col cursore sopra la faccia non si alza");
+  assert(faccia(0, -0.2).y < -0.05, "col cursore sotto la faccia non si abbassa");
+  assert(faccia(0.2, 0.2).x < 0 && faccia(0.2, 0.2).y > 0, "col cursore in alto a sinistra non guarda in alto a sinistra");
+  assert.equal(faccia(0, 0).z, 1, "col cursore sulla bottiglia la faccia non guarda dritta");
+  assert(faccia(-0.2, 0, 0.5).x < faccia(-0.2, 0).x, "l'ampiezza non scala");
+  // locale: la bottiglia sul bordo, lontana dal cursore, quasi non si muove
+  console.log(`cursore: vicino ${angolo(-0.2, 0).toFixed(3)} rad, sul bordo ${angolo(-1, 0).toFixed(4)} rad`);
+  assert(angolo(-1, 0) < 0.1 * angolo(-0.2, 0), "una bottiglia lontana dal cursore gira quasi quanto una vicina");
+
+  // senza mouse (`active` a 0) nessuna rotazione, dovunque sia il cursore
+  assert.equal(new Pointer().look(-0.2, 0.2, 1, q).angleTo(dritta), 0, "senza mouse la bottiglia gira");
+  cursore.reset();
+  assert.equal(angolo(-0.2, 0), 0, "dopo reset() la bottiglia gira ancora");
+  assert.equal(cursore.hero.angleTo(dritta), 0, "reset() non raddrizza la protagonista");
+  // e quando il mouse esce dalla finestra l'influenza si spegne piano, non di colpo
+  const via = new Pointer();
+  via.set(720, 450, 1440, 900);
+  via.update(10);
+  const piena = via.look(-0.2, 0, 1, q).angleTo(dritta);
+  via.release();
+  via.update(1 / 60);
+  const dopo = via.look(-0.2, 0, 1, q).angleTo(dritta);
+  assert(dopo > 0.9 * piena && dopo < piena, "all'uscita del mouse la bottiglia scatta");
 
   // lo smorzamento insegue senza superare, e non dipende dal frame rate
   const a = new Pointer();

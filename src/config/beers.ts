@@ -31,34 +31,36 @@ export const BEERS: readonly Beer[] = [
 ];
 
 /**
- * L'anello dell'hero, allo step 0 (riferimento ciaoenergy.com: le lattine in
- * cerchio attorno a quella al centro, le laterali più scure). Sono gli stessi
- * cloni della gamma (`gl/Carousel.tsx`), in un'altra posa. L'anello è
- * **tangente** alla camera: `z = (cos a − 1)·R` tiene la protagonista a z = 0
- * e manda indietro le altre, così quella al centro è sempre la più vicina.
+ * L'anello dell'hero, allo step 0: le stesse copie della gamma
+ * (`gl/Carousel.tsx`) in un'altra posa. L'anello è **tangente** alla camera:
+ * `z = (cos a − 1)·R` tiene la protagonista a z = 0 e manda indietro le
+ * altre, così quella al centro è sempre la più vicina.
  *
- * Raggio e passo per formato, scelti sulle proporzioni del riferimento: a
- * 1440×900 le due vicine stanno a ~¼ e ¾ della larghezza, le seconde sui
- * bordi, le terze tagliate a metà; su telefono le vicine a ~⅕ e ⅘.
+ * Un gruppo stretto, non un girotondo (richiesta del 2026-11-17: "ci sono un
+ * paio di bottiglie in più... non tutte alla distanza di 200 km"): cinque
+ * bottiglie, la protagonista e due per parte. L'arco è corto e profondo, così
+ * le esterne finiscono un poco dietro le vicine e il gruppo si legge come un
+ * grappolo; a 1440×900 occupa poco più della metà centrale del frame.
  */
 export const RING = {
-  desktop: { radius: 9, step: 0.33 },
-  portrait: { radius: 5, step: 0.46 },
-  mobile: { radius: 3.4, step: 0.5 },
+  desktop: { radius: 3.6, step: 0.5 },
+  portrait: { radius: 4, step: 0.42 },
+  // sul telefono il frame è stretto: arco ancora più corto, o le due esterne
+  // finiscono a metà fuori dai bordi
+  mobile: { radius: 2, step: 0.55 },
   /** l'anello è inclinato: sale verso destra di tanto per unità di x */
-  rise: 0.1,
-  /** varietà per slot, attorno alla posa della protagonista */
-  jitter: { x: 0.14, y: 0.15, z: 0.12, yaw: 0.55 },
+  rise: 0.06,
+  /** varietà per slot, attorno alla posa della protagonista: poca, è un gruppo */
+  jitter: { x: 0.08, y: 0.06, z: 0.06, yaw: 0.4 },
   /** chi sta a sinistra pende a destra e viceversa, come un ventaglio */
-  fan: 0.1,
+  fan: 0.07,
   /** quanto si spengono girando verso il fondo dell'anello (∝ 1 − cos a) */
-  depthDim: 0.5,
+  depthDim: 0.35,
   /**
-   * Oltre questo scarto dal centro l'anello gira dietro la protagonista: le
-   * bottiglie lì finirebbero in fondo, ammucchiate dietro le altre. Nella
-   * fila ci sono tutte, nell'anello no (sette, come nel riferimento).
+   * Quante per parte stanno nell'anello: le altre compaiono solo nella fila
+   * del finale. Due per parte, più la protagonista: cinque.
    */
-  maxOffset: 3,
+  maxOffset: 2,
 } as const;
 
 /** Il raggio e il passo dell'anello per questo viewport. */
@@ -96,8 +98,6 @@ export const GAMMA = {
   leanJitter: 0.05,
   /** varietà del verso dell'etichetta */
   yawMax: 0.3,
-  /** fluttuazione a riposo */
-  life: { yAmp: 0.05, ySpeed: 0.6, zAmp: 0.02, zSpeed: 0.4 },
   /** entrata e uscita: da quanto lontano arrivano, dalla loro parte */
   escapeX: 9,
   escapeZ: 4,

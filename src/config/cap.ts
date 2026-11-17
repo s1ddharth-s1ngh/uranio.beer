@@ -1,7 +1,7 @@
 // Il tappo che si stacca (riferimento: la richiesta del proprietario del
 // 2026-11-04). Chiuso nell'anello e sul fronte; quando la bottiglia gira sul
-// retro salta via e resta sospeso accanto a lei, girando piano, finché la
-// gamma non arriva e lui torna sul collo. Misure in unità del modello, angoli
+// retro salta via e resta sospeso accanto a lei, fermo, finché la gamma non
+// arriva e lui torna sul collo. Misure in unità del modello, angoli
 // in radianti. La regia (quando) sta nelle finestre `tappo` di
 // `keyframes.ts`; qui c'è solo la forma del movimento.
 
@@ -14,13 +14,15 @@ export const CAP_MOTION = {
   /**
    * Dove resta sospeso: un punto dello schermo (0–1 dall'alto a sinistra) e
    * la distanza dalla camera. Ancorato allo schermo e non alla bottiglia: sul
-   * retro lei sale di step in step, e un tappo che la seguisse ballerebbe
-   * su e giù a ogni fascia. Desktop: in alto a destra, fra la bottiglia e le
-   * icone. Verticale: in alto a destra, sopra la spalla.
+   * retro lei gira di step in step, e un tappo che la seguisse girerebbe con
+   * lei a ogni step. Desktop: in alto a destra, fra la bottiglia e
+   * l'indice degli step, poco davanti a lei (la camera del retro sta a 11):
+   * più vicino sembrava un piatto accanto a una bottiglia intera.
+   * Verticale: in alto a destra, sopra la spalla.
    */
   hover: {
-    desktop: { screen: [0.85, 0.2], depth: 6.5 },
-    portrait: { screen: [0.8, 0.13], depth: 9.5 },
+    desktop: { screen: [0.82, 0.22], depth: 8.5 },
+    portrait: { screen: [0.8, 0.12], depth: 12.5 },
   },
   /** da sospeso è inclinato verso la camera: si vede la corona di tre quarti */
   tilt: 0.95,
@@ -30,8 +32,6 @@ export const CAP_MOTION = {
   spins: 1.25,
   /** a metà volo fa una capriola, poi si raddrizza */
   tumble: 0.7,
-  /** sospeso: gira piano, sale e scende */
-  idle: { spin: 0.5, bobAmp: 0.06, bobPeriod: 3.2 },
   /**
    * L'intensità dello spot della cima quando il tappo è sospeso: lo spot lo
    * segue (`gl/Lights.tsx`). Lo spot e non una luce sua: ogni luce in scena

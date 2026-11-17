@@ -1,14 +1,16 @@
 // Dimensioni, DPR e breakpoint, in un posto solo (spec 4.1).
 //
 // Il DPR va limitato: su un portatile retina `devicePixelRatio` è 2 e su certi
-// Android 3, e renderizzare una scena con vetro e bloom a 3× costa il triplo
-// per una differenza che non si vede. Il tetto è 1,75 su desktop e 1,5 su
-// mobile; il DPR adattivo (task 8.27) scenderà ancora da qui.
+// Android 3, e renderizzare una scena di vetro a 3× costa il triplo per una
+// differenza che non si vede. Il tetto è 1,5 ovunque (era 1,75 su desktop: i
+// pixel crescono col quadrato, e 1,75 voleva dire il 36% di lavoro in più per
+// bordi che l'antialias tiene già puliti); il DPR adattivo scende ancora da
+// qui sui PC che non ce la fanno.
 
 /** sotto questa larghezza è un telefono (spec 8.5); il layout vedi `portrait` */
 export const MOBILE_MAX_WIDTH = 768;
 
-export const DPR_CAP = { desktop: 1.75, mobile: 1.5 } as const;
+export const DPR_CAP = { desktop: 1.5, mobile: 1.5 } as const;
 
 /** attesa prima di ricalcolare: il resize arriva a raffica (spec 8.5) */
 export const RESIZE_DEBOUNCE_MS = 100;

@@ -29,7 +29,7 @@ export const BOTTLE = {
   bodyRadius: 0.656,
 } as const;
 
-/** Il tappo a corona: ci puntano lo spot e la maschera `reveal`. */
+/** Il tappo a corona: ci punta lo spot, ed è lui che salta via (`gl/Bottle.tsx`). */
 export const CAP = {
   minY: 4.0475,
   maxY: 4.1807,
@@ -73,7 +73,7 @@ export function yFromV(v: number): number {
   return LABEL_V_TO_Y.top - LABEL_V_TO_Y.span * v;
 }
 
-/** `y → v`, l'inversa: serve al debug delle fasce (task 8.10). */
+/** `y → v`, l'inversa. */
 export function vFromY(y: number): number {
   return (LABEL_V_TO_Y.top - y) / LABEL_V_TO_Y.span;
 }
@@ -81,20 +81,24 @@ export function vFromY(y: number): number {
 /**
  * `u → angolo` attorno a Y, in gradi: 0° è verso la camera di default
  * (asse +Z), positivo verso +X. L'etichetta copre ~270° in due strisce, con
- * due spicchi di vetro nudo in mezzo (78°–113° e 235°–303°).
+ * due spicchi di vetro nudo in mezzo (81°–103° e 235°–303°).
  *
  * Misurato sui vertici: u 0 → −57,1°; u 0,22 → +1,5° (il fronte guarda la
- * camera con `rotation.y = 0`); u 0,5 → 78,0°; u 0,55 → 113,2°; u 0,795 →
- * 180,2° (il retro, con `rotation.y = π`); u 1 → 235°.
+ * camera con `rotation.y = 0`); u 0,5 → 78,0°; u 0,5116 → 81,2°, l'ultima
+ * colonna del fronte; u 0,5136 → 103,4°, la prima del retro; u 0,795 →
+ * 180,2° (il retro, con `rotation.y = π`); u 1 → 235°. Nella texture le due
+ * strisce sono attaccate: la cucitura è fra quelle due colonne (`seamU`).
+ * Fra i capi delle strisce e queste rette lo scarto arriva a 1,5°.
  */
 export const LABEL_U_TO_DEG = {
-  front: { uMax: 0.5, deg0: -57, degSpan: 270 },
+  front: { deg0: -57, degSpan: 270 },
   back: { uMin: 0.55, deg0: 113, degSpan: 271 },
+  seamU: 0.5126,
 } as const;
 
 export function degFromU(u: number): number {
-  const { front, back } = LABEL_U_TO_DEG;
-  return u <= front.uMax
+  const { front, back, seamU } = LABEL_U_TO_DEG;
+  return u < seamU
     ? front.deg0 + front.degSpan * u
     : back.deg0 + back.degSpan * (u - back.uMin);
 }
@@ -103,77 +107,3 @@ export function degFromU(u: number): number {
 export function rotationYForU(u: number): number {
   return (-degFromU(u) * Math.PI) / 180;
 }
-
-/**
- * Le quattro fasce del retro (spec 3.4): i blocchi di testo che si accendono
- * uno per step. Le coordinate native sono i **pixel della texture**, perché è
- * lì che si leggono con un contagocce; altezza e arco in unità del modello si
- * ricavano dalle mappature misurate sopra.
- *
- * L'arco (`angleHalf`) è la mezza larghezza del blocco attorno al retro: con
- * un arco solo per tutte, la fascia stretta della raccolta differenziata si
- * accendeva larga come il paragrafo degli ingredienti, e la luce non
- * "inquadrava" niente. Il centro è sempre il retro (~178°, cioè π).
- */
-function fascia(pxTop: number, pxBottom: number, pxLeft: number, pxRight: number) {
-  const alto = yFromV(pxTop / LABEL.texture.height);
-  const basso = yFromV(pxBottom / LABEL.texture.height);
-  const sx = degFromU(pxLeft / LABEL.texture.width);
-  const dx = degFromU(pxRight / LABEL.texture.width);
-  return {
-    px: [pxTop, pxBottom] as const,
-    /** centro in unità del modello: va in `uFocusY` */
-    y: (alto + basso) / 2,
-    /** mezza altezza: va in `uFocusHalf` */
-    half: (alto - basso) / 2,
-    /** mezzo arco in radianti: va in `uFocusAngleHalf` */
-    angleHalf: (((dx - sx) / 2) * Math.PI) / 180,
-  };
-}
-
-export const BANDS = {
-  /** "ORDINARY BITTER" + ingredienti */
-  f1: fascia(85, 200, 1335, 1840),
-  /** "TRASFORMA LA CRISI IN PIACERE" + produttore */
-  f2: fascia(218, 312, 1283, 1893),
-  /** 4,2% Vol.alc, 33 cl, logo URANIO, pittogrammi */
-  f3: fascia(335, 550, 1262, 1900),
-  /** raccolta differenziata, scadenza, IG @uranio.beer */
-  f4: fascia(565, 745, 1420, 1752),
-} as const;
-
-export type BandName = keyof typeof BANDS;
-export const BAND_ORDER = ["f1", "f2", "f3", "f4"] as const;
-
-/**
- * Valori di partenza degli uniform degli shader (spec 6.5). Le fasce sono
- * sul retro, quindi l'arco acceso è centrato su π.
- */
-export const SHADER = {
-  revealY: 3.0,
-  revealSoft: 0.6,
-  revealFloor: 0.4,
-  focusSoft: 0.05,
-  focusAngle: Math.PI,
-  focusAngleHalf: 0.75,
-  /** sfumatura ai bordi dell'arco acceso, in radianti */
-  focusAngleSoft: 0.25,
-  /**
-   * quanto resta acceso il resto della bottiglia fuori dalla fascia, **in
-   * lineare** (vedi `patchBottle.ts`): 0,015 è ~0,13 a schermo, quasi nero
-   * come la lattina del riferimento, ma con la sagoma ancora leggibile
-   */
-  focusFloor: 0.015,
-  /** il bagliore rosso sul testo chiaro dentro la fascia */
-  focusGlowAmt: 0.9,
-  /** quanto è più chiaro il centro della fascia dei suoi bordi */
-  focusHot: 0.6,
-  /** l'alone colorato attorno alla fascia, additivo */
-  focusHalo: 0.12,
-  /** la lama di luce entra ed esce da qui, in spazio normale */
-  sweepFrom: -1.5,
-  sweepTo: 1.5,
-  sweepWidth: 0.16,
-  /** parcheggio fuori campo quando non c'è nessuna transizione */
-  sweepIdle: -2,
-} as const;

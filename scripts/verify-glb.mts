@@ -12,7 +12,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import { cloneBottle, prepareBottle } from "../src/gl/prepareBottle.ts";
 import { LIQUID } from "../src/config/materials.ts";
-import { BANDS, BOTTLE, CAP, LABEL, NODES } from "../src/config/bottle.ts";
+import { BOTTLE, CAP, LABEL, NODES } from "../src/config/bottle.ts";
 
 const SRC = "assets-src/Crisi_Economica_etichettata.glb";
 const DST = "public/models/crisi_economica.glb";
@@ -193,15 +193,6 @@ assert(
   vicino(etichetta.min.y, LABEL.minY, 0.01, "bordo basso dell'etichetta");
   vicino(etichetta.max.y, LABEL.maxY, 0.01, "bordo alto dell'etichetta");
   vicino(vetro.max.y - vetro.min.y, BOTTLE.height - (BOTTLE.maxY - CAP.maxY), 0.05, "altezza del vetro");
-
-  // le quattro fasce cadono dentro l'etichetta, con tutta la loro mezza altezza
-  for (const [nome, fascia] of Object.entries(BANDS)) {
-    assert(
-      fascia.y - fascia.half >= etichetta.min.y - 1e-3 &&
-        fascia.y + fascia.half <= etichetta.max.y + 1e-3,
-      `la fascia ${nome} (${(fascia.y - fascia.half).toFixed(3)}–${(fascia.y + fascia.half).toFixed(3)}) esce dall'etichetta`,
-    );
-  }
 
   // pivot: il centro geometrico è nell'origine, quindi ruotare non sposta
   b.pivot.rotation.set(0, Math.PI, 0);
@@ -393,6 +384,56 @@ birra: {
   copia.dispose();
   c.dispose();
   a.dispose();
+}
+
+// --- 4e. le copie lontane (2026-11-17): tappo ed etichetta costruiti invece
+// che presi dal modello (`geometriaLeggera`). L'etichetta leggera deve stare
+// dove sta quella vera: per ogni vertice vero si calcola, dalle sue UV, dove
+// lo metterebbe la mappatura misurata. La mappatura è lineare e lo
+// srotolamento vero se ne scosta fino a 1,5° verso i capi delle strisce:
+// 0,02 unità, meno di un millimetro sulla bottiglia vera (21 cm ≈ 4,18
+// unità) e un paio di pixel sulle copie, che sono lontane
+{
+  const { degFromU, yFromV } = await import("../src/config/bottle.ts");
+  const vera = prepareBottle(ottimizzato);
+  const leggera = prepareBottle(ottimizzato, { lowEnd: true, lowPoly: true });
+  const triangoli = (b: { meshes: Record<string, THREE.Mesh> }) =>
+    Object.values(b.meshes).reduce((n, m) => n + (m.geometry.index?.count ?? 0) / 3, 0);
+  console.log(`copia     ${triangoli(vera)} → ${triangoli(leggera)} triangoli`);
+  assert(triangoli(leggera) < triangoli(vera) / 3, "la copia leggera non è leggera");
+
+  const g = vera.meshes.etichetta.geometry;
+  const pos = g.attributes.position;
+  const uv = g.attributes.uv;
+  let peggio = 0;
+  for (let i = 0; i < pos.count; i++) {
+    const a = (degFromU(uv.getX(i)) * Math.PI) / 180;
+    const r = Math.hypot(pos.getX(i), pos.getZ(i));
+    const dx = pos.getX(i) - Math.sin(a) * r;
+    const dz = pos.getZ(i) - Math.cos(a) * r;
+    const dy = pos.getY(i) - yFromV(uv.getY(i));
+    peggio = Math.max(peggio, Math.hypot(dx, dy, dz));
+  }
+  console.log(`etichetta leggera: scarto massimo dalla vera ${peggio.toFixed(4)}`);
+  assert(peggio < 0.02, `l'etichetta leggera si scosta di ${peggio.toFixed(4)} da quella vera`);
+  const box = (m: THREE.Mesh) => new THREE.Box3().setFromBufferAttribute(m.geometry.attributes.position as THREE.BufferAttribute);
+  for (const nome of ["tappo", "etichetta"] as const) {
+    const [v, l] = [box(vera.meshes[nome]), box(leggera.meshes[nome])];
+    assert(
+      Math.abs(v.min.y - l.min.y) < 0.01 && Math.abs(v.max.y - l.max.y) < 0.01,
+      `${nome} leggero: altezza ${l.min.y.toFixed(3)}–${l.max.y.toFixed(3)} invece di ${v.min.y.toFixed(3)}–${v.max.y.toFixed(3)}`,
+    );
+  }
+  // senza birra il vetro perde la parete interna, che non si vede mai e nel
+  // finale costava millisecondi (`senzaParetiInterne`): restano la parete
+  // fuori, il labbro e il fondo
+  const glb = ottimizzato.getObjectByName("vetro") as THREE.Mesh;
+  const prima = glb.geometry.index!.count / 3;
+  const dopo = vera.meshes.vetro.geometry.index!.count / 3;
+  console.log(`vetro     ${prima} → ${dopo} triangoli senza la parete interna`);
+  assert(dopo < prima * 0.7 && dopo > prima * 0.4, `il vetro ha ${dopo} triangoli su ${prima}`);
+  leggera.dispose();
+  vera.dispose();
 }
 
 // --- 5. budget

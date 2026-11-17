@@ -1,6 +1,7 @@
-// DPR adattivo (spec 6.1): se il frame medio supera 20 ms per 2 s, la scena
-// scende di 0,25 di DPR, fino a 1. È la leva che costa meno qualità per più
-// frame: i pixel da riempire calano col quadrato del DPR.
+// DPR adattivo (spec 6.1): se il frame medio supera 20 ms per una finestra
+// (`ADAPTIVE_DPR`), la scena scende di 0,25 di DPR, fino al minimo. È la leva
+// che costa meno qualità per più frame: i pixel da riempire calano col
+// quadrato del DPR.
 //
 // Logica pura, senza DOM né R3F: la si prova in Node con tempi finti
 // (`npm run verify:core`). La applica il `Driver` di `gl/Stage.tsx`.
@@ -12,7 +13,10 @@ export class AdaptiveDpr {
   private t = 0;
   private n = 0;
 
-  /** Da capo, riscaldamento compreso: dopo un resize il DPR riparte dal tetto. */
+  /**
+   * Da capo, riscaldamento compreso: dopo un resize il DPR riparte dal tetto,
+   * dopo un risveglio del loop si riprende a misurare da dove si era.
+   */
   reset() {
     this.warm = 0;
     this.t = 0;

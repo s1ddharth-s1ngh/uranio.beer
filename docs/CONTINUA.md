@@ -37,6 +37,87 @@ npm run verify:glb    # il modello e la sua preparazione
 Quando arrivi in fondo al 8.28, fermati e scrivi un resoconto finale di cosa
 è stato fatto e cosa resta non verificabile.
 
+## Quarto giro del 2026-11-17: ferma, intera, naturale, leggera
+
+Le note del proprietario sulla sezione 2, tutte insieme: andava a scatti
+già all'arrivo dal hero, le bottiglie "shakeravano come se esplodessero", il
+mouse muoveva tutto, lo sfondo studio bianco e nero non piaceva, il fronte e
+il retro mostravano solo un pezzo di bottiglia, l'effetto che spegneva tutto
+per accendere una fascia era "per nulla naturale", logotipo e icone "fatti da
+AI". Priorità: deve girare sul PC più debole in commercio (poi i telefoni).
+
+1. **Il tremolio era un bug di unità.** Con `frameloop="never"` R3F ricava
+   delta e `clock.elapsedTime` dal timestamp passato ad `advance()`, così
+   com'è; `Stage.tsx` passava `time * 1000`, quindi millisecondi. La vita a
+   riposo (periodo 5 s → 5 ms), il dondolio dell'anello e il giro del tappo
+   sospeso diventavano rumore a ogni frame. Ora `advance(time)`, in secondi.
+   Vita a riposo, dondolio e giro del tappo sono comunque tolti: a riposo le
+   bottiglie stanno ferme.
+2. **Il cursore è locale** (`core/Pointer.ts`): ogni bottiglia si gira verso
+   il cursore in base a quanto le è vicino sullo schermo (campana di raggio
+   `POINTER.sigma`), le altre quasi niente; fuori dalla finestra l'effetto si
+   spegne piano. Prima girava tutta la scena, anello compreso.
+3. **Lo sfondo è quello del hero**: il nero della pagina e lo stesso
+   `Starfield` (più `FallingStars`, le stelle cadenti fatte dalla sessione del
+   hero) dentro il canvas della scena (`gl/Stars.tsx`). Via il secondo canvas
+   WebGL con lo shader a nebbia (`gl/Background.ts`).
+4. **Via il post-processing** (`gl/PostFX.tsx`): niente render target a mezza
+   precisione e tre passaggi a schermo intero; antialias MSAA del contesto,
+   niente tone mapping (col composer three non lo applicava, quindi i colori
+   restano quelli).
+5. **Via le maschere** (cima accesa, fascia accesa, lama di luce, alone): la
+   patch dei materiali (`materials/patchBottle.ts`) tiene solo la penombra
+   (`uDim`) e la luce sulla faccia, prima del tone mapping. Via le fasce
+   (`BANDS`, `SHADER`) e `?debug=bands`.
+6. **Bottiglia intera** dallo step 1 al 5 (camera a 11–11,5, a destra del
+   testo); il tappo salta prima che lei cominci a girare, così si vede.
+   Sul retro la bottiglia gira di uno spicchio a step, con luce vera.
+7. **Anello di cinque**, un grappolo stretto (`RING`, `maxOffset` 2); la fila
+   del finale resta di nove.
+8. **Copie leggere.** Nel GLB il tappo ha 19.836 triangoli e l'etichetta
+   16.384: da lontano sono triangoli più piccoli di un pixel, e il finale con
+   nove bottiglie era il frame più caro. Le copie di anello e fila usano un
+   tappo cilindrico e due strisce d'etichetta costruite con la mappatura
+   misurata (`prepareBottle(..., { lowPoly: true })`), il tappo con la gonna
+   a 21 denti come la corona vera: ~5.500 triangoli
+   invece di ~45 mila; `verify:glb` controlla che l'etichetta leggera stia
+   entro 0,02 da quella vera. La protagonista resta quella del modello.
+   Misurando è venuta fuori la cucitura fra le due strisce della texture: a u
+   0,5126 e non a 0,5 (`LABEL_U_TO_DEG.seamU`).
+   Poi, con le ablazioni sul finale (1920×1080, ~38 ms di partenza): senza
+   antialias −3,5 ms, senza parete interna del vetro −2,5…4, senza le due
+   luci direzionali rosse −2…3, tutte e tre ~27 ms. La parete interna è
+   tolta (`senzaParetiInterne`: il vetro è opaco, non si vede mai; resta solo
+   se c'è la birra, che la usa per il profilo); il profilo rosso è passato
+   dalle luci all'ambiente riflesso (`ENV.rims`), dove non costa niente.
+   L'antialias resta: senza, sugli schermi a densità 1 i bordi delle
+   bottiglie scalettano, e sui PC lenti c'è già il DPR adattivo.
+9. **DPR**: tetto 1,5 anche su desktop (era 1,75); il DPR adattivo misura su
+   finestre di 1 s, scende fino a 0,75, ignora i frame sotto il Loader e
+   riparte da capo a ogni risveglio del loop (il passaggio dal hero).
+10. **Testi e interfaccia** (agent a parte): via il logotipo a pennello, font
+   serif, nuove animazioni dei testi, l'indice degli step al posto delle
+   icone, niente `backdrop-filter` sopra il canvas.
+
+**Costo GPU**, build di produzione, DPR 1, `scripts/bench-experience.mjs`
+(headless shell con ANGLE D3D11 sulla iGPU AMD della macchina, coda della
+GPU svuotata con `readPixels`; il numero è il costo della pagina, meno il
+pavimento di ~17 ms che la shell paga comunque a ogni frame). Prima = HEAD
+`7669dac`, dopo = questo giro, misurati nella stessa sessione a GPU ferma:
+
+| ms a frame | 1440×900 prima | dopo | 1920×1080 prima | dopo |
+| --- | ---: | ---: | ---: | ---: |
+| passaggio dal hero | 7,4 | 2,0 | 6,9 | 2,7 |
+| 0 gruppo | 10,8 | 2,3 | 16,7 | 6,5 |
+| 1 fronte | 11,1 | 1,9 | 15,7 | 1,8 |
+| 2–5 retro | 10,2–11,0 | 2,2–2,5 | 15,1–15,7 | 3,6–5,0 |
+| 6 fila e finale | 15,7 | 7,1 | 22,6 | 14,8 |
+
+Lo script misura anche da solo: `npx vite build --outDir <dir>` e poi
+`node scripts/bench-experience.mjs --dist <dir>`. Con un altro browser
+headless sulla stessa GPU (altre sessioni, Playwright) i numeri si gonfiano:
+il minimo e la mediana delle finestre che divergono sono il segnale.
+
 ## Terzo giro del 2026-11-05: vetro, grana, curve, costo
 
 Un giro di pulizia su grafica e animazione, tutto guardato con Playwright

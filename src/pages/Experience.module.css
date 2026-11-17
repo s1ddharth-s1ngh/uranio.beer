@@ -44,22 +44,15 @@
   pointer-events: none;
 }
 
-/* 1 · sfondo WebGL: gradiente studio, alone degli step, nebbia del finale */
-.bg {
-  z-index: 0;
-  /* un canvas è un elemento sostituito: `inset: 0` non lo stira, resta
-     grande quanto il suo buffer. Con lo sfondo a DPR × 0,5 copriva un
-     quarto dello schermo (visto negli screenshot del 8.28) */
-  width: 100%;
-  height: 100%;
-}
+/* 1 · lo sfondo è il nero di .page, come nella sezione 1; le stelle le
+   disegna il canvas della scena (gl/Stars.tsx): un canvas WebGL in meno */
 
 /* 2 · la scritta gigante del finale, DIETRO la bottiglia */
 .bigword {
   z-index: 1;
 }
 
-/* 3 · scena WebGL (bottiglie, faro, piedistallo), canvas trasparente */
+/* 3 · scena WebGL (stelle, bottiglie, faro, piedistallo), canvas trasparente */
 .gl {
   z-index: 2;
 }

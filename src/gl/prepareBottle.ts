@@ -3,12 +3,13 @@
 // Due cose non negoziabili, e sono il motivo per cui questa funzione esiste
 // invece di montare il GLB così com'è:
 //
-// 1. **Un solo spazio oggetto per le tre mesh.** Gli shader `reveal` e `focus`
-//    (task 8.10) decidono cosa è acceso leggendo `position.y` del vertice: se
+// 1. **Un solo spazio oggetto per le tre mesh.** Tutte le misure di
+//    `config/bottle.ts` sono altezze nello spazio del modello: se
 //    vetro, tappo ed etichetta hanno trasformazioni diverse — e il tappo ne ha
 //    una con scala non uniforme (≈ 0,56 / 0,067 / 0,56) — la stessa altezza
-//    significa tre cose diverse e la fascia accesa si spezza. Quindi si fa il
-//    bake della matrice mondo nella geometria e si azzera la trasformazione.
+//    significa tre cose diverse, e misure, ancore e volo del tappo
+//    (`config/bottle.ts`) non tornano più. Quindi si fa il bake della matrice
+//    mondo nella geometria e si azzera la trasformazione.
 // 2. **Non si tocca la scena di partenza.** `useGLTF` tiene una cache e la
 //    stessa scena la prepara due volte (la protagonista e la base della
 //    gamma, `gl/Carousel.tsx`): se si bakasse la geometria originale, la
@@ -16,7 +17,16 @@
 //    tutto quello che si modifica.
 
 import * as THREE from "three";
-import { BOTTLE, LABEL, NODES, type NodeName } from "../config/bottle.ts";
+import {
+  BOTTLE,
+  CAP,
+  degFromU,
+  LABEL,
+  LABEL_U_TO_DEG,
+  NODES,
+  yFromV,
+  type NodeName,
+} from "../config/bottle.ts";
 import {
   CAP_MATERIAL,
   GLASS,
@@ -34,6 +44,11 @@ import {
 export interface PrepareOptions {
   /** GPU debole: via la `transmission`, che costa un passaggio in più */
   lowEnd?: boolean;
+  /**
+   * Bottiglia vista da lontano (le copie dell'anello e della fila): tappo ed
+   * etichetta leggeri invece di quelli del modello (`geometriaLeggera`)
+   */
+  lowPoly?: boolean;
   /** `renderer.capabilities.getMaxAnisotropy()`; 1 = nessuna anisotropia */
   maxAnisotropy?: number;
 }
@@ -46,15 +61,8 @@ export interface PreparedBottle {
   meshes: Record<NodeName, THREE.Mesh>;
   /** la birra dentro (spec 6.10); `null` su GPU deboli o se spenta da config */
   liquid: THREE.Mesh | null;
-  /** le maschere degli shader (spec 6.5): ci scrive dentro `StateMapper` */
+  /** la luce della bottiglia (`materials/patchBottle.ts`): penombra e faccia */
   uniforms: BottleUniforms;
-  /**
-   * Le maschere del tappo. Sue, perché quando si stacca e resta sospeso
-   * (`gl/Bottle.tsx`) non deve spegnersi con la fascia accesa: le maschere
-   * leggono la posizione **del modello**, e per loro il tappo sarebbe ancora
-   * sul collo, fuori dalla fascia. Nei cloni è lo stesso oggetto di `uniforms`.
-   */
-  capUniforms: BottleUniforms;
   dispose(): void;
 }
 
@@ -215,19 +223,135 @@ function profiloBirra(vetro: THREE.BufferGeometry): THREE.Vector2[] {
   return punti;
 }
 
+/**
+ * Toglie la parete interna del vetro: i triangoli che guardano verso l'asse.
+ *
+ * Il vetro ha due pareti, e con la trasmissione a 0 quella interna non si vede
+ * mai: il vetro è opaco e scuro. Ma si disegna lo stesso, e nella fila del
+ * finale, con nove bottiglie grandi, valeva 2,5–4 ms a frame su una GPU
+ * integrata a 1920×1080 (misurato il 2026-11-17): rasterizzazione e test di
+ * profondità di quasi metà dei triangoli del vetro, dietro alla parete fuori.
+ * Il fondo e il labbro (normali verticali) restano. Serve solo senza birra:
+ * il profilo della birra si misura proprio sulla parete interna.
+ */
+function senzaParetiInterne(g: THREE.BufferGeometry) {
+  const p = g.attributes.position;
+  const idx = g.index;
+  if (!idx) return;
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  const n = new THREE.Vector3();
+  const m = new THREE.Vector3();
+  const fuori: number[] = [];
+  for (let t = 0; t < idx.count; t += 3) {
+    a.fromBufferAttribute(p, idx.getX(t));
+    b.fromBufferAttribute(p, idx.getX(t + 1));
+    c.fromBufferAttribute(p, idx.getX(t + 2));
+    n.subVectors(c, b).cross(m.subVectors(a, b)).normalize();
+    m.copy(a).add(b).add(c).divideScalar(3);
+    // la normale contro la direzione radiale: sotto −0,2 guarda l'asse
+    const radiale = (n.x * m.x + n.z * m.z) / (Math.hypot(m.x, m.z) || 1);
+    if (radiale < -0.2) continue;
+    fuori.push(idx.getX(t), idx.getX(t + 1), idx.getX(t + 2));
+  }
+  g.setIndex(fuori);
+}
+
+/** spicchi del tappo e di ciascuna striscia dell'etichetta leggeri */
+const SPICCHI = 32;
+
+/**
+ * Tappo ed etichetta per le bottiglie viste da lontano, costruiti invece che
+ * presi dal modello.
+ *
+ * Nel GLB il tappo ha 19.836 triangoli (la corona, 180 spicchi) e
+ * l'etichetta 16.384: nell'anello e nella fila il tappo è largo una trentina
+ * di pixel, cioè decine di triangoli per pixel, e la GPU colora comunque un
+ * quadrato di 2 × 2 pixel per ognuno; con l'antialias del contesto anche di
+ * più. Nove bottiglie così erano il frame più caro di tutta l'esperienza
+ * (misurato il 2026-11-17). Da lontano un cilindro a 32 spicchi e due
+ * strisce cilindriche con la stessa mappatura (`LABEL_U_TO_DEG`,
+ * `yFromV`, misurate sul modello) non si distinguono: ~9 mila triangoli a
+ * copia invece di ~45 mila. Il vetro resta quello vero: è la sagoma.
+ */
+function geometriaLeggera(nome: Exclude<NodeName, "vetro">): THREE.BufferGeometry {
+  if (nome === "tappo") {
+    // un tronco di cono con la gonna a denti, ventuno come la corona vera e
+    // due spicchi per dente: un cilindro liscio nella fila del finale si
+    // leggeva come un cappello a cilindro accanto al tappo vero
+    const DENTI = 21;
+    const altezza = CAP.maxY - CAP.minY;
+    const g = new THREE.CylinderGeometry(CAP.radius * 0.92, CAP.radius, altezza, DENTI * 2);
+    const p = g.attributes.position;
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i);
+      const z = p.getZ(i);
+      if (p.getY(i) > -altezza / 2 + 1e-6 || Math.hypot(x, z) < 1e-6) continue;
+      // sull'anello in basso `cos(21θ)` vale ±1 a vertici alterni: denti
+      const k = 1 + 0.06 * Math.cos(DENTI * Math.atan2(x, z));
+      p.setXYZ(i, x * k, p.getY(i), z * k);
+    }
+    g.translate(0, CAP.centerY, 0);
+    g.computeBoundingBox();
+    g.computeBoundingSphere();
+    return g;
+  }
+  // l'etichetta: due strisce, il fronte e il retro, che nella texture si
+  // toccano alla cucitura e sul vetro lasciano in mezzo lo spicchio nudo, come
+  // nel modello. Un solo anello di quadrilateri in altezza: lì il corpo è un
+  // cilindro dritto
+  const { seamU } = LABEL_U_TO_DEG;
+  const pos: number[] = [];
+  const nor: number[] = [];
+  const uv: number[] = [];
+  const idx: number[] = [];
+  for (const [u0, u1] of [[0, seamU], [seamU, 1]]) {
+    const primo = pos.length / 3;
+    for (let i = 0; i <= SPICCHI; i++) {
+      const u = u0 + ((u1 - u0) * i) / SPICCHI;
+      const a = (degFromU(u) * Math.PI) / 180;
+      // 0° guarda la camera di default (+z), positivo verso +x
+      const x = Math.sin(a);
+      const z = Math.cos(a);
+      for (const v of [0, 1]) {
+        pos.push(x * LABEL.radius, yFromV(v), z * LABEL.radius);
+        nor.push(x, 0, z);
+        uv.push(u, v);
+      }
+    }
+    // sopra e sotto dello spicchio i, poi dell'i+1: antiorari visti da fuori
+    for (let i = 0; i < SPICCHI; i++) {
+      const k = primo + i * 2;
+      idx.push(k, k + 1, k + 2, k + 2, k + 1, k + 3);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
+  g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx);
+  g.computeBoundingBox();
+  g.computeBoundingSphere();
+  return g;
+}
+
 export function prepareBottle(
   source: THREE.Object3D,
-  { lowEnd = false, maxAnisotropy = 1 }: PrepareOptions = {},
+  { lowEnd = false, lowPoly = false, maxAnisotropy = 1 }: PrepareOptions = {},
 ): PreparedBottle {
   source.updateMatrixWorld(true);
 
   const geometrie = {} as Record<NodeName, THREE.BufferGeometry>;
-  for (const nome of NODES) geometrie[nome] = bake(meshByName(source, nome));
+  for (const nome of NODES) {
+    geometrie[nome] =
+      lowPoly && nome !== "vetro" ? geometriaLeggera(nome) : bake(meshByName(source, nome));
+  }
 
   // Controllo di coerenza: tutte le costanti di `config/bottle.ts` e con esse
-  // fasce, ancore e keyframe dipendono dall'altezza del modello. Se
+  // ancore, volo del tappo e keyframe dipendono dall'altezza del modello. Se
   // l'ottimizzazione la cambia è meglio fermarsi che disegnare in silenzio una
-  // scena in cui la fascia accesa non cade sul paragrafo giusto.
+  // scena in cui il tappo si stacca a mezz'aria e le ancore sbagliano.
   const box = new THREE.Box3();
   for (const g of Object.values(geometrie)) box.union(g.boundingBox!);
   const altezza = box.max.y - box.min.y;
@@ -274,14 +398,14 @@ export function prepareBottle(
     materiali.etichetta.map = mappa;
   }
 
-  // Le tre maschere (cima accesa, fascia accesa, lama di luce) si innestano
-  // nei materiali standard invece di sostituirli: il vetro fisico e il metallo
-  // devono continuare a illuminarsi come li illumina three, le maschere
-  // decidono solo quanta di quella luce resta.
+  // La penombra e la luce sulla faccia si innestano nei materiali standard
+  // invece di sostituirli: il vetro fisico e il metallo devono continuare a
+  // illuminarsi come li illumina three, la patch decide solo quanta di quella
+  // luce resta. Il tappo condivide gli uniform: la faccia è solo
+  // dell'etichetta, e staccato si accende e si spegne con la bottiglia
   const uniforms = createBottleUniforms();
-  const capUniforms = createBottleUniforms();
   patchBottleMaterial(materiali.vetro, uniforms);
-  patchBottleMaterial(materiali.tappo, capUniforms);
+  patchBottleMaterial(materiali.tappo, uniforms);
   patchBottleMaterial(materiali.etichetta, uniforms, true);
 
   const inner = new THREE.Group();
@@ -325,6 +449,8 @@ export function prepareBottle(
     inner.add(liquid);
   }
 
+  if (!liquid) senzaParetiInterne(geometrie.vetro);
+
   // Il centro geometrico va nell'origine del pivot: così ogni rotazione gira
   // attorno alla pancia della bottiglia e non attorno al suo fondo.
   inner.position.y = -BOTTLE.centerY;
@@ -339,7 +465,6 @@ export function prepareBottle(
     meshes,
     liquid,
     uniforms,
-    capUniforms,
     dispose() {
       for (const g of Object.values(geometrie)) g.dispose();
       for (const m of Object.values(materiali)) m.dispose();
@@ -355,8 +480,8 @@ export function prepareBottle(
  *
  * Le geometrie sono 24 mila vertici e la texture 133 KB: duplicarle otto volte
  * sarebbe tutta memoria GPU buttata, perché le bottiglie sono identiche. I
- * materiali invece devono essere distinti, perché ognuno ha la sua luce — la
- * protagonista usa reveal, focus e lama, le laterali solo `uDim`.
+ * materiali invece devono essere distinti, perché ognuno ha la sua luce: le
+ * laterali dell'anello in penombra, quelle della fila quasi piene.
  *
  * `clone()` di un materiale si porta dietro anche `onBeforeCompile`, e con
  * essa la chiusura sugli uniform **dell'originale**: senza ri-innestare la
@@ -399,7 +524,6 @@ export function cloneBottle(src: PreparedBottle): PreparedBottle {
     meshes,
     liquid,
     uniforms,
-    capUniforms: uniforms,
     dispose() {
       // le geometrie no, e la birra nemmeno: sono dell'originale, che le
       // libera lui

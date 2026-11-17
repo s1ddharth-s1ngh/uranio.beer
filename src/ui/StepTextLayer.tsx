@@ -6,14 +6,16 @@ import { prefersReducedMotion } from "../hooks/usePrefersReducedMotion";
 import { StepText } from "./StepText.ts";
 
 /**
- * Il testo che si vede a uno step: solo le quattro fasce, quelle con
- * un'icona.
+ * Il testo che si vede a uno step: quello degli step che hanno un
+ * paragrafo da raccontare, il fronte e le quattro fasce.
  *
- * Nell'hero il nome ha il suo strato (`HeroUi`), nella gamma parla la fila
- * di bottiglie e nel finale c'è la scritta gigante (task 8.20): il blocco a
- * sinistra è dei soli step raccontati (spec 7.5).
+ * Nell'anello parlano le etichette e l'invito a scorrere (`HeroUi`), nella
+ * gamma la fila di bottiglie e nel finale c'è la scritta gigante (task
+ * 8.20): il blocco a sinistra è dei soli step raccontati (spec 7.5). Il
+ * fronte ci sta insieme al retro perché passando allo step 2 il testo
+ * cambi con la stessa animazione, senza spostarsi.
  */
-const testoPer = (step: number) => (STEPS[step]?.icon ? STEPS[step] : null);
+const testoPer = (step: number) => (STEPS[step]?.body ? STEPS[step] : null);
 
 /**
  * Lo strato dei testi degli step.

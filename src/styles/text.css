@@ -1,42 +1,48 @@
 /* La scala tipografica dell'esperienza (spec 8.3). Tre classi, non una di
    più: titolo, corpo, etichettina. Tutto il resto è composizione. */
 
-/* Display: il corrispettivo libero del corsivo pesante del riferimento.
-   Archivo è variabile su due assi — peso e larghezza — e li usa entrambi:
-   900 di peso, 118 di larghezza. Senza `font-stretch` resta a 100 e il
-   titolo perde la compattezza che lo fa leggere come un logotipo. */
+/* Display: un serif da copertina in maiuscolo e minuscolo, grande e con
+   l'interlinea stretta. Instrument Serif ha un peso solo, il 400: niente
+   grassetto sintetico, l'eleganza viene dal corpo e dal contrasto col
+   sans sottile del testo. */
 .t-display {
   font-family: var(--u-font-display);
-  font-weight: 900;
-  font-stretch: 118%;
-  font-style: italic;
-  text-transform: uppercase;
-  font-size: clamp(40px, 4.6vw, 72px);
-  line-height: 0.88;
+  font-weight: 400;
+  font-size: clamp(48px, 7vw, 104px);
+  line-height: 0.95;
   letter-spacing: -0.01em;
+  /* righe di lunghezza simile invece di una parola sola a capo: SplitText
+     misura le righe dopo l'impaginazione, quindi le rispetta */
+  text-wrap: balance;
   color: var(--u-white);
   /* le righe entrano da sotto una maschera (task 8.18): il margine
      tipografico va tolto o la maschera taglia a metà le lettere alte */
   margin: 0;
 }
 
+/* Corpo: Inter leggero e arioso. Il bianco su nero "ingrassa" il testo
+   all'occhio, quindi il 300 qui si legge come un 400 su bianco */
 .t-body {
   font-family: var(--u-font-body);
-  font-weight: 400;
-  font-size: clamp(16px, 1.25vw, 19px);
-  line-height: 1.45;
+  font-weight: 300;
+  font-size: clamp(15px, 1.1vw, 17px);
+  line-height: 1.6;
   /* 46ch: la misura oltre la quale l'occhio perde il capo della riga */
   max-width: 46ch;
+  /* niente parola orfana sull'ultima riga */
+  text-wrap: pretty;
   color: var(--u-white);
   margin: 0;
 }
 
+/* Etichetta: piccola, spaziata larga. La spaziatura è ciò che la fa
+   leggere come un'annotazione e non come un bottone */
 .t-label {
   font-family: var(--u-font-body);
   font-weight: 500;
-  font-size: 12px;
+  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.18em;
   line-height: 1.2;
   color: var(--u-white);
   margin: 0;
